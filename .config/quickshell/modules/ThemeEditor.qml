@@ -68,6 +68,9 @@ FloatingWindow {
             loadProc.running = true
             wallProc.running = true
             card.forceActiveFocus()
+            // take focus: dim_inactive would otherwise leave this IPC-opened
+            // popup permanently darkened (no nodim rule on this Hyprland)
+            Quickshell.execDetached(["sh", "-c", "sleep 0.4; hyprctl dispatch focuswindow 'title:ThemeEditor' >/dev/null 2>&1"])
             openAnim.restart()
         } else closeAnim.restart()
     }
