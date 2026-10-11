@@ -75,14 +75,15 @@ FloatingWindow {
     property string searchBuf: ""
 
     property var seenKeys: ({})
+    property var recentMsgs: []
     property bool primed: false
     property int pollStart: 0
 
     title: "PhoneBridge"
     implicitWidth: 700
-    implicitHeight: 700
-    minimumSize: Qt.size(700, 700)
-    maximumSize: Qt.size(700, 700)
+    implicitHeight: 800
+    minimumSize: Qt.size(700, 800)
+    maximumSize: Qt.size(700, 800)
     color: "transparent"
     visible: root.open || closeAnim.running
 
@@ -129,7 +130,7 @@ FloatingWindow {
     // body), so key-only dedup eats every message after the first per chat.
     // Fix: richest record per key wins each batch (detailed beats the empty
     // summary dupes), and a known key re-pings when its sender/body changes.
-    function notifSig(f) { return (f.sender || "") + "|" + (f.body || "") }
+    function notifSig(f) { return (f.sender || "") + "|" + (f.group || "") + "|" + (f.body || "") }
     function scanNotifs(fresh) {
         var best = {}, order = []
         for (var i = 0; i < fresh.length; i++) {
@@ -141,10 +142,13 @@ FloatingWindow {
             }
         }
         if (!root.primed) {
+            var seed = []
             for (var p = 0; p < order.length; p++) {
                 var b = best[order[p]].rec
                 root.seenKeys[b.key] = root.notifSig(b)
+                if (b.sender || b.body || b.group) seed.push({ app: b.label, sender: b.sender || "", group: b.group || "", body: b.body ? String(b.body) : "", ts: Date.now() })
             }
+            if (seed.length > 0) root.recentMsgs = seed.concat(root.recentMsgs).slice(0, 30)
             root.primed = true
             return
         }
@@ -164,8 +168,13 @@ FloatingWindow {
     }
     function pingNotif(f) {
         var who = f.sender || ("New " + f.label + " notification")
+        if (f.sender && f.group) who += " (" + f.group + ")"
+        else if (!f.sender && f.group) who = f.group
         var body = f.body ? String(f.body) : (f.sender ? "via " + f.label : "")
         Quickshell.execDetached(["notify-send", "-a", f.label, who, body])
+        // safety net: toasts vanish, the panel feed keeps the last 30
+        var entry = { app: f.label, sender: f.sender || "", group: f.group || "", body: f.body ? String(f.body) : "", ts: Date.now() }
+        root.recentMsgs = [entry].concat(root.recentMsgs).slice(0, 30)
     }
 
     function ringPhone() {
@@ -359,9 +368,9 @@ FloatingWindow {
     }
     Timer {
         id: notifTimer
-        // 10s background: WhatsApp stacks follow-ups onto one shade entry and
-        // the shade is ephemeral — 30s missed anything read/dismissed on-phone
-        interval: root.open ? 4000 : 10000
+        // 5s background: the shade is ephemeral — anything read/dismissed
+        // on-phone between polls is lost forever. Costs a dumpsys per poll.
+        interval: root.open ? 4000 : 5000
         running: root.connected
         repeat: true
         onTriggered: {
@@ -1000,9 +1009,9 @@ FloatingWindow {
             anchors.margins: 16
             spacing: 10
 
-            // HEIGHT BUDGET 700: margins 32 + main row 640 + 10 + footer 18.
-            // Rail fixed 568 (104+70+112+160+32 + 9x10 gaps) + spacer 72.
-            // Right: drop 120 + head ~16 + browser fill (~484) + 2x10 gaps.
+            // HEIGHT BUDGET 800: margins 32 + main row 740 + 10 + footer 18.
+            // Rail fixed 728 (104+70+112+150+160+32 + gaps) + spacer ~12.
+            // Right: drop 120 + head ~16 + browser fill (~584) + 2x10 gaps.
             // FOCAL: phone file list (right, fills). Rank2: status rail. Rank3: footer.
             RowLayout {
                 Layout.fillWidth: true
@@ -1154,6 +1163,69 @@ FloatingWindow {
                                 Layout.fillWidth: true
                             }
                             Btn { label: root.hotspotOn ? "Turn off" : "Turn on"; lit: root.hotspotOn; Layout.fillWidth: true; tapped: () => root.toggleHotspot() }
+                        }
+                    }
+                    // ── message feed: toasts vanish, the last 30 stay ──
+                    Surface {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 150
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            anchors.topMargin: 10
+                            anchors.bottomMargin: 12
+                            spacing: 4
+                            Cap { text: "MESSAGES · LAST 30" }
+                            ListView {
+                                id: msgList
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                spacing: 6
+                                model: root.recentMsgs
+                                boundsBehavior: Flickable.StopAtBounds
+                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                                delegate: Item {
+                                    required property var modelData
+                                    width: msgList.width
+                                    height: msgCol.implicitHeight
+                                    ColumnLayout {
+                                        id: msgCol
+                                        width: parent.width
+                                        spacing: 1
+                                        Text {
+                                            text: (modelData.sender !== "" ? modelData.sender : modelData.app) + (modelData.group !== "" ? " (" + modelData.group + ")" : "") + " · " + new Date(modelData.ts).toLocaleTimeString(Qt.locale(), "hh:mm")
+                                            color: colors.alpha(colors.outline, 0.85)
+                                            font.family: colors.fontSans
+                                            font.pixelSize: 9
+                                            font.weight: Font.Bold
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                        Text {
+                                            text: modelData.body !== "" ? modelData.body : "new " + modelData.app + " activity"
+                                            color: colors.foreground
+                                            font.family: colors.fontSans
+                                            font.pixelSize: 11
+                                            wrapMode: Text.WordWrap
+                                            maximumLineCount: 2
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+                                Text {
+                                    anchors.fill: parent
+                                    visible: msgList.count === 0
+                                    text: "New WhatsApp and Telegram pings land here"
+                                    color: colors.alpha(colors.outline, 0.55)
+                                    font.family: colors.fontSans
+                                    font.pixelSize: 10
+                                    wrapMode: Text.WordWrap
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
                         }
                     }
                     GridLayout {
