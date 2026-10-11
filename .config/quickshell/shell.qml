@@ -196,6 +196,30 @@ ShellRoot {
         function onOpenChanged() { if (btLoader.item && !btLoader.item.open) btOpen = false }
     }
 
+    // ThemeEditor — post-wallpaper tweaks (SUPER ALT G)
+    property bool teOpen: false
+    IpcHandler {
+        target: "themeedit"
+        function toggle(): void {
+            if (teOpen && teLoader.status === Loader.Loading) return
+            teOpen = !teOpen
+        }
+        function open(): void { teOpen = true }
+    }
+    Loader {
+        id: teLoader
+        active: teOpen || teWarm
+        asynchronous: true
+        source: "modules/ThemeEditor.qml"
+        onLoaded: { teWarm = true; item.colors = barPalette; item.open = true }
+    }
+    property bool teWarm: false
+    onTeOpenChanged: { if (teLoader.item) teLoader.item.open = teOpen }
+    Connections {
+        target: teLoader.item
+        function onOpenChanged() { if (teLoader.item && !teLoader.item.open) teOpen = false }
+    }
+
     // GitHubDash — toggle + close. Background notify + cache warming live in
     // resident GitHubPoller, so this Loader is display-only.
     property bool ghOpen: false

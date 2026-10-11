@@ -513,6 +513,8 @@ FloatingWindow {
     function setAsWallpaper(path){
         if(!path) return
         Quickshell.execDetached(["sh","-c","$HOME/.local/bin/set-wallpaper '"+path.replace(/'/g,"'\\''")+"' & disown"])
+        // explicit pick → open the theme editor for mode/scheme/contrast
+        Quickshell.execDetached(["sh","-c","sleep 2; quickshell -p ~/.config/quickshell ipc call themeedit open >/dev/null 2>&1"])
     }
     function toggleSelect(w){
         if(!w) return
