@@ -103,7 +103,7 @@ FloatingWindow {
                 if (!o) return
                 if (o.mode === "dark" || o.mode === "light") root.mode = o.mode
                 if (typeof o.scheme === "string" && o.scheme.indexOf("scheme-") === 0) root.scheme = o.scheme
-                if (typeof o.contrast === "number" && isFinite(o.contrast)) root.contrast = Math.min(1, Math.max(-1, o.contrast))
+                root.contrast = 0.2   // stale files may hold slider-era values; fixed now
             }
         }
     }
