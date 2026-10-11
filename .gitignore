@@ -133,3 +133,4 @@ plan.md
 .config/zathura/zathurarc
 .config/zed/settings.json
 .config/zed/themes/matugen.json
+.config/environment.d/opencode.conf
