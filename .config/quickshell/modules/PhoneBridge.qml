@@ -74,7 +74,7 @@ FloatingWindow {
     property bool searching: false
     property string searchBuf: ""
 
-    property var seenKeys: []
+    property var seenKeys: ({})
     property bool primed: false
     property int pollStart: 0
 
@@ -125,21 +125,47 @@ FloatingWindow {
         batteryProc.running = true
     }
 
+    // WhatsApp/Telegram STACK follow-ups onto one shade entry (same key, new
+    // body), so key-only dedup eats every message after the first per chat.
+    // Fix: richest record per key wins each batch (detailed beats the empty
+    // summary dupes), and a known key re-pings when its sender/body changes.
+    function notifSig(f) { return (f.sender || "") + "|" + (f.body || "") }
     function scanNotifs(fresh) {
+        var best = {}, order = []
+        for (var i = 0; i < fresh.length; i++) {
+            var r = fresh[i]
+            var score = (r.sender ? 2 : 0) + (r.body ? 1 : 0)
+            if (!best[r.key] || score > best[r.key].score) {
+                if (!best[r.key]) order.push(r.key)
+                best[r.key] = { rec: r, score: score }
+            }
+        }
         if (!root.primed) {
-            for (var p = 0; p < fresh.length; p++) root.seenKeys.push(fresh[p].key)
+            for (var p = 0; p < order.length; p++) {
+                var b = best[order[p]].rec
+                root.seenKeys[b.key] = root.notifSig(b)
+            }
             root.primed = true
             return
         }
-        for (var k = 0; k < fresh.length; k++) {
-            var f = fresh[k]
-            if (root.seenKeys.indexOf(f.key) !== -1) continue
-            root.seenKeys.push(f.key)
-            if (root.seenKeys.length > 200) root.seenKeys.shift()
-            var who = f.sender || ("New " + f.label + " notification")
-            var body = f.body ? String(f.body) : (f.sender ? "via " + f.label : "")
-            Quickshell.execDetached(["notify-send", "-a", f.label, who, body])
+        for (var k = 0; k < order.length; k++) {
+            var f = best[order[k]].rec
+            var sig = root.notifSig(f)
+            if (root.seenKeys[f.key] === undefined) {
+                root.pingNotif(f)
+                root.seenKeys[f.key] = sig
+            } else if (root.seenKeys[f.key] !== sig && (f.sender || f.body)) {
+                root.pingNotif(f)  // follow-up stacked onto a known chat
+                root.seenKeys[f.key] = sig
+            }
+            var keys = Object.keys(root.seenKeys)
+            if (keys.length > 200) delete root.seenKeys[keys[0]]
         }
+    }
+    function pingNotif(f) {
+        var who = f.sender || ("New " + f.label + " notification")
+        var body = f.body ? String(f.body) : (f.sender ? "via " + f.label : "")
+        Quickshell.execDetached(["notify-send", "-a", f.label, who, body])
     }
 
     function ringPhone() {
@@ -333,8 +359,9 @@ FloatingWindow {
     }
     Timer {
         id: notifTimer
-        // slow when the panel is shut — toasts can wait 30s, the CPU can't
-        interval: root.open ? 4000 : 30000
+        // 10s background: WhatsApp stacks follow-ups onto one shade entry and
+        // the shade is ephemeral — 30s missed anything read/dismissed on-phone
+        interval: root.open ? 4000 : 10000
         running: root.connected
         repeat: true
         onTriggered: {
