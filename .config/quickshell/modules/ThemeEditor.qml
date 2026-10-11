@@ -2,14 +2,16 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 
-// ThemeEditor — post-wallpaper theme tweaks (mode / scheme / contrast).
+// ThemeEditor — post-wallpaper theme tweaks (mode / scheme + live preview).
 // Port of ui-options/theme option A (control strip). Opens after an explicit
 // wallpaper pick (Wallshelf) or via SUPER ALT G. Apply re-runs getTheme with
 // the chosen flags on the current wallpaper; choices persist in cache.
-// HEIGHT BUDGET 820: margins 32 + header 30 + 6x10 gaps + wprow 84 + mode 92
-//   + scheme 262 + contrast 78 + palette 100 + footer 56.
+// Contrast is fixed at the getTheme default (0.2) — no control surfaces it.
+// Preview: every mode/scheme change (700ms debounce) runs matugen --dry-run
+// and paints the swatches with exactly what Apply would generate.
+// HEIGHT BUDGET 740: margins 32 + header 30 + 5x10 gaps + wprow 84 + mode 92
+//   + scheme 262 + palette 100 + footer 56 + status 30.
 // TYPE SCALE: 9 caps labels · 11 body · 13 titles. Spacing: 16 / 10 / 14.
 FloatingWindow {
     id: root
@@ -19,9 +21,9 @@ FloatingWindow {
 
     title: "ThemeEditor"
     implicitWidth: 460
-    implicitHeight: 820
-    minimumSize: Qt.size(440, 760)
-    maximumSize: Qt.size(480, 880)
+    implicitHeight: 740
+    minimumSize: Qt.size(440, 700)
+    maximumSize: Qt.size(480, 800)
     color: "transparent"
     visible: root.open || closeAnim.running
 
@@ -32,12 +34,17 @@ FloatingWindow {
     // ── state ──
     property string mode: "dark"
     property string scheme: "scheme-fidelity"
-    property double contrast: 0.2
+    property double contrast: 0.2   // fixed at getTheme default; not surfaced
     property string wallPath: ""
     property string wallName: ""
     property bool working: false
     property string statusMsg: ""
     property bool statusErr: false
+    // live preview: what Apply would generate ("" = not yet previewed)
+    property string pvPrimary: ""
+    property string pvSecondary: ""
+    property string pvTertiary: ""
+    property string pvKey: ""
     readonly property string stateFile: Quickshell.env("HOME") + "/.cache/quickshell/themeedit.json"
     readonly property var schemes: [
         { k: "scheme-content", t: "content" },
@@ -52,8 +59,6 @@ FloatingWindow {
         { k: "scheme-smart", t: "smart" }
     ]
 
-    function fmtC(v) { return (v >= 0 ? "+" : "") + v.toFixed(2) }
-    function fmtCs(v) { return (v >= 0 ? "+" : "") + (Math.round(v * 10) / 10).toFixed(1) }
     function schemeName(k) { return String(k).replace(/^scheme-/, "") }
 
     onOpenChanged: {
@@ -78,6 +83,7 @@ FloatingWindow {
                 if (p !== "") {
                     root.wallPath = p
                     root.wallName = p.split("/").pop()
+                    pvTimer.restart()
                 }
             }
         }
@@ -106,7 +112,7 @@ FloatingWindow {
             root.working = false
             if (code === 0) {
                 root.statusErr = false
-                root.statusMsg = "Applied " + root.schemeName(root.scheme) + " · " + root.mode + " · " + root.fmtCs(root.contrast)
+                root.statusMsg = "Applied " + root.schemeName(root.scheme) + " · " + root.mode
                 Quickshell.execDetached(["sh", "-c", "printf '%s' '{\"mode\":\"" + root.mode + "\",\"scheme\":\"" + root.scheme + "\",\"contrast\":" + root.contrast + "}' > \"" + root.stateFile + "\""])
             } else {
                 root.statusErr = true
@@ -116,6 +122,53 @@ FloatingWindow {
         }
     }
     Timer { id: statusClear; interval: 6000; onTriggered: { root.statusMsg = ""; root.statusErr = false } }
+
+    // live preview: dry-run matugen off the current wallpaper and paint the
+    // swatches with exactly what Apply would generate. Debounced 700ms; a run
+    // in flight coalesces (never two matugens at once).
+    function pvNowKey() { return root.mode + "|" + root.scheme }
+    // dry-run JSON nests per-mode for some modes ({dark:{color}, light:{color}})
+    // and flat ({color}) for others — take the matching branch first
+    function pvPick(node, m) {
+        if (!node) return ""
+        if (typeof node.color === "string") return node.color
+        var sub = node[m] || node.default
+        if (sub && typeof sub.color === "string") return sub.color
+        return ""
+    }
+    onModeChanged: pvTimer.restart()
+    onSchemeChanged: pvTimer.restart()
+    Timer {
+        id: pvTimer
+        interval: 700; repeat: false
+        onTriggered: {
+            if (!root.open || root.wallPath === "") return
+            if (previewProc.running) { pvTimer.restart(); return }
+            root.pvKey = root.pvNowKey()
+            previewProc.command = ["sh", "-c", "matugen image '" + root.wallPath.replace(/'/g, "'\\''") + "' -m '" + root.mode + "' -t '" + root.scheme + "' --contrast 0.2 --source-color-index 0 --dry-run -j hex 2>/dev/null"]
+            previewProc.running = true
+        }
+    }
+    Process {
+        id: previewProc
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: {
+                var o = null
+                try { o = JSON.parse(text) } catch (e) { o = null }
+                var c = o && o.colors
+                var p1 = root.pvPick(c && c.primary, root.mode)
+                var p2 = root.pvPick(c && c.secondary, root.mode)
+                var p3 = root.pvPick(c && c.tertiary, root.mode)
+                if (p1 !== "" && p2 !== "" && p3 !== "") {
+                    root.pvPrimary = p1
+                    root.pvSecondary = p2
+                    root.pvTertiary = p3
+                }
+                if (root.pvKey !== root.pvNowKey()) pvTimer.restart()
+            }
+        }
+    }
 
     function doApply() {
         if (root.working || root.wallPath === "") return
@@ -206,7 +259,7 @@ FloatingWindow {
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: root.schemeName(root.scheme) + " · " + root.mode + " · " + root.fmtCs(root.contrast)
+                        text: root.schemeName(root.scheme) + " · " + root.mode
                         color: colors.secondary
                         font.family: root.fontUi
                         font.pixelSize: 11
@@ -299,60 +352,19 @@ FloatingWindow {
                 }
             }
 
-            // ── contrast ──
+            // ── live palette: preview of what Apply generates ──
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                RowLayout {
-                    Layout.fillWidth: true
-                    Cap { text: "CONTRAST"; Layout.fillWidth: true }
-                    Text { text: root.fmtC(root.contrast); color: colors.secondary; font.family: root.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    Text { text: "-1"; color: colors.alpha(colors.outline, 0.7); font.family: root.fontUi; font.pixelSize: 10 }
-                    Slider {
-                        id: contrastSlider
-                        Layout.fillWidth: true
-                        from: -1; to: 1; stepSize: 0.01
-                        value: root.contrast
-                        onMoved: root.contrast = value
-                        background: Rectangle {
-                            implicitHeight: 7; radius: 3.5
-                            color: colors.alpha(colors.surfaceVariant, 0.55)
-                            border.width: 1
-                            border.color: colors.alpha(colors.outline, 0.2)
-                            Rectangle {
-                                width: parent.width * (contrastSlider.value + 1) / 2
-                                height: parent.height; radius: 3.5
-                                color: colors.alpha(colors.secondary, 0.9)
-                            }
-                        }
-                        handle: Rectangle {
-                            width: 18; height: 18; radius: 9
-                            color: colors.secondary
-                            border.width: 3
-                            border.color: colors.background
-                        }
-                    }
-                    Text { text: "+1"; color: colors.alpha(colors.outline, 0.7); font.family: root.fontUi; font.pixelSize: 10 }
-                }
-            }
-
-            // ── live palette ──
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                Cap { text: "LIVE PALETTE" }
+                Cap { text: root.pvPrimary !== "" ? "PREVIEW · " + root.schemeName(root.scheme) + " " + root.mode : "LIVE PALETTE" }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
                     Repeater {
                         model: [
-                            { t: "primary", c: colors.primary },
-                            { t: "secondary", c: colors.secondary },
-                            { t: "tertiary", c: colors.tertiary },
+                            { t: "primary", c: root.pvPrimary !== "" ? root.pvPrimary : colors.primary },
+                            { t: "secondary", c: root.pvSecondary !== "" ? root.pvSecondary : colors.secondary },
+                            { t: "tertiary", c: root.pvTertiary !== "" ? root.pvTertiary : colors.tertiary },
                             { t: "surface", c: colors.surfaceVariant }
                         ]
                         ColumnLayout {
