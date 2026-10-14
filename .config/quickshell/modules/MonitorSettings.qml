@@ -110,8 +110,22 @@ FloatingWindow {
     readonly property string value: (mon ? mon.name : "DP-1") + "," + currentMode() + ",0x0," + scaleVal + (orientVal ? ",transform," + orientVal : "")
     function apply() {
         if (!mon) return
-        var cmd = "printf 'monitor = " + value + "\\n' > $HOME/.config/hypr/monitors-override.conf && hyprctl reload >/dev/null 2>&1"
-        Quickshell.execDetached(["sh", "-c", cmd])
+        // This used to write a monitor = line into
+        // ~/.config/hypr/monitors-override.conf and `hyprctl reload`, so the
+        // pick survived a restart. That file is dead under Hyprland's Lua
+        // config -- nothing sources it any more -- and `hyprctl keyword` is
+        // refused outright ("keyword can't work with non-legacy parsers").
+        //
+        // hyprctl eval is the supported path: it evaluates a Lua expression in
+        // the config environment, so hl.monitor() applies immediately.
+        //
+        // Note this is runtime-only. A scale/rotation picked here does not
+        // persist across logout unless it is also written into
+        // ~/.config/hypr/monitors.lua.
+        var m = mon.name
+        var lua = 'hl.monitor({output="' + m + '",mode="' + currentMode() + '",position="auto",scale='
+                  + scaleVal + (orientVal ? ",transform=" + orientVal : "") + '})'
+        Quickshell.execDetached(["hyprctl", "eval", lua])
         reloadTimer.restart()
     }
 

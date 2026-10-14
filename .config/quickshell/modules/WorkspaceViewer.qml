@@ -113,7 +113,8 @@ PanelWindow {
     onOpenChanged: { if (root.open) { root.refresh(); card.forceActiveFocus(); openAnim.restart() } else closeAnim.restart() }
 
     function jumpTo(id: int): void {
-        Hyprland.dispatch("workspace " + id)
+        // Lua dispatcher, not the .conf-era "workspace N" string. See AGENTS.md.
+        Hyprland.dispatch('hl.dsp.focus({workspace="' + id + '"})')
         root.open = false
     }
     function cycle(dir: int): void {
@@ -122,7 +123,7 @@ PanelWindow {
         var fId = (mon && mon.activeWorkspace) ? mon.activeWorkspace.id : -1
         var cur = ids.indexOf(fId)
         if (cur < 0) cur = 0
-        Hyprland.dispatch("workspace " + ids[(cur + dir + ids.length) % ids.length])
+        Hyprland.dispatch('hl.dsp.focus({workspace="' + ids[(cur + dir + ids.length) % ids.length] + '"})')
     }
 
     // click-outside catcher (invisible — no dim backdrop, card floats over desktop)
@@ -165,7 +166,7 @@ PanelWindow {
                 var id = event.key - Qt.Key_1 + 1
                 if (root.shownIds.indexOf(id) !== -1) {
                     if ((event.modifiers & Qt.ShiftModifier) !== 0)
-                        Hyprland.dispatch("movetoworkspace " + id)  // throw focused window there, stay open
+                        Hyprland.dispatch('hl.dsp.window.move({workspace="' + id + '"})')  // throw focused window there, stay open
                     else
                         root.jumpTo(id)
                     event.accepted = true
@@ -441,9 +442,9 @@ PanelWindow {
                                             onClicked: (mouse) => {
                                                 if (!modelData.addr) return
                                                 if (mouse.button === Qt.MiddleButton)
-                                                    Hyprland.dispatch("closewindow address:" + modelData.addr)
+                                                    Hyprland.dispatch('hl.dsp.window.close({address=' + modelData.addr + '})')
                                                 else {
-                                                    Hyprland.dispatch("focuswindow address:" + modelData.addr)
+                                                    Hyprland.dispatch('hl.dsp.focus({window=' + modelData.addr + '})')
                                                     root.open = false
                                                 }
                                             }

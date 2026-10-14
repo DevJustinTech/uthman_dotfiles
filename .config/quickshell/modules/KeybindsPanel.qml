@@ -212,6 +212,35 @@ PanelWindow {
         }
         list.currentIndex=i; list.positionViewAtIndex(i,ListView.Contain)
     }
+    // Translate a .conf-era dispatch/arg pair into the Lua dispatcher
+    // expression Hyprland 0.56 now evaluates.
+    //
+    // hyprctl wraps whatever you hand it as `hl.dispatch(<arg>)` and then
+    // evaluates that as Lua, so the old flat strings ("workspace 3",
+    // "movefocus l") are syntax errors — "')' expected near '3'". Every
+    // non-exec row in the binds table below was failing silently for that
+    // reason: the cheatsheet opened and looked right, and activating an entry
+    // did nothing.
+    //
+    // Keeping the table in the readable "workspace"/"movefocus" form and
+    // translating here means the data stays greppable and there is exactly one
+    // place to get the mapping right.
+    function toLuaDispatch(disp: string, arg: string): string {
+        // Workspaces are strings, not numbers: hl.dsp.focus({workspace=3})
+        // parses but does not move. "e+1"/"e-1"/"previous" stay as-is.
+        var ws = 'hl.dsp.focus({workspace="' + arg + '"})'
+        switch (disp) {
+        case "workspace":        return ws
+        case "movetoworkspace":  return 'hl.dsp.window.move({workspace="' + arg + '"})'
+        case "movefocus":        return 'hl.dsp.focus({direction="' + arg + '"})'
+        case "swapwindow":       return 'hl.dsp.window.swap({direction="' + arg + '"})'
+        case "killactive":       return 'hl.dsp.window.close()'
+        case "fullscreen":       return 'hl.dsp.window.fullscreen({mode="fullscreen"})'
+        case "togglefloating":   return 'hl.dsp.window.float({action="toggle"})'
+        default:                 return ""
+        }
+    }
+
     function executeSelected(){
         var idx=list.currentIndex
         if(idx<0 || idx>=grouped.length) return
@@ -219,7 +248,11 @@ PanelWindow {
         if(b.header!==undefined) return
         root.open=false
         if(b.disp==="exec" && b.arg) Quickshell.execDetached(["sh","-c", b.arg])
-        else if(b.disp) Quickshell.execDetached(["hyprctl", "dispatch", b.disp, b.arg])
+        else if(b.disp) {
+            var lua=toLuaDispatch(b.disp, b.arg===undefined ? "" : b.arg)
+            if(lua!=="") Quickshell.execDetached(["hyprctl","dispatch",lua])
+            else console.warn("KeybindsPanel: no Lua mapping for dispatcher '"+b.disp+"'")
+        }
     }
     onFilteredChanged: list.currentIndex = firstRowIndex()
 

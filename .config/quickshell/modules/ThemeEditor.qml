@@ -70,7 +70,14 @@ FloatingWindow {
             card.forceActiveFocus()
             // take focus: dim_inactive would otherwise leave this IPC-opened
             // popup permanently darkened (no nodim rule on this Hyprland)
-            Quickshell.execDetached(["sh", "-c", "sleep 0.4; hyprctl dispatch focuswindow 'title:ThemeEditor' >/dev/null 2>&1"])
+            //
+            // hl.dsp.focus only accepts direction/monitor/window/urgent_or_last/
+            // last -- there is no title selector, so the .conf-era
+            // "focuswindow title:..." has no direct equivalent. Resolve the
+            // address first, then focus by address.
+            Quickshell.execDetached(["sh", "-c",
+                "sleep 0.4; a=$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.title==\"ThemeEditor\") | .address' | head -1); " +
+                "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({window=$a})\" >/dev/null 2>&1; true"])
             openAnim.restart()
         } else closeAnim.restart()
     }

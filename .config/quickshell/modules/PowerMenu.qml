@@ -88,7 +88,7 @@ PanelWindow {
                 Repeater {
                     model: [
                         { label: "Lock",        icon: "",  cmd: "pidof hyprlock || hyprlock" },
-                        { label: "Logout",      icon: "",  cmd: "hyprctl dispatch exit" },
+                        { label: "Logout",      icon: "",  cmd: "hyprctl dispatch 'hl.dsp.exit()'" },
                         { label: "Suspend",     icon: "",  cmd: "systemctl suspend" },
                         { label: "Reboot",      icon: "",  cmd: "systemctl reboot" },
                         { label: "Shutdown",    icon: "",  cmd: "systemctl poweroff" }

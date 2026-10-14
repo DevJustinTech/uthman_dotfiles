@@ -119,7 +119,19 @@ Item {
                         id: btnMouse
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: Hyprland.dispatch("workspace " + btn.wsId)
+                        // Hyprland 0.56 evaluates dispatch arguments as Lua, and
+                        // Hyprland.dispatch() wraps its string as
+                        // `hl.dispatch(<string>)`. The old .conf-era
+                        // "workspace 3" is not valid Lua there ("')' expected
+                        // near '3'"), so the click reached this handler and
+                        // then silently failed. Pass the Lua dispatcher
+                        // expression instead. See AGENTS.md for the mapping.
+                        //
+                        // The quotes around wsId are load-bearing: it is a
+                        // QML int, so bare concatenation emits {workspace=3},
+                        // which PARSES but does not switch. Hyprland wants the
+                        // workspace as a string.
+                        onClicked: Hyprland.dispatch('hl.dsp.focus({workspace="' + btn.wsId + '"})')
                     }
                 }
             }

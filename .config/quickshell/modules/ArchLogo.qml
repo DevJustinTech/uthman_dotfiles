@@ -1,3 +1,4 @@
+import Quickshell
 import QtQuick
 
 // Arch logo pill — waybar #custom-arch parity:
@@ -34,6 +35,14 @@ Item {
             id: logoMouse
             anchors.fill: parent
             hoverEnabled: true
+            // This pill was hover-styled but had no click handler at all --
+            // it looked live and did nothing. Wire it to the same launcher
+            // panel SUPER+SPACE opens, which is what a distro glyph in the
+            // corner of a bar is expected to do.
+            onClicked: Quickshell.execDetached([
+                "sh", "-c",
+                "quickshell -p ~/.config/quickshell ipc call plugins toggle"
+            ])
         }
     }
 }

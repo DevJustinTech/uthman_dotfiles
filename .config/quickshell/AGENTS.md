@@ -124,6 +124,55 @@ Lessons from "upload/download not centered" + "address not aligned" + "hairline 
 
 ---
 
+## 5b. Dispatching to Hyprland — Lua, Not `.conf` Strings
+
+Hyprland 0.56 evaluates dispatcher arguments as **Lua**. Both
+`Hyprland.dispatch(x)` and `hyprctl dispatch x` wrap their string as
+`hl.dispatch(<x>)` and then evaluate that as Lua, so every flat `.conf`-era
+string is a **syntax error** that fails silently:
+
+```
+Dispatch "workspace 3" failed: [string "return hl.dispatch(workspace 3)"]:1: ')' expected near '3'
+ → dispatch in lua is a shorthand for hl.dispatch(...), your syntax might need to be updated
+```
+
+The click handler still fires — the failure is downstream, so the UI looks
+alive and does nothing. Pass the Lua dispatcher expression instead:
+
+| `.conf` era (broken) | Lua (works) |
+|---|---|
+| `workspace 3` | `hl.dsp.focus({workspace="3"})` |
+| `movetoworkspace 3` | `hl.dsp.window.move({workspace="3"})` |
+| `movefocus l` | `hl.dsp.focus({direction="l"})` |
+| `swapwindow l` | `hl.dsp.window.swap({direction="l"})` |
+| `killactive` | `hl.dsp.window.close()` |
+| `fullscreen 0` | `hl.dsp.window.fullscreen({mode="fullscreen"})` |
+| `togglefloating` | `hl.dsp.window.float({action="toggle"})` |
+| `focuswindow address:0x…` | `hl.dsp.focus({window=0x…})` |
+| `exec kitty` | `hl.dsp.exec_cmd("kitty")` |
+| `exit` | `hl.dsp.exit()` |
+
+Two traps:
+
+* **Workspaces are strings, not numbers.** `hl.dsp.focus({workspace=3})`
+  parses without error but does not switch. Always quote it.
+* **`hl.dsp.focus` has no title/class selector** — only `direction`,
+  `monitor`, `window`, `urgent_or_last`, `last`. To focus by title, resolve
+  the address first (`hyprctl clients -j | jq -r '.[]|select(.title=="X")|.address'`)
+  then pass it as `window`.
+
+`hyprctl keyword` is refused outright in the Lua config
+(`keyword can't work with non-legacy parsers`). Use `hyprctl eval` with a Lua
+expression instead — that is what `MonitorSettings.qml` does to apply a
+scale/rotation, since the old `monitors-override.conf` trick no longer has
+anything that sources it.
+
+`KeybindsPanel.qml` keeps its `binds` table in the readable `disp:"…"`
+/`arg:"…"` form and converts in one place (`toLuaDispatch`) rather than
+rewriting ~35 data rows — see the table above when extending it.
+
+---
+
 ## 6. Networking API (Quickshell.Networking, iwd backend)
 
 * `Networking.devices.values` → `WifiDevice`/`WiredDevice`. Filter by `d.type === DeviceType.Wifi`.
