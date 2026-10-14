@@ -24,15 +24,33 @@ by shadowing one packaged file, not by editing anything under
 
 Hyprland resolves `require("default.hypr.autostart")` against `~/.config`
 before `$OMARCHY_PATH`, so the packaged default is never touched and an
-`omarchy update` cannot clobber it. **After every `omarchy update`, check it:**
+`omarchy update` cannot clobber it.
+
+The tradeoff is that when an update ships a *changed* `autostart.lua`, the new
+content lands in `/usr/share` while this desktop keeps using the old copy — so
+upstream startup work would silently never run. That is handled for you:
 
 ```bash
-diff /usr/share/omarchy/default/hypr/autostart.lua ~/.config/default/hypr/autostart.lua
-# expect exactly one removed line: hl.exec_cmd("omarchy-launch-shell")
+omarchy-shadow-check     # exit 0 = in sync; run it by hand any time
 ```
 
-If Omarchy adds new startup lines upstream, copy them in. Everything else in
-that file (monitor watch, udiskie, power profiles, post-boot hooks) still runs.
+It is wired into `~/.config/omarchy/hooks/post-update.d/`, so every
+`omarchy update` checks itself and stays silent unless you have actually
+drifted — then it logs to the journal and sends a notification naming the
+missing lines.
+
+> A raw `diff` against the shadow is misleading: it *always* shows the same
+> three cosmetic hunks (the explanatory header, the commented-out
+> `omarchy-launch-shell` line, and a trailing-newline marker), and `diff` exits
+> 0 whether or not anything changed. `omarchy-shadow-check` canonicalises both
+> sides first — drops blank lines and trailing whitespace, normalises both
+> spellings of "we removed this" — so the only output you ever get is a real
+> difference.
+
+Everything else in that file (monitor watch, udiskie, power profiles,
+post-boot hooks) still runs. The hook lives in `~/.config/omarchy/` rather
+than this repo on purpose: that directory is Omarchy's own (`shell.json`,
+themes, hooks) and is machine state, not portable config.
 
 Consequences of the swap, all deliberate:
 

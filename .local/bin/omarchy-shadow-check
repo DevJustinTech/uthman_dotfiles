@@ -1,0 +1,76 @@
+#!/bin/bash
+# omarchy-shadow-check -- has Omarchy changed the autostart file we shadow?
+#
+# This desktop replaces the Omarchy Quickshell shell. That is done by shadowing
+# $OMARCHY_PATH/default/hypr/autostart.lua with a copy under ~/.config that
+# omits one line (omarchy-launch-shell). Hyprland resolves ~/.config first, so
+# the packaged file is never read.
+#
+# The tradeoff: when an `omarchy update` ships a changed autostart.lua, the new
+# content is written to /usr/share but this desktop keeps using the old copy.
+# Upstream startup work would silently never run.
+#
+# This script reports whether that has happened. It changes nothing.
+#
+# Run it manually, or let the post-update hook call it after every update:
+#   omarchy-shadow-check            # check against the installed omarchy
+#   omarchy-shadow-check <file>     # check against some other upstream copy
+#
+# Exit status is 0 when in sync, 1 when drifted, 2 on error.
+
+set -uo pipefail
+
+UPSTREAM="${1:-/usr/share/omarchy/default/hypr/autostart.lua}"
+SHADOW="$HOME/.config/default/hypr/autostart.lua"
+
+if [[ ! -f "$UPSTREAM" ]]; then
+  echo "omarchy-shadow-check: upstream not found at $UPSTREAM" >&2
+  exit 2
+fi
+if [[ ! -f "$SHADOW" ]]; then
+  echo "omarchy-shadow-check: your shadow is missing at $SHADOW" >&2
+  echo "  (if the shell works, this is unexpected -- Omarchy's own autostart" >&2
+  echo "   is being used and the Omarchy shell will start)" >&2
+  exit 2
+fi
+
+# Canonical form: everything from the first hl.on onward, with blank lines and
+# trailing whitespace dropped, and the commented-out launch-shell line collapsed
+# to a fixed token. Both sides get the same treatment, so a difference in how
+# the two copies spell "we removed this" cannot masquerade as drift -- and
+# neither can a trailing-newline difference.
+#
+# canon takes the file on stdin, not as $1: calling it as a pipeline stage
+# passes it no positional argument, and under `set -u` that would resolve to
+# the script's own (unset) $1.
+canon() {
+  awk '/^hl\.on\(/,0' \
+    | sed -E 's|^[[:space:]]*--.*hl\.exec_cmd\("omarchy-launch-shell"\).*|@@REMOVED_SHELL@@|' \
+    | sed -E 's/[[:space:]]+$//' \
+    | grep -v '^$'
+}
+
+expected=$(mktemp) || exit 2
+staged=$(mktemp) || { rm -f "$expected"; exit 2; }
+yours=$(mktemp) || { rm -f "$expected" "$staged"; exit 2; }
+trap 'rm -f "$expected" "$staged" "$yours"' EXIT
+
+sed 's|^\(\s*\)hl\.exec_cmd("omarchy-launch-shell")|\1-- &|' "$UPSTREAM" > "$staged"
+canon < "$staged" > "$expected"
+canon < "$SHADOW"  > "$yours"
+
+if diff -q "$expected" "$yours" >/dev/null; then
+  echo "✓ in sync — Omarchy's autostart has not changed; nothing to do."
+  exit 0
+fi
+
+echo "✗ DRIFTED — Omarchy changed default/hypr/autostart.lua and your shadow predates it."
+echo
+echo "Upstream lines your copy is missing (marked '<'):"
+diff "$expected" "$yours" | sed 's/^/  /'
+echo
+echo "To fix: copy the '<' lines into $SHADOW, inside the"
+echo 'hl.on("hyprland.start", ...) block, then run: hyprctl reload'
+echo "Leave the @@REMOVED_SHELL@@ line commented out — uncommenting it starts"
+echo "both shells and breaks notifications."
+exit 1
