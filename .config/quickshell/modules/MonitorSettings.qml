@@ -122,9 +122,15 @@ FloatingWindow {
         // Note this is runtime-only. A scale/rotation picked here does not
         // persist across logout unless it is also written into
         // ~/.config/hypr/monitors.lua.
+        //
+        // transform is ALWAYS emitted, including the 0. It used to be
+        // conditional (orientVal ? ... : ""), but orientVal is an int and 0 is
+        // falsy -- so choosing "normal" omitted the key entirely, and a display
+        // that was already rotated stayed rotated. Hyprland accepts
+        // transform=0 and treats it as a reset, so send it unconditionally.
         var m = mon.name
         var lua = 'hl.monitor({output="' + m + '",mode="' + currentMode() + '",position="auto",scale='
-                  + scaleVal + (orientVal ? ",transform=" + orientVal : "") + '})'
+                  + scaleVal + ',transform=' + orientVal + '})'
         Quickshell.execDetached(["hyprctl", "eval", lua])
         reloadTimer.restart()
     }
