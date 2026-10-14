@@ -33,6 +33,7 @@ shell_window("Pomodoro", 400, 540)
 shell_window("GitHubDash", 760, 560)
 shell_window("QuickNotes", 460, 600)
 shell_window("Clipboard", 660, 730)
+shell_window("Screen Time", 700, 660)
 shell_window("Grap", 600, 470)
 shell_window("Clock", 360, 408)
 

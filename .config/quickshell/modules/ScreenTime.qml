@@ -12,7 +12,11 @@ FloatingWindow {
     // system sans (fontconfig default) — FiraCode everywhere read like a
     // terminal, and the mock this ports was set in a grotesk
     property string fontUi: "JetBrainsMono Nerd Font Mono"
-    title: "uthmanHabit"
+    // Was "uthmanHabit" -- this module was a habit tracker before it was
+    // repurposed into a screen-time panel, and the window title was never
+    // updated. It showed up under the old name in the window list and any
+    // title-matched window rule, which is actively misleading.
+    title: "Screen Time"
     implicitWidth: 700
     implicitHeight: 660
     // pinned like Monitors: a min/max range lets the window land off-spec
