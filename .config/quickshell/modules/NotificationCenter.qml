@@ -62,100 +62,100 @@ Item {
 
 
 
-    // per-app Phosphor fallback icon (avatar when the app ships no icon)
+    // per-app fallback icon (avatar when the app ships no icon)
     function appGlyph(name) {
         var n = String(name || "").toLowerCase()
-        if (n.indexOf("whatsapp") !== -1) return ""
-        if (n.indexOf("firefox") !== -1) return ""
-        if (n.indexOf("mozilla") !== -1) return ""
-        if (n.indexOf("chrome") !== -1) return ""
-        if (n.indexOf("chromium") !== -1) return ""
-        if (n.indexOf("spotify") !== -1) return ""
-        if (n.indexOf("telegram") !== -1) return ""
-        if (n.indexOf("discord") !== -1) return ""
-        if (n.indexOf("kitty") !== -1) return ""
-        if (n.indexOf("terminal") !== -1) return ""
-        if (n.indexOf("console") !== -1) return ""
-        if (n.indexOf("volume") !== -1) return ""
-        if (n.indexOf("audio") !== -1) return ""
-        if (n.indexOf("wpctl") !== -1) return ""
-        if (n.indexOf("pactl") !== -1) return ""
-        if (n.indexOf("speaker") !== -1) return ""
-        if (n.indexOf("mic") !== -1) return ""
-        if (n.indexOf("battery") !== -1) return ""
-        if (n.indexOf("power") !== -1) return ""
-        if (n.indexOf("tlp") !== -1) return ""
-        if (n.indexOf("wifi") !== -1) return ""
-        if (n.indexOf("network") !== -1) return ""
-        if (n.indexOf("nmcli") !== -1) return ""
-        if (n.indexOf("iwctl") !== -1) return ""
-        if (n.indexOf("earbuds") !== -1) return ""
-        if (n.indexOf("headset") !== -1) return ""
-        if (n.indexOf("headphone") !== -1) return ""
-        if (n.indexOf("tws") !== -1) return ""
-        if (n.indexOf("bluetooth") !== -1) return ""
-        if (n.indexOf("screenshot") !== -1) return ""
-        if (n.indexOf("shot") !== -1) return ""
-        if (n.indexOf("camera") !== -1) return ""
-        if (n.indexOf("clipboard") !== -1) return ""
-        if (n.indexOf("cliphist") !== -1) return ""
-        if (n.indexOf("music") !== -1) return ""
-        if (n.indexOf("mpv") !== -1) return ""
-        if (n.indexOf("video") !== -1) return ""
-        if (n.indexOf("mail") !== -1) return ""
-        if (n.indexOf("thunderbird") !== -1) return ""
-        if (n.indexOf("envelope") !== -1) return ""
-        if (n.indexOf("calendar") !== -1) return ""
-        if (n.indexOf("download") !== -1) return ""
-        if (n.indexOf("brightness") !== -1) return ""
-        if (n.indexOf("sunset") !== -1) return ""
-        if (n.indexOf("night") !== -1) return ""
-        if (n.indexOf("image") !== -1) return ""
-        if (n.indexOf("chat") !== -1) return ""
-        if (n.indexOf("note") !== -1) return ""
-        if (n.indexOf("github") !== -1) return ""
-        if (n.indexOf("git") !== -1) return ""
-        if (n.indexOf("brave") !== -1) return ""
-        if (n.indexOf("vivaldi") !== -1) return ""
-        if (n.indexOf("edge") !== -1) return ""
-        if (n.indexOf("opera") !== -1) return ""
-        if (n.indexOf("zen") !== -1) return ""
-        if (n.indexOf("grim") !== -1) return ""
-        if (n.indexOf("slurp") !== -1) return ""
-        if (n.indexOf("flameshot") !== -1) return ""
-        if (n.indexOf("swappy") !== -1) return ""
-        if (n.indexOf("obs") !== -1) return ""
-        if (n.indexOf("recorder") !== -1) return ""
-        if (n.indexOf("swayosd") !== -1) return ""
-        if (n.indexOf("upower") !== -1) return ""
-        if (n.indexOf("mpd") !== -1) return ""
-        if (n.indexOf("ncmpcpp") !== -1) return ""
-        if (n.indexOf("pacman") !== -1) return ""
-        if (n.indexOf("yay") !== -1) return ""
-        if (n.indexOf("paru") !== -1) return ""
-        if (n.indexOf("update") !== -1) return ""
-        if (n.indexOf("keepassxc") !== -1) return ""
-        if (n.indexOf("password") !== -1) return ""
+        if (n.indexOf("whatsapp") !== -1) return ""
+        if (n.indexOf("firefox") !== -1) return ""
+        if (n.indexOf("mozilla") !== -1) return ""
+        if (n.indexOf("chrome") !== -1) return ""
+        if (n.indexOf("chromium") !== -1) return ""
+        if (n.indexOf("spotify") !== -1) return ""
+        if (n.indexOf("telegram") !== -1) return ""
+        if (n.indexOf("discord") !== -1) return ""
+        if (n.indexOf("kitty") !== -1) return ""
+        if (n.indexOf("terminal") !== -1) return ""
+        if (n.indexOf("console") !== -1) return ""
+        if (n.indexOf("volume") !== -1) return ""
+        if (n.indexOf("audio") !== -1) return ""
+        if (n.indexOf("wpctl") !== -1) return ""
+        if (n.indexOf("pactl") !== -1) return ""
+        if (n.indexOf("speaker") !== -1) return ""
+        if (n.indexOf("mic") !== -1) return ""
+        if (n.indexOf("battery") !== -1) return "󰒓"
+        if (n.indexOf("power") !== -1) return "󰒓"
+        if (n.indexOf("tlp") !== -1) return "󰒓"
+        if (n.indexOf("wifi") !== -1) return ""
+        if (n.indexOf("network") !== -1) return ""
+        if (n.indexOf("nmcli") !== -1) return ""
+        if (n.indexOf("iwctl") !== -1) return ""
+        if (n.indexOf("earbuds") !== -1) return "󰓲"
+        if (n.indexOf("headset") !== -1) return "󰓲"
+        if (n.indexOf("headphone") !== -1) return "󰓲"
+        if (n.indexOf("tws") !== -1) return "󰓲"
+        if (n.indexOf("bluetooth") !== -1) return "󰓳"
+        if (n.indexOf("screenshot") !== -1) return ""
+        if (n.indexOf("shot") !== -1) return ""
+        if (n.indexOf("camera") !== -1) return ""
+        if (n.indexOf("clipboard") !== -1) return ""
+        if (n.indexOf("cliphist") !== -1) return ""
+        if (n.indexOf("music") !== -1) return ""
+        if (n.indexOf("mpv") !== -1) return ""
+        if (n.indexOf("video") !== -1) return ""
+        if (n.indexOf("mail") !== -1) return ""
+        if (n.indexOf("thunderbird") !== -1) return ""
+        if (n.indexOf("envelope") !== -1) return ""
+        if (n.indexOf("calendar") !== -1) return ""
+        if (n.indexOf("download") !== -1) return "󰆔"
+        if (n.indexOf("brightness") !== -1) return ""
+        if (n.indexOf("sunset") !== -1) return ""
+        if (n.indexOf("night") !== -1) return ""
+        if (n.indexOf("image") !== -1) return ""
+        if (n.indexOf("chat") !== -1) return ""
+        if (n.indexOf("note") !== -1) return ""
+        if (n.indexOf("github") !== -1) return "󰉋"
+        if (n.indexOf("git") !== -1) return ""
+        if (n.indexOf("brave") !== -1) return ""
+        if (n.indexOf("vivaldi") !== -1) return ""
+        if (n.indexOf("edge") !== -1) return ""
+        if (n.indexOf("opera") !== -1) return ""
+        if (n.indexOf("zen") !== -1) return ""
+        if (n.indexOf("grim") !== -1) return ""
+        if (n.indexOf("slurp") !== -1) return ""
+        if (n.indexOf("flameshot") !== -1) return ""
+        if (n.indexOf("swappy") !== -1) return ""
+        if (n.indexOf("obs") !== -1) return ""
+        if (n.indexOf("recorder") !== -1) return ""
+        if (n.indexOf("swayosd") !== -1) return ""
+        if (n.indexOf("upower") !== -1) return "󰒓"
+        if (n.indexOf("mpd") !== -1) return ""
+        if (n.indexOf("ncmpcpp") !== -1) return ""
+        if (n.indexOf("pacman") !== -1) return "󰆔"
+        if (n.indexOf("yay") !== -1) return "󰆔"
+        if (n.indexOf("paru") !== -1) return "󰆔"
+        if (n.indexOf("update") !== -1) return "󰆔"
+        if (n.indexOf("keepassxc") !== -1) return ""
+        if (n.indexOf("password") !== -1) return ""
         if (n.indexOf("nautilus") !== -1) return ""
         if (n.indexOf("thunar") !== -1) return ""
         if (n.indexOf("dolphin") !== -1) return ""
         if (n.indexOf("filemanager") !== -1) return ""
         if (n.indexOf("nautilus") !== -1) return ""
-        if (n.indexOf("code") !== -1) return ""
-        if (n.indexOf("zed") !== -1) return ""
-        if (n.indexOf("nvim") !== -1) return ""
-        if (n.indexOf("neovim") !== -1) return ""
-        if (n.indexOf("phone") !== -1) return ""
-        if (n.indexOf("hyprlock") !== -1) return ""
-        if (n.indexOf("lock") !== -1) return ""
-        if (n.indexOf("weather") !== -1) return ""
+        if (n.indexOf("code") !== -1) return ""
+        if (n.indexOf("zed") !== -1) return ""
+        if (n.indexOf("nvim") !== -1) return ""
+        if (n.indexOf("neovim") !== -1) return ""
+        if (n.indexOf("phone") !== -1) return ""
+        if (n.indexOf("hyprlock") !== -1) return ""
+        if (n.indexOf("lock") !== -1) return ""
+        if (n.indexOf("weather") !== -1) return ""
         if (n.indexOf("usb") !== -1) return ""
         if (n.indexOf("udisk") !== -1) return ""
-        if (n.indexOf("timer") !== -1) return ""
-        if (n.indexOf("pomodoro") !== -1) return ""
+        if (n.indexOf("timer") !== -1) return "󰅵"
+        if (n.indexOf("pomodoro") !== -1) return "󰅵"
         if (n.indexOf("alarm") !== -1) return ""
-        if (n.indexOf("watchcat") !== -1) return ""
-        return ""
+        if (n.indexOf("watchcat") !== -1) return ""
+        return "󰨯"
     }
 
     function removeAt(nid) {
@@ -304,7 +304,7 @@ Item {
                         Layout.preferredWidth: 26; Layout.preferredHeight: 26; radius: 13
                         color: colors.alpha(colors.primary, 0.15)
                         border.width: 1; border.color: colors.alpha(colors.primary, 0.3)
-                        Text { anchors.centerIn: parent; text: ""; color: colors.primary; font.family: "Phosphor"; font.pixelSize: 12 }
+                        Text { anchors.centerIn: parent; text: "󰨯"; color: colors.primary; font.family: "FiraCode Nerd Font"; font.pixelSize: 12 }
                         Layout.alignment: Qt.AlignVCenter
                     }
                     Text {
@@ -353,9 +353,9 @@ Item {
                             Text {
                                 id: dndIcon
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: root.dnd ? "" : ""
+                                text: root.dnd ? "" : "󰨯"
                                 color: root.dnd ? colors.error : colors.alpha(colors.outline, 0.9)
-                                font.family: "Phosphor"
+                                font.family: "FiraCode Nerd Font"
                                 font.pixelSize: 10
                             }
                             Text {
@@ -383,9 +383,9 @@ Item {
 
                         Text {
                             anchors.centerIn: parent
-                            text: ""
+                            text: ""
                             color: clearMouse.containsMouse ? colors.error : colors.alpha(colors.outline, 0.9)
-                            font.family: "Phosphor"
+                            font.family: "FiraCode Nerd Font"
                             font.pixelSize: 12
                         }
 
@@ -403,9 +403,9 @@ Item {
 
                         Text {
                             anchors.centerIn: parent
-                            text: ""
+                            text: "󰅖"
                             color: closePanelMouse.containsMouse ? colors.foreground : colors.alpha(colors.outline, 0.9)
-                            font.family: "Phosphor"
+                            font.family: "FiraCode Nerd Font"
                             font.pixelSize: 12
                         }
 
@@ -480,7 +480,7 @@ Item {
                                             readonly property string ag: root.appGlyph(modelData.appName)
                                             text: ag !== "" ? ag : (modelData.appName ? modelData.appName.charAt(0).toUpperCase() : "?")
                                             color: colors.primary
-                                            font.family: ag !== "" ? "Phosphor" : colors.fontSans
+                                            font.family: ag !== "" ? "FiraCode Nerd Font" : colors.fontSans
                                             font.pixelSize: ag !== "" ? 17 : 13
                                             font.weight: Font.Bold
                                         }
@@ -580,9 +580,9 @@ Item {
 
                                         Text {
                                             anchors.centerIn: parent
-                                            text: ""
+                                            text: "󰅖"
                                             color: rowCloseMouse.containsMouse ? colors.foreground : colors.alpha(colors.outline, 0.7)
-                                            font.family: "Phosphor"
+                                            font.family: "FiraCode Nerd Font"
                                             font.pixelSize: 11
                                         }
 
@@ -614,9 +614,9 @@ Item {
                                 spacing: 8
 
                                 Text {
-                                    text: ""
+                                    text: ""
                                     color: colors.alpha(colors.outline, 0.35)
-                                    font.family: "Phosphor"
+                                    font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 32
                                     Layout.alignment: Qt.AlignHCenter
                                 }

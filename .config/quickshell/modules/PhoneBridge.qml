@@ -1274,9 +1274,9 @@ FloatingWindow {
                                 border.color: colors.alpha(colors.primary, dropArea.containsDrag ? 0.55 : 0.3)
                                 Text {
                                     anchors.centerIn: parent
-                                    text: ""
+                                    text: ""
                                     color: dropArea.containsDrag ? colors.primary : colors.alpha(colors.primary, 0.8)
-                                    font.family: "Phosphor"
+                                    font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 24
                                     scale: dropArea.containsDrag ? 1.12 : 1
                                     Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
@@ -1333,9 +1333,9 @@ FloatingWindow {
                                 anchors.rightMargin: 4
                                 spacing: 8
                                 Text {
-                                    text: modelData.error !== "" ? "" : modelData.done ? "" : ""
+                                    text: modelData.error !== "" ? "󰅖" : modelData.done ? "" : ""
                                     color: modelData.error !== '' ? colors.error : colors.primary
-                                    font.family: "Phosphor"
+                                    font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 13
                                     Layout.preferredWidth: 14
                                 }
@@ -1471,7 +1471,7 @@ FloatingWindow {
                                     anchors.leftMargin: 10
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 6
-                                    Text { text: ""; color: colors.primary; font.family: "Phosphor"; font.pixelSize: 12; font.weight: Font.Bold }
+                                    Text { text: ""; color: colors.primary; font.family: "FiraCode Nerd Font"; font.pixelSize: 12; font.weight: Font.Bold }
                                     Text { text: "up"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 11; font.weight: Font.Bold }
                                 }
                                 MouseArea { id: upMa; anchors.fill: parent; hoverEnabled: true; onClicked: root.enterRemote('..') }
@@ -1495,9 +1495,9 @@ FloatingWindow {
                                     anchors.rightMargin: 10
                                     spacing: 8
                                     Text {
-                                    text: isSel ? "" : ""
+                                    text: isSel ? "󰗑" : ""
                                     color: colors.primary
-                                    font.family: "Phosphor"
+                                    font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 12
                                     font.weight: Font.Bold
                                     Layout.preferredWidth: 12

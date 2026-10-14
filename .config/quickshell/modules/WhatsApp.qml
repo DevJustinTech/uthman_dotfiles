@@ -8,7 +8,7 @@ import QtMultimedia
 
 // WhatsApp — single-pane sheet over the ~/whatsapp-bridge Go daemon (whatsmeow).
 // The list fills the window; opening a chat swaps the whole window to the conversation.
-// Icons are Phosphor glyphs (@@-tokens resolved at build), never text.
+// Icons are Nerd Font glyphs (codepoints verified against the installed build), never text.
 // The daemon is a persistent child process speaking NDJSON on stdio:
 // QML writes {"cmd":"start"}, daemon emits {"type":"status"|"qr"|"paired"}.
 // Toggle: ipc call whatsapp (SUPER ALT W).
@@ -37,9 +37,9 @@ FloatingWindow {
     property string daemon: Quickshell.env("HOME") + "/whatsapp-bridge/whatsapp-bridge"
 
     // Icon families. Body text stays in colors.fontSans; every pictogram
-    // below is a Phosphor glyph so the UI never mixes icon styles.
-    property string iconFont: "Phosphor"
-    property string iconFontFill: "Phosphor-Fill"
+    // below is a Nerd Font glyph so the UI never mixes icon styles.
+    property string iconFont: "FiraCode Nerd Font"
+    property string iconFontFill: "FiraCode Nerd Font"
 
     // --- pairing state (driven by daemon events, never polled) ---
     property string connState: "starting"   // starting|waiting-qr|connecting|connected|disconnected|logged-out|error
@@ -794,15 +794,15 @@ FloatingWindow {
         return (d.getMonth() + 1) + "/" + d.getDate()
     }
 
-    // Message-kind pictogram (Phosphor). Text and reaction rows show
+    // Message-kind pictogram. Text and reaction rows show
     // their content with no glyph.
     function kindGlyph(kind) {
-        if (kind === "photo") return ""
-        if (kind === "video") return ""
+        if (kind === "photo") return ""
+        if (kind === "video") return ""
         if (kind === "voice") return ""
         if (kind === "file") return ""
-        if (kind === "sticker") return ""
-        if (kind === "contact") return ""
+        if (kind === "sticker") return ""
+        if (kind === "contact") return ""
         if (kind === "location") return ""
         return ""
     }
@@ -821,8 +821,8 @@ FloatingWindow {
     // Delivery pictograms: single check sent, double delivered, double
     // in ice when read. Spinners and words are gone; state is iconic.
     function tickGlyph(ack) {
-        if (ack === "read" || ack === "delivered") return ""
-        return ""
+        if (ack === "read" || ack === "delivered") return "󰄯"
+        return "󰗑"
     }
 
     function tickColor(ack) {
@@ -1051,7 +1051,7 @@ FloatingWindow {
                         Behavior on scale { NumberAnimation { duration: 120 } }
                         Text {
                             anchors.centerIn: parent
-                            text: ""
+                            text: ""
                             color: colors.alpha(colors.error, 0.9)
                             font.family: root.iconFont
                             font.pixelSize: 19
@@ -1132,7 +1132,7 @@ FloatingWindow {
                                 Layout.alignment: Qt.AlignVCenter
                                 Text {
                                     anchors.centerIn: parent
-                                    text: ""
+                                    text: "󰅖"
                                     color: colors.alpha(colors.outline, 0.8)
                                     font.family: root.iconFont
                                     font.pixelSize: 13
@@ -1314,7 +1314,7 @@ FloatingWindow {
                                         color: colors.alpha(modelData.jid.indexOf("@newsletter") >= 0 ? colors.tertiary : (modelData.jid.indexOf("@g.us") >= 0 ? colors.secondary : colors.primary), 0.15)
                                         Text {
                                             anchors.centerIn: parent
-                                            text: modelData.jid.indexOf("@g.us") >= 0 ? "" : ""
+                                            text: modelData.jid.indexOf("@g.us") >= 0 ? "" : ""
                                             color: modelData.jid.indexOf("@newsletter") >= 0 ? colors.alpha(colors.tertiary, 0.9) : (modelData.jid.indexOf("@g.us") >= 0 ? colors.alpha(colors.secondary, 0.8) : colors.alpha(colors.primary, 0.8))
                                             font.family: root.iconFont
                                             font.pixelSize: 24
@@ -1491,7 +1491,7 @@ FloatingWindow {
                                     Layout.alignment: Qt.AlignVCenter
                                     Text {
                                         anchors.centerIn: parent
-                                        text: ""
+                                        text: ""
                                         color: colors.foreground
                                         font.family: root.iconFont
                                         font.pixelSize: 19
@@ -1508,7 +1508,7 @@ FloatingWindow {
                                         color: colors.alpha(colors.primary, 0.15)
                                         Text {
                                             anchors.centerIn: parent
-                                            text: root.openJid.indexOf("@g.us") >= 0 ? "" : ""
+                                            text: root.openJid.indexOf("@g.us") >= 0 ? "" : ""
                                             color: colors.alpha(colors.primary, 0.8)
                                             font.family: root.iconFont
                                             font.pixelSize: 20
@@ -1569,7 +1569,7 @@ FloatingWindow {
                             Item { Layout.fillWidth: true; Layout.fillHeight: true }
                             Text {
                                 visible: root.convoLoading
-                                text: ""
+                                text: ""
                                 color: colors.alpha(colors.primary, 0.9)
                                 font.family: root.iconFont
                                 font.pixelSize: 20
@@ -1618,7 +1618,7 @@ FloatingWindow {
                                 height: 30
                                 Text {
                                     anchors.centerIn: parent
-                                    text: ""
+                                    text: ""
                                     color: colors.alpha(colors.outline, 0.7)
                                     font.family: root.iconFont
                                     font.pixelSize: 14
@@ -1787,7 +1787,7 @@ FloatingWindow {
                                             Text {
                                                 visible: photoImg.status !== Image.Ready
                                                 anchors.centerIn: parent
-                                                text: ""
+                                                text: ""
                                                 color: colors.alpha(colors.foreground, 0.7)
                                                 font.family: root.iconFont
                                                 font.pixelSize: 18
@@ -1813,7 +1813,7 @@ FloatingWindow {
                                                 color: colors.alpha(colors.background, 0.55)
                                                 Text {
                                                     anchors.centerIn: parent
-                                                    text: ""
+                                                    text: ""
                                                     color: colors.foreground
                                                     font.family: root.iconFont
                                                     font.pixelSize: 18
@@ -1839,7 +1839,7 @@ FloatingWindow {
                                             Behavior on scale { NumberAnimation { duration: 120 } }
                                             Text {
                                                 anchors.centerIn: parent
-                                                text: ""
+                                                text: "󰆔"
                                                 color: colors.alpha(colors.foreground, 0.8)
                                                 font.family: root.iconFont
                                                 font.pixelSize: 22
@@ -1891,7 +1891,7 @@ FloatingWindow {
                                                 color: colors.alpha(colors.background, 0.55)
                                                 Text {
                                                     anchors.centerIn: parent
-                                                    text: ""
+                                                    text: ""
                                                     color: colors.foreground
                                                     font.family: root.iconFont
                                                     font.pixelSize: 24
@@ -1968,7 +1968,7 @@ FloatingWindow {
                                             }
                                             Text {
                                                 visible: modelData.from_me && (modelData.status || "") === "sending"
-                                                text: ""
+                                                text: ""
                                                 color: colors.alpha(colors.outline, 0.7)
                                                 font.family: root.iconFont
                                                 font.pixelSize: 11
@@ -2015,7 +2015,7 @@ FloatingWindow {
                                             Layout.alignment: Qt.AlignRight
                                             spacing: 4
                                             Text {
-                                                text: (modelData.status || "") === "failed" ? "" : ""
+                                                text: (modelData.status || "") === "failed" ? "" : "󰅾"
                                                 color: (modelData.status || "") === "failed" ? colors.error : colors.alpha(colors.outline, 0.6)
                                                 font.family: root.iconFont
                                                 font.pixelSize: 12
@@ -2076,7 +2076,7 @@ FloatingWindow {
                                             Text {
                                                 anchors.centerIn: parent
                                                 visible: !(/\.(png|jpe?g|gif|webp|bmp)$/i.test(modelData))
-                                                text: ""
+                                                text: ""
                                                 color: colors.primary
                                                 font.family: root.iconFont
                                                 font.pixelSize: 14
@@ -2098,7 +2098,7 @@ FloatingWindow {
                                             color: badgeHover.containsMouse ? colors.alpha("#000000", 0.85) : colors.alpha("#000000", 0.6)
                                             Text {
                                                 anchors.centerIn: parent
-                                                text: ""
+                                                text: "󰅖"
                                                 color: colors.foreground
                                                 font.family: root.iconFont
                                                 font.pixelSize: 9
@@ -2155,7 +2155,7 @@ FloatingWindow {
                                         color: emojiX.containsMouse ? colors.alpha(colors.primary, 0.2) : "transparent"
                                         Text {
                                             anchors.centerIn: parent
-                                            text: ""
+                                            text: "󰅖"
                                             color: colors.alpha(colors.outline, 0.85)
                                             font.family: root.iconFont
                                             font.pixelSize: 12
@@ -2241,7 +2241,7 @@ FloatingWindow {
                                     color: replyX.containsMouse ? colors.alpha(colors.primary, 0.2) : "transparent"
                                     Text {
                                         anchors.centerIn: parent
-                                        text: ""
+                                        text: "󰅖"
                                         color: colors.alpha(colors.outline, 0.85)
                                         font.family: root.iconFont
                                         font.pixelSize: 13
@@ -2325,7 +2325,7 @@ FloatingWindow {
                                     Behavior on scale { NumberAnimation { duration: 120 } }
                                     Text {
                                         anchors.centerIn: parent
-                                        text: ""
+                                        text: ""
                                         color: root.emojiOpen ? colors.primary : colors.alpha(colors.outline, 0.9)
                                         font.family: root.iconFont
                                         font.pixelSize: 17
@@ -2494,7 +2494,7 @@ FloatingWindow {
                             Layout.alignment: Qt.AlignHCenter
                             Text {
                                 anchors.centerIn: parent
-                                text: ""
+                                text: ""
                                 color: colors.alpha(colors.error, 0.9)
                                 font.family: root.iconFont
                                 font.pixelSize: 38
@@ -2519,7 +2519,7 @@ FloatingWindow {
                             Behavior on scale { NumberAnimation { duration: 120 } }
                             Text {
                                 anchors.centerIn: parent
-                                text: ""
+                                text: ""
                                 color: colors.background
                                 font.family: root.iconFont
                                 font.pixelSize: 22

@@ -26,11 +26,11 @@ Item {
         Text {
             id: label
             anchors.centerIn: parent
-            text: ""
+            text: "󰨯"
             color: root.panelOpen ? colors.primary
                  : root.historyCount > 0 ? colors.foreground
                  : colors.alpha(colors.outline, 0.9)
-            font.family: "Phosphor"
+            font.family: "FiraCode Nerd Font"
             font.pixelSize: 13
         }
 

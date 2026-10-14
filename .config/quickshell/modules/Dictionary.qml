@@ -487,7 +487,7 @@ FloatingWindow {
                             width: 30; height: 30; radius: 15
                             color: audioMa.containsMouse ? colors.alpha(colors.tertiary, 0.28) : colors.alpha(colors.tertiary, 0.12)
                             border.width: 1; border.color: colors.alpha(colors.tertiary, 0.4)
-                            Text { anchors.centerIn: parent; text: ""; color: colors.tertiary; font.family: "Phosphor"; font.pixelSize: 15 }
+                            Text { anchors.centerIn: parent; text: ""; color: colors.tertiary; font.family: "FiraCode Nerd Font"; font.pixelSize: 15 }
                             MouseArea { id: audioMa; anchors.fill: parent; hoverEnabled: true; onClicked: root.playAudio() }
                         }
                         Text {

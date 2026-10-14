@@ -56,6 +56,46 @@ Verify after: `grep -P '\\\\u[0-9A-Fa-f]{4}' modules/*.qml` must return 0.
 Verified glyphs present in `FiraCode Nerd Font Mono` (checked via `fontTools.ttLib.TTFont.getBestCmap()`):
 `F091F/F0922/F0925/F0928` (wifi strength 1-4), `F023` lock, `F00C` check, `F021` refresh, `F0156` close, `F04C4` speedometer, `F01DA` download, `F0552` upload. Always verify new codepoints against the font before using them.
 
+### The `Phosphor` family is gone — use FiraCode Nerd Font
+
+`font.family: "Phosphor"` was used in ten modules. That family is **not
+installed and is not packaged for Linux** on any repo or the AUR (only
+unrelated hits: cathode-phosphor icon themes, Minecraft mods, R packages).
+Qt fell back to a default face and every one of those glyphs rendered as
+**tofu** — the empty boxes in the notification-centre header, and a blank
+square where a WhatsApp or browser notification should have shown its icon.
+
+All of it is now `FiraCode Nerd Font` (which is `colors.fontSans`), with the
+codepoints remapped. **Nerd Font carries no brand glyphs**, so the per-app
+icon table in `NotificationCenter.appGlyph()` — WhatsApp, Firefox, Chrome,
+Spotify, Telegram, Discord, and the rest — now uses a neutral stand-in from
+the icon set (chat bubble, globe, music note) rather than the brand mark.
+
+> `fc-list ':charset=…' family` is **not** a reliable existence check here: it
+> reported codepoints as present that the font does not map, and missed ones it
+> does. Check with fontTools against `getBestCmap()` of the actual TTF:
+>
+> ```bash
+> python3 -c "from fontTools.ttLib import TTFont; print(0xF0156 in TTFont('/usr/share/fonts/TTF/FiraCodeNerdFont-Regular.ttf').getBestCmap())"
+> ```
+
+To audit the whole tree for glyphs that will not render:
+
+```bash
+python3 - <<'PY'
+from fontTools.ttLib import TTFont
+from pathlib import Path
+cmap = TTFont('/usr/share/fonts/TTF/FiraCodeNerdFont-Regular.ttf').getBestCmap()
+bad = [f"{p} U+{cp:04X}" for p in Path('.').rglob('*.qml')
+       for cp in sorted({ord(c) for c in p.read_text() if 0xE000 <= ord(c) <= 0xF8FF})
+       if cp not in cmap]
+print(bad or 'clean')
+PY
+```
+
+It must print `clean`. A non-empty list means a glyph is missing from the font
+and will render as a box.
+
 ---
 
 ## 3. Panel Pattern (The Only Correct Way)
