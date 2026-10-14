@@ -60,29 +60,29 @@ Consequences of the swap, all deliberate:
 | bar, panels, OSD, launcher | this shell |
 | idle + lock (`shell.json` `idle.lock`) | `hypridle` + `hyprlock`, launched from `hypr/autostart.lua` |
 | background switcher | `awww` + `set-wallpaper` |
-| **polkit authentication dialog** | **nothing — install an agent, see below** |
+| **polkit authentication dialog** | `lxqt-policykit-agent` (Omarchy's lived inside the shell) |
 | login screen | Omarchy's SDDM theme (see *Login screen*) |
 
 `omarchy restart shell` does nothing here — that targets the shell you just
 disabled. Reload the desktop with `SUPER+HOME` instead (reloads Hyprland, then
 restarts Quickshell).
 
-> [!WARNING]
-> **You lose the polkit authentication dialog.** Omarchy's shell ships an
-> `omarchy.polkit` plugin that draws the password prompt for privileged
-> actions, and it was the only agent on the system. With that shell stopped,
-> anything that authenticates over polkit — mounting disks, `udiskie`, `pkexec`
-> from a GUI app — has no way to ask for a password.
->
-> Install a standalone agent, e.g.:
+> [!NOTE]
+> Omarchy's shell ships an `omarchy.polkit` plugin that draws the password
+> prompt, and stopping that shell takes the agent with it — polkit would have
+> no way to ask for a password (disk mounting, `udiskie`, `pkexec` from a GUI
+> app). This desktop runs **`lxqt-policykit`** instead, which autostarts via
+> `/etc/xdg/autostart/lxqt-policykit-agent.desktop`, so it comes up at login
+> without any wiring here. Verify with:
 >
 > ```bash
-> sudo pacman -S lxqt-policykit    # or: polkit-gnome, yad
+> pgrep -a lxqt-policykit-agent
 > ```
 >
-> Until you do, `sudo` in a terminal still works, and so does this repo's own
-> rofi-based `SUDO_ASKPASS` (`~/.local/bin/askpass`, wired up in
-> `hypr/envs.lua`) for anything that honours it.
+> `polkit-gnome` or `yad` would work equally well. `sudo` in a terminal never
+> needed this, and this repo's own rofi-based `SUDO_ASKPASS`
+> (`~/.local/bin/askpass`, wired in `hypr/envs.lua`) still works for anything
+> that honours it.
 
 ## Fresh machine
 
