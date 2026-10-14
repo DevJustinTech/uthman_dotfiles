@@ -1,3 +1,10 @@
 [D-BUS Service]
 Name=org.freedesktop.impl.portal.desktop.filemanager
-Exec=/home/uthman/projects/filemanager/tools/filemanager-portal
+# %h is expanded by D-Bus when it activates the service. This used to
+# hardcode /home/uthman/projects/... -- a path that exists on exactly one
+# machine. Here it pointed at nothing, so any GTK file-chooser would activate
+# the service and get "no such file or directory" instead of a file dialog.
+#
+# Note this still requires ~/projects/filemanager to exist; the portal is that
+# project's own backend, not something this repo ships.
+Exec=%h/projects/filemanager/tools/filemanager-portal

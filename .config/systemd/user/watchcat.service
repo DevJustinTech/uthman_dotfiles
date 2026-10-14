@@ -1,0 +1,23 @@
+[Unit]
+Description=WatchCat per-process traffic watchdog (hotspot data cap)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/dotfiles/.config/quickshell/scripts/watchcat-daemon.py
+Restart=on-failure
+RestartSec=15
+# The daemon shells out to sudo -n nethogs, timeout, and notify-send.
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# Needs: nethogs installed, and a NOPASSWD rule scoped to it only:
+#   sudo pacman -S nethogs
+#   echo 'Defaults!/usr/bin/nethogs !requiretty
+#         justin ALL=(root) NOPASSWD: /usr/bin/nethogs' | sudo tee /etc/sudoers.d/watchcat
+#   sudo chmod 440 /etc/sudoers.d/watchcat
+# Without both, the daemon still starts and writes live.json, but with an
+# `err` field the panel displays instead of traffic.
+
+[Install]
+WantedBy=graphical-session.target

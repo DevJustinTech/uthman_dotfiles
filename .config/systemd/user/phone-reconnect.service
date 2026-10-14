@@ -5,11 +5,14 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/home/uthman/.local/bin/phone-reconnect watch
+# %h expands to the invoking user's home. This used to hardcode
+# /home/uthman on all three lines, which pointed at a path that does not
+# exist on any other machine -- the service would start and immediately fail
+# on ExecStart, and the stale HOME would break anything it shelled out to.
+ExecStart=%h/.local/bin/phone-reconnect watch
 Restart=on-failure
 RestartSec=15
-Environment=HOME=/home/uthman
-Environment=PATH=/home/uthman/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 [Install]
 WantedBy=graphical-session.target
