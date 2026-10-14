@@ -15,7 +15,7 @@ FloatingWindow {
     property var colors
     property bool open: false
     property string fontUi: "JetBrainsMono Nerd Font Mono"
-    // Icon face (codepoints verified against the installed FiraCode Nerd Font
+    // Icon face (glyphs chosen by name from FiraCode Nerd Font
     // bluetooth E0DA, bluetooth-connected E0DC, x E4F6)
     property string fontIcon: "FiraCode Nerd Font"
 
@@ -343,7 +343,7 @@ FloatingWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-                Text { text: root.connected ? "󰓲" : "󰓳"; color: root.connected ? colors.primary : colors.alpha(colors.outline, 0.5); font.family: root.fontIcon; font.pixelSize: 20; Layout.alignment: Qt.AlignVCenter }
+                Text { text: root.connected ? "" : ""; color: root.connected ? colors.primary : colors.alpha(colors.outline, 0.5); font.family: root.fontIcon; font.pixelSize: 20; Layout.alignment: Qt.AlignVCenter }
                 ColumnLayout {
                     spacing: 2
                     Layout.fillWidth: true

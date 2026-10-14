@@ -66,18 +66,40 @@ Qt fell back to a default face and every one of those glyphs rendered as
 square where a WhatsApp or browser notification should have shown its icon.
 
 All of it is now `FiraCode Nerd Font` (which is `colors.fontSans`), with the
-codepoints remapped. **Nerd Font carries no brand glyphs**, so the per-app
+glyphs remapped. **Nerd Font carries no brand glyphs**, so the per-app
 icon table in `NotificationCenter.appGlyph()` — WhatsApp, Firefox, Chrome,
 Spotify, Telegram, Discord, and the rest — now uses a neutral stand-in from
 the icon set (chat bubble, globe, music note) rather than the brand mark.
 
-> `fc-list ':charset=…' family` is **not** a reliable existence check here: it
-> reported codepoints as present that the font does not map, and missed ones it
-> does. Check with fontTools against `getBestCmap()` of the actual TTF:
+> [!CAUTION]
+> **Look glyphs up BY NAME, and read back the name you got.** Testing only
+> `codepoint in getBestCmap()` proves a codepoint exists but says nothing about
+> what it draws. A first pass here did exactly that and named the results from
+> memory: **15 of 42 substitutions were wrong** — `F0A2F` claimed as a bell
+> when it is `md-bug_check_outline`, `F0493` claimed as a battery when it is
+> `md-cog`, `F0E7` claimed as a book when it is `fa-flash`. Every one of them
+> exists, every one renders, and every one is the wrong picture. The bell is
+> `F0F3` (`fa-bell`).
+>
+> Resolve the name you want, then confirm what you got:
 >
 > ```bash
-> python3 -c "from fontTools.ttLib import TTFont; print(0xF0156 in TTFont('/usr/share/fonts/TTF/FiraCodeNerdFont-Regular.ttf').getBestCmap())"
+> python3 - <<'PY'
+> from fontTools.ttLib import TTFont
+> cmap = TTFont('/usr/share/fonts/TTF/FiraCodeNerdFont-Regular.ttf').getBestCmap()
+> by_name = {}
+> for cp, name in cmap.items():
+>     by_name.setdefault(name, cp)
+> cp = by_name['fa-bell']
+> print(f"U+{cp:05X}", cmap[cp])
+> PY
 > ```
+>
+> `getBestCmap()` returns **codepoint → name** on this build. Building the
+> reverse map the other way round makes every lookup miss.
+
+`fc-list ':charset=…' family` is **not** usable here either: it reported
+codepoints as present that the font does not map, and missed ones it does.
 
 To audit the whole tree for glyphs that will not render:
 

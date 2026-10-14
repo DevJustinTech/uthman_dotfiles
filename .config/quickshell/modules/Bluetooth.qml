@@ -14,7 +14,7 @@ FloatingWindow {
     property var colors
     property bool open: false
     property string fontUi: "JetBrainsMono Nerd Font Mono"
-    // Icon face (codepoints verified against the installed FiraCode Nerd Font)
+    // Icon face (glyphs chosen by name from FiraCode Nerd Font)
     property string fontIcon: "FiraCode Nerd Font"
 
     title: "Bluetooth"
@@ -288,7 +288,7 @@ FloatingWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-                Text { text: "󰓳"; color: root.powered ? colors.primary : colors.alpha(colors.outline, 0.5); font.family: root.fontIcon; font.pixelSize: 20; Layout.alignment: Qt.AlignVCenter }
+                Text { text: ""; color: root.powered ? colors.primary : colors.alpha(colors.outline, 0.5); font.family: root.fontIcon; font.pixelSize: 20; Layout.alignment: Qt.AlignVCenter }
                 Text { text: "Bluetooth"; color: colors.foreground; font.family: root.fontUi; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                 Rectangle {
                     width: 64; height: 30; radius: 15
@@ -312,7 +312,7 @@ FloatingWindow {
                     RowLayout {
                         anchors.centerIn: parent
                         spacing: 8
-                        Text { text: "󰉛"; color: colors.primary; font.family: root.fontIcon; font.pixelSize: 14
+                        Text { text: ""; color: colors.primary; font.family: root.fontIcon; font.pixelSize: 14
                             RotationAnimation on rotation { running: root.scanning; loops: Animation.Infinite; from: 0; to: 360; duration: 900 } }
                         Text { text: root.scanning ? "Scanning…" : "Scan for devices"; color: colors.primary; font.family: root.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold }
                     }

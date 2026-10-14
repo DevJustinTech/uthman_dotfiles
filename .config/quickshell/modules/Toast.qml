@@ -18,7 +18,7 @@ Rectangle {
     }
     property var colors: fallback
     property string text: ""
-    property string glyph: "󰗑"
+    property string glyph: ""
     property string iconFont: "FiraCode Nerd Font"
     property int hold: 1200
 

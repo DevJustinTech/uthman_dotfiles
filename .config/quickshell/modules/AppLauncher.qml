@@ -51,15 +51,15 @@ PanelWindow {
     // quickshell plugins ride the launcher as apps now (PluginMenu
     // scrapped) — plain data, launch() toggles by qsTarget.
     readonly property var pluginApps: [
-        { id: "qs-pomodoro", name: "Pomodoro", genericName: "focus timer · stats", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "󰅵", qsTarget: "pomodoro" },
-        { id: "qs-github", name: "GitHub", genericName: "notifs · PRs · heatmap", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "󰉋", qsTarget: "github" },
+        { id: "qs-pomodoro", name: "Pomodoro", genericName: "focus timer · stats", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "pomodoro" },
+        { id: "qs-github", name: "GitHub", genericName: "notifs · PRs · heatmap", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "github" },
         { id: "qs-notes", name: "Quick Notes", genericName: "idea capture · draggable", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "notes" },
-        { id: "qs-screentime", name: "Screen Time", genericName: "usage heatmaps · app ranks", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "󰅾", qsTarget: "screentime" },
+        { id: "qs-screentime", name: "Screen Time", genericName: "usage heatmaps · app ranks", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "screentime" },
         { id: "qs-phonebridge", name: "PhoneBridge", genericName: "send & pull files over ADB", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "phonebridge" },
         { id: "qs-drives", name: "Drive Health", genericName: "SMART + RAM + speed test", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "drives" },
         { id: "qs-monitors", name: "Monitors", genericName: "DPI / scale · rotate · display", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "monitors" },
-        { id: "qs-failwatch", name: "FailWatch", genericName: "failed units · journal errors", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "󰅕", qsTarget: "failwatch" },
-        { id: "qs-dict", name: "Dictionary", genericName: "definitions · synonyms · audio", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "dict" },
+        { id: "qs-failwatch", name: "FailWatch", genericName: "failed units · journal errors", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "󰈅", qsTarget: "failwatch" },
+        { id: "qs-dict", name: "Dictionary", genericName: "definitions · synonyms · audio", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "dict" },
         { id: "qs-grap", name: "Grap", genericName: "instant file search · grep", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "grap" },
     ]
     readonly property var allApps: storeApps.concat(pluginApps)

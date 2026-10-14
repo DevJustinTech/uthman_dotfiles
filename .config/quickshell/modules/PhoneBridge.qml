@@ -1274,7 +1274,7 @@ FloatingWindow {
                                 border.color: colors.alpha(colors.primary, dropArea.containsDrag ? 0.55 : 0.3)
                                 Text {
                                     anchors.centerIn: parent
-                                    text: ""
+                                    text: ""
                                     color: dropArea.containsDrag ? colors.primary : colors.alpha(colors.primary, 0.8)
                                     font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 24
@@ -1333,7 +1333,7 @@ FloatingWindow {
                                 anchors.rightMargin: 4
                                 spacing: 8
                                 Text {
-                                    text: modelData.error !== "" ? "󰅖" : modelData.done ? "" : ""
+                                    text: modelData.error !== "" ? "󰅖" : modelData.done ? "" : ""
                                     color: modelData.error !== '' ? colors.error : colors.primary
                                     font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 13
@@ -1495,7 +1495,7 @@ FloatingWindow {
                                     anchors.rightMargin: 10
                                     spacing: 8
                                     Text {
-                                    text: isSel ? "󰗑" : ""
+                                    text: isSel ? "" : ""
                                     color: colors.primary
                                     font.family: "FiraCode Nerd Font"
                                     font.pixelSize: 12
