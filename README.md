@@ -1,24 +1,113 @@
 # dotfiles
 
-Arch Linux, Hyprland, Quickshell, Matugen. Wallpaper sets the palette, everything else follows.
+Omarchy, Hyprland, Quickshell, Matugen. Wallpaper sets the palette, everything else follows.
 
 ![Desktop](assets/screenshots/desktop.png)
 
-Bar island, Zathura and kitty over a wallpaper-pulled palette. Every surface you see here (bar, OSD, toasts, login, terminals, editors) is recolored from that one image.
+Bar island, Zathura and kitty over a wallpaper-pulled palette. Every surface you see here (bar, OSD, toasts, terminals, editors) is recolored from that one image.
+
+## This fork replaces the Omarchy shell
+
+Omarchy ships its own Quickshell shell (`omarchy-shell`) that owns the bar,
+notifications bus, OSD, panels, launcher, and idle/lock. This repo ships its
+own shell with the same ambitions. **Only one can run** — they both claim
+`org.freedesktop.Notifications` and the same layer surfaces, and whichever
+loses the race takes the toasts down with it.
+
+So the Omarchy shell is switched off and this repo's takes over. That is done
+by shadowing one packaged file, not by editing anything under
+`/usr/share/omarchy`:
+
+```
+~/.config/default/hypr/autostart.lua   # shadows $OMARCHY_PATH's, minus one line
+```
+
+Hyprland resolves `require("default.hypr.autostart")` against `~/.config`
+before `$OMARCHY_PATH`, so the packaged default is never touched and an
+`omarchy update` cannot clobber it. **After every `omarchy update`, check it:**
+
+```bash
+diff /usr/share/omarchy/default/hypr/autostart.lua ~/.config/default/hypr/autostart.lua
+# expect exactly one removed line: hl.exec_cmd("omarchy-launch-shell")
+```
+
+If Omarchy adds new startup lines upstream, copy them in. Everything else in
+that file (monitor watch, udiskie, power profiles, post-boot hooks) still runs.
+
+Consequences of the swap, all deliberate:
+
+| Omarchy's shell used to | Now handled by |
+|---|---|
+| notifications bus | this shell (`quickshell -p ~/.config/quickshell`) |
+| bar, panels, OSD, launcher | this shell |
+| idle + lock (`shell.json` `idle.lock`) | `hypridle` + `hyprlock`, launched from `hypr/autostart.lua` |
+| background switcher | `awww` + `set-wallpaper` |
+| **polkit authentication dialog** | **nothing — install an agent, see below** |
+| login screen | Omarchy's SDDM theme (see *Login screen*) |
+
+`omarchy restart shell` does nothing here — that targets the shell you just
+disabled. Reload the desktop with `SUPER+HOME` instead (reloads Hyprland, then
+restarts Quickshell).
+
+> [!WARNING]
+> **You lose the polkit authentication dialog.** Omarchy's shell ships an
+> `omarchy.polkit` plugin that draws the password prompt for privileged
+> actions, and it was the only agent on the system. With that shell stopped,
+> anything that authenticates over polkit — mounting disks, `udiskie`, `pkexec`
+> from a GUI app — has no way to ask for a password.
+>
+> Install a standalone agent, e.g.:
+>
+> ```bash
+> sudo pacman -S lxqt-policykit    # or: polkit-gnome, yad
+> ```
+>
+> Until you do, `sudo` in a terminal still works, and so does this repo's own
+> rofi-based `SUDO_ASKPASS` (`~/.local/bin/askpass`, wired up in
+> `hypr/envs.lua`) for anything that honours it.
 
 ## Fresh machine
 
+The machine needs Omarchy installed first; this repo is a config layer on top.
+
 ```bash
-yay -S hyprland quickshell kitty matugen starship zsh lsd zoxide fzf \
-       cava btop rofi swayosd hyprlock hypridle hyprsunset sddm \
-       xdg-desktop-portal-hyprland uwsm cliphist wl-clipboard \
-       ttf-jetbrainsmono-nerd ttf-firacode-nerd inter-font
+sudo pacman -S --needed kitty matugen zsh lsd cava hyprlock hypridle \
+     cliphist rofi thunar tumbler thunar-archive-plugin thunar-volman \
+     file-roller catfish poppler-glib awww zathura chafa \
+     ttf-firacode-nerd ttf-jetbrains-mono-nerd inter-font
+
+# if you are replacing the Omarchy shell (see above), also:
+sudo pacman -S lxqt-policykit
+
 git clone https://github.com/codetesla51/uthman_dotfiles.git ~/dotfiles
 cd ~/dotfiles && chmod +x install.sh && ./install.sh
-set-wallpaper ~/Pictures/your-wallpaper.jpg
 ```
 
-Reboot once after the first install (SDDM theme lands in `/usr/share/sddm/themes/`, user services start on fresh login). Lost after that: `SUPER+K` is the keybind cheatsheet.
+Then log out and back in so the new autostart runs. `SUPER+K` is the keybind
+cheatsheet.
+
+> `ttf-jetbrains-mono-nerd` and `ttf-jetbrains-mono-nerd-basic` conflict. Keep
+> whichever one is installed; the configs only need the family name
+> `JetBrainsMono Nerd Font`, which both provide.
+
+### Login screen
+
+SDDM still uses Omarchy's `omarchy` theme. The repo's `sddm/elarun-custom`
+theme is shipped but **not installed by default**: `install.sh` would have to
+write to `/usr/share/sddm/themes/`, and matugen would have to write there again
+on *every wallpaper change*, which means a root prompt each time. The login
+screen is the one surface the wallpaper does not reach.
+
+To switch anyway, by hand:
+
+```bash
+sudo cp -r ~/dotfiles/sddm/elarun-custom /usr/share/sddm/themes/
+printf '[Theme]\nCurrent=elarun-custom\n' | sudo tee /etc/sddm.conf.d/99-zz-elarun.conf
+```
+
+`99-zz-` sorts after Omarchy's `99-omarchy-login.conf`, which also sets
+`Current` and would otherwise win.
+
 
 ## How the whole thing fits together
 
@@ -49,40 +138,50 @@ That one command does five things in order:
 
 Matugen then writes 37 output files from 19 templates, one file per app per destination. Nothing is copied or converted afterward. The shell notices on its own within a second.
 
-### How one image becomes 37 files
+### How one image becomes every app's colors
 
 Each template is a file with `{{ colors... }}` placeholders. Matugen renders it and writes the result. The config is a flat list of template-to-output pairs, and several templates are rendered more than once because they need to land in two places:
 
 ```toml
-[templates.hyprland-standalone]
-input_path  = "~/.config/matugen/templates/hyprland-colors.conf"
-output_path = "~/.config/theme/current/colors.conf"
-
-[templates.hyprland-current]
-input_path  = "~/.config/matugen/templates/hyprland-colors.conf"
-output_path = "~/.config/omarchy/current/theme/colors.conf"
+[templates.hyprland-colors]
+input_path  = "~/.config/matugen/templates/hyprland-colors.lua"
+output_path = "~/.config/theme/colors.lua"
 ```
 
-Same input, different output. That is why `hyprland-theme`, `hyprland-current`, and `hyprland-standalone` all read the same `hyprland-colors.conf`. Templates are cheap; outputs are where the duplication lives.
+Hyprland's palette is generated as **Lua**, not `.conf`. The old config did
+`source = ~/.config/theme/current/colors.conf`, and `source` is gone under
+Hyprland's Lua config, so a `.conf` palette has nowhere to hook in. Instead
+`~/.config/hypr/theme.lua` does `require("theme.colors")`, which resolves
+`theme.colors` to exactly `~/.config/theme/colors.lua` on `package.path`.
 
-### Where the 37 files land
+> The require has to be preceded by `package.loaded["theme.colors"] = nil`.
+> Hyprland's bootstrap clears its own module cache on reload but not this one,
+> so without it a reload re-applies the palette from the very first load and
+> wallpaper changes look like they did nothing to the borders.
 
-| Destination | Count | Who reads it |
-|-------------|-------|--------------|
-| `~/.config/theme/current/` | 12 | live config, rewritten every wallpaper change |
-| `~/.config/theme/themes/snow_black/` | 10 | named snapshots, accumulates history |
-| `~/.config/omarchy/current/theme/` | 8 | legacy path kept for compatibility |
-| `/usr/share/sddm/themes/elarun-custom/` | 1 | login screen, needs root path |
-| `~/uthman_notes/.obsidian/snippets/` | 1 | your notes vault |
-| `~/.config/quickshell/colors.css` | 1 | the shell, polled every second |
-| `~/.config/{cava,cavasik,rofi,zathura}/` | 4 | audio visualizer, PDF reader, launcher |
+### Where the generated files land
 
-`theme/current/` is what everything actually reads at runtime. `snow_black/` is a saved snapshot that grows over time and is safe to delete. The `omarchy/current/` copies exist because this setup started from omarchy defaults and some vendor configs still read that path.
+| Destination | Who reads it |
+|-------------|--------------|
+| `~/.config/quickshell/colors.css` | the shell, polled every second |
+| `~/.config/theme/colors.lua` | `hyprland/theme.lua` via `require("theme.colors")` |
+| `~/.config/theme/current/` | live config for every other app, rewritten each wallpaper change |
+| `~/.config/theme/themes/snow_black/` | named snapshot; grows over time and is safe to delete |
+| `~/.config/omarchy/current/theme/` | read by Omarchy's own app configs (kitty, foot, ghostty, chromium, the preview share picker) |
+| `~/.config/{cava,rofi,zathura}/` | audio visualizer, launcher, PDF reader |
 
-Two outputs are worth calling out because they are the only ones outside `~/.config`:
+`theme/current/` is what most apps read at runtime.
 
-- **SDDM** writes to `/usr/share/sddm/themes/`, a system path. That is why `install.sh` needs to run once and why the first install asks for a reboot.
-- **Obsidian** writes into your notes vault, which lives outside this repo. The vault is not part of the dotfiles and is never committed.
+**Every output is inside `~/.config`, and that is load-bearing.** Matugen aborts
+the entire run on the first output it cannot write. A single root-owned or
+nonexistent path in the default set makes *every* wallpaper change look like a
+total failure — and `getTheme` would then skip its cursor and reload steps. The
+outputs that used to live outside `~/.config` were removed rather than left to
+fail:
+
+- **SDDM** → `/usr/share/sddm/themes/`, root-owned. Removed; see *Login screen*.
+- **Obsidian** → a personal notes vault that does not exist here. Removed.
+- **Cavasik** → not installed on this desktop. Removed; plain `cava` is used.
 
 ### Why the shell picks the trickiest path
 
@@ -94,7 +193,7 @@ The shell's palette comes from `waybar-colors.css`, named for Waybar even though
 @define-color tertiary  #ffb780;
 ```
 
-The template is still called `waybar` because it predates the rewrite and `config.toml` maps it, but the file it produces is quickshell's `colors.css`. Matugen also has a `reload_apps.waybar = true` setting, which sends a signal on write. Both are vestigial names. The shell does not use the signal; it polls the file instead, because Matugen replaces the file rather than editing it. A replaced file gets a new inode, which silently breaks `FileView` watchers, so `Colors.qml` re-reads on a 1s timer instead.
+The template is still called `waybar` because it predates the rewrite and `config.toml` maps it, but the file it produces is quickshell's `colors.css`. The shell does not use any reload signal — it polls the file instead, because Matugen replaces the file rather than editing it. A replaced file gets a new inode, which silently breaks `FileView` watchers, so `Colors.qml` re-reads on a 1s timer instead. (The vestigial `reload_apps.waybar = true` setting that used to send a signal has been removed; nothing here consumes it.)
 
 > [!TIP]
 > `set-wallpaper` backgrounds `getTheme` and waits on it, so the transition starts immediately while colors are still being computed. Total time from press to fully restyled desktop is about 3 seconds, of which matugen is 2.1 and the cursor is 0.9. They run in parallel, so adding more templates costs nothing to perceived speed.
@@ -103,9 +202,10 @@ The template is still called `waybar` because it predates the rewrite and `confi
 
 | Concern | Owner | Notes |
 |---------|-------|-------|
-| Windows, keys, blur, gaps | `~/.config/hypr/*.conf` | `vendor/` holds upstream defaults, personal files override |
+| Windows, keys, blur, gaps | `~/.config/hypr/*.lua` | Lua, loaded after Omarchy's defaults; `bindings.lua` unbinds the chords it replaces |
 | Everything drawn | `~/.config/quickshell/` | 55 modules, one palette object shared by all of them |
 | Colors for everything | `~/.config/matugen/` | `config.toml` maps templates to outputs |
+| Idle + lock | `hypridle` + `hyprlock` | external Wayland clients; the shell's own idle/lock is not used |
 | Wallpaper | `~/Pictures/` | git-ignored, never committed |
 | Terminal, prompt, history | `.zshrc` + starship/atuin | unrelated to the shell process |
 
@@ -126,12 +226,11 @@ Normally you call `set-wallpaper` instead, since that also swaps the image itsel
 | Template | Output |
 |----------|--------|
 | `waybar` | `~/.config/quickshell/colors.css` (the file the live shell polls) |
-| `hyprland-*` | `snow_black/colors.conf` + `theme/current` |
-| `hyprlock-*`, `kitty-*`, `gtk`, `btop` | matching live files under `theme/current` |
+| `hyprland-colors` | `~/.config/theme/colors.lua` + `snow_black/colors.lua` |
+| `hyprlock-standalone`, `kitty-*`, `gtk`, `btop` | matching live files under `theme/current` |
 | `cava` | `snow_black/cava_theme` + `~/.config/cava/config` (rewritten directly) |
-| `sddm` | `/usr/share/sddm/themes/elarun-custom/Palette.qml` (login follows every theme change) |
 | `firefox` | `theme/current/firefox{,-usercontent}.css`, symlinked as `userChrome.css`/`userContent.css` |
-| `rofi`, `neovim`, `swayosd`, `zed`, `obsidian`, `zathura` | per-app live outputs |
+| `rofi`, `neovim`, `swayosd`, `zed`, `zathura` | per-app live outputs |
 
 Active colors live in `~/.config/theme/current/` and are rewritten on every run. `snow_black/` keeps saved snapshots, `theme-fallback/` ships the static seed.
 
@@ -157,7 +256,14 @@ quickshell -p ~/.config/quickshell ipc call notifications toggleDnd
 ```
 
 > [!WARNING]
-> The quickshell daemon owns `org.freedesktop.Notifications`. Keep `swaync` masked or it steals the bus back and toasts stop appearing.
+> This quickshell daemon owns `org.freedesktop.Notifications`. `swaync` must stay
+> masked, and so must `omarchy-shell` — but that one is already handled: the
+> shadowed `autostart.lua` never launches it. To confirm which process holds the
+> bus:
+>
+> ```bash
+> busctl --user status org.freedesktop.Notifications | grep PID
+> ```
 
 > [!NOTE]
 > Mismatched `-p` strings fail with `Target not found` even while a shell is clearly running. Autostart, binds, and manual calls must all use `~/.config/quickshell` verbatim.
@@ -274,7 +380,13 @@ The daemon samples in 12s chunks, flags "hot" processes (over 500 KB/s for 10s+)
 | `SUPER+arrows`, `SUPER+1-0` | Focus, workspaces |
 | Fn row | Volume/brightness/mic via the quickshell OSD |
 
-The full list lives in `.config/hypr/bindings.conf` (vendored defaults alongside in `.config/hypr/vendor/`). Every panel also closes on `Esc`.
+The full list lives in `.config/hypr/bindings.lua`. Every panel also closes on `Esc`.
+
+> In the Lua API every modifier needs its own `+` — `"SUPER + SHIFT + F"`, not
+> the old `.conf` `"SUPER SHIFT, F"`. `hl.bind` rejects the space-separated form
+> with `Unknown keysym: "SUPER SHIFT", did you forget a +?`, and it fails loudly
+> at every chord rather than once, so a ported file is usually a wall of that
+> same line until every modifier is fixed.
 
 ## Helper scripts
 
@@ -300,12 +412,18 @@ What runs the desktop day to day, and where each piece lives:
 ```
 ~/dotfiles/
 ├── .config/
-│   ├── hypr/                 # Hyprland: vendor defaults + personal *.conf overrides
-│   │   ├── bindings.conf     # every keybind (cheatsheet reads this)
-│   │   ├── windowrules.conf  # float/center/size for each quickshell window
-│   │   ├── looknfeel.conf    # gaps, blur, shadows, animations, layerrules
-│   │   ├── monitors.conf / input.conf / autostart.conf / envs.conf
-│   │   └── vendor/           # upstream omarchy defaults, do not hand-edit
+│   ├── default/hypr/
+│   │   └── autostart.lua     # shadows Omarchy's, minus omarchy-launch-shell
+│   ├── hypr/                 # Hyprland: personal overrides, all Lua
+│   │   ├── hyprland.lua      # bootstrap + require order
+│   │   ├── bindings.lua      # every keybind (cheatsheet reads this)
+│   │   ├── windows.lua       # float/center/size for each quickshell window
+│   │   ├── looknfeel.lua     # gaps, blur, shadows, animations, layer rules
+│   │   ├── theme.lua         # matugen palette -> border colours
+│   │   ├── monitors.lua / input.lua / autostart.lua / envs.lua
+│   │   └── hypridle.conf / hyprlock.conf / hyprsunset.conf   # separate apps, still .conf
+│   │   (no vendor/ — Omarchy ships its defaults as Lua under
+│   │    $OMARCHY_PATH and they are loaded, not frozen copies)
 │   ├── quickshell/           # desktop shell (see module tables above)
 │   │   ├── shell.qml         # root: bar + standalone windows + shared palette
 │   │   ├── components/       # Bar.qml, Colors.qml
@@ -314,11 +432,11 @@ What runs the desktop day to day, and where each piece lives:
 │   │   ├── colors.css        # generated by matugen, polled live, do not hand-edit
 │   │   ├── PLUGINS.md        # module registry: IPC target + bind per module
 │   │   └── AGENTS.md         # contributor rules for this codebase (read before editing)
-│   ├── matugen/              # config.toml + templates (btop, gtk, rofi, nvim, zed, sddm, zathura, …)
+│   ├── matugen/              # config.toml + templates (btop, gtk, rofi, nvim, zed, zathura, …)
 │   ├── kitty/kitty.conf      # sources theme/current/kitty.conf
 │   ├── systemd/user/         # helper services
 ├── .local/bin/             # set-wallpaper, getTheme, record, shot, …
-├── sddm/elarun-custom/     # login theme source → /usr/share/sddm/themes/
+├── sddm/elarun-custom/     # optional login theme; NOT installed by default
 ├── firefox/user.js         # enables userChrome.css theming
 ├── wallpapers/             # local only, git-ignored, never committed
 ├── assets/                 # vendored blobs + README screenshots (stow-ignored)
@@ -332,16 +450,27 @@ What runs the desktop day to day, and where each piece lives:
 
 ## Customizing
 
-* Keybinds: `.config/hypr/bindings.conf` (panel Binds page edits this file, Hyprland reloads it)
-* Look and feel: `.config/hypr/looknfeel.conf` plus `~/.config/theme/current/colors.conf`
+* Keybinds: `.config/hypr/bindings.lua` (panel Binds page edits this file, Hyprland reloads it)
+* Look and feel: `.config/hypr/looknfeel.lua`. Border colours are not set there — they come from the wallpaper via `theme.lua`, and the palette is regenerated, not edited
 * Bar and modules: `.config/quickshell/modules/*.qml`, then restart quickshell (never trust hot reload for verdicts)
 * New theme template: add it under `.config/matugen/templates/`, map it in `config.toml`, run `matugen image` once
 * Terminal: `.config/kitty/kitty.conf` for font and behavior. Colors always come from the generated files
 
 ## Gotchas
 
-* Quickshell owns the notification bus. If toasts stop appearing, something (usually `swaync`) grabbed `org.freedesktop.Notifications` first. Mask it.
-* Generated files are not source. `colors.css`, `zathurarc`, `cava/config`, and everything under `theme/current/` get overwritten by matugen. Edit the template, never the output.
+* **`xdph.conf` is gone and cannot come back as-is.** It set
+  `screencopy { allow_token_by_default = true, custom_picker_binary = ... }`.
+  Under Lua there is no `source`, nothing loads a stray `xdph.conf`, `hl.config`
+  rejects both keys, and there is no `hl.eval` or `hl.keyword` to set them at
+  runtime. Omarchy does not set them either, so the interactive share picker is
+  simply unavailable. Everything else in that file was the default anyway.
+* **`loginctl lock-session` is a no-op without a session-lock client.** It only
+  forwards a request to whichever process holds the session lock, and nothing
+  does when the session goes idle. `hypridle.conf` launches `hyprlock` directly
+  instead — including for `before_sleep_cmd`, which had the same latent bug.
+* The Quickshell owns the notification bus. If toasts stop appearing, something grabbed `org.freedesktop.Notifications` first — usually `swaync`, or a stray `omarchy-shell` that was started before the shadow took effect. Check with `busctl --user status org.freedesktop.Notifications | grep PID`.
+* Generated files are not source. `colors.css`, `zathurarc`, `cava/config`, `theme/colors.lua`, and everything under `theme/current/` get overwritten by matugen. Edit the template, never the output.
+* `getTheme` verifies its own output rather than trusting matugen's exit code, because matugen exits non-zero if *any* output is unwritable. Keep every template output inside `~/.config`.
 * Nerd Font codepoints drift between font builds. A glyph that exists can still render as the wrong symbol. Verify by glyph name with fontTools, not by codepoint presence. Same goes for Phosphor icons: this repo's build is ligature-mapped, so codepoints were resolved through its GSUB table.
 * `wallshelf.ini` holds the Wallhaven API key and is gitignored on purpose. Never move the key into `wallshelf.json` (tracked).
 * The tree is usually dirty. Theme outputs regenerate on every wallpaper change, so `git status` almost always shows modifications. That is normal. Commit only your own files.
@@ -349,7 +478,13 @@ What runs the desktop day to day, and where each piece lives:
 
 ## Disaster recovery (snapper)
 
-Root is btrfs (`@` + `@home` + `@log` + `@pkg`, snapshots in `.snapshots`, hourly timelines enabled).
+Omarchy's own recovery layout, for the record:
+
+- `nvme0n1p1` → `/boot` (vfat), `nvme0n1p2` → LUKS → btrfs. **Root is encrypted.**
+- Subvolumes: `@` (`/`), `@home`, `@log` (`/var/log`), `@pkg` (`/var/cache/pacman/pkg`).
+- Snapper config `root`: `SUBVOLUME="/"`, **5 snapshots, no timeline** — Omarchy
+  only snapshots for pre-update recovery, it does not run hourly. `snapper list`
+  will usually be nearly empty; that is expected, not a fault.
 
 Most breakages (bad update, nuked `/etc` file, dead Hypr config) still reach a TTY. Log in as root there and roll back. No USB needed:
 
@@ -359,18 +494,26 @@ snapper rollback 80
 reboot
 ```
 
-A USB stick with an Arch ISO is only needed when nothing boots at all: kernel panic, no login prompt. On this setup that means a bad kernel + initramfs after an interrupted update, a broken `mkinitcpio.conf` (check HOOKS before every `mkinitcpio -P`), a full `/` partition (snapshots live on it too), a bad `/etc/fstab` line, or a damaged ESP/`limine.conf` in `/boot`. Then:
+A USB stick with an Arch ISO is only needed when nothing boots at all: kernel
+panic, no login prompt. On this setup that means a bad kernel + initramfs after
+an interrupted update, a broken `mkinitcpio.conf` (check HOOKS before every
+`mkinitcpio -P`), a full `/` partition (snapshots live on it too), a bad
+`/etc/fstab` line, or a damaged `/boot`. Because root is LUKS, the ISO needs
+the passphrase before anything else:
 
 ```bash
 # from the ISO:
-mount -o subvol=@ /dev/sda2 /mnt
+cryptsetup open /dev/nvme0n1p2 root
+mount -o subvol=@ /dev/mapper/root /mnt
 arch-chroot /mnt
 snapper list
 snapper rollback 80
 reboot
 ```
 
-`@home`/`@log`/`@pkg` are separate subvolumes, so rollback never touches your files, logs, or package cache. Snapper keeps the broken `@` as a backup, so a bad rollback is itself reversible.
+`@home`/`@log`/`@pkg` are separate subvolumes, so rollback never touches your
+files, logs, or package cache. Snapper keeps the broken `@` as a backup, so a
+bad rollback is itself reversible.
 
 Day-to-day (no reboot involved):
 
@@ -382,13 +525,17 @@ snapper status 82..0                  # preview what changed first
 
 ## Locked out (passwords, login, screen lock)
 
-Three ladders, in order. This disk is **not encrypted** (plain btrfs on `/dev/sda2`, ESP on `/dev/sda1`), so a forgotten password is an inconvenience, never data loss. There is no scenario here where snapshots can't reach your files as long as you can boot an ISO.
+Three ladders, in order. `nvme0n1p2` **is LUKS-encrypted**, so this needs
+updating: a forgotten password is no longer merely an inconvenience, because
+booting an ISO now also requires the disk passphrase. Keep it somewhere you can
+reach. If you have the passphrase, there is no scenario where snapshots can't
+reach your files.
 
 **Ladder 1: a TTY.** `CTRL ALT F3` through `F6` (SDDM owns `tty1`, so do not fight it there). Log in as your user or as root and fix it directly:
 
 ```bash
-passwd uthman                  # forgotten user password (as root)
-loginctl unlock-sessions       # stuck at the hyprlock screen
+passwd justin                  # forgotten user password (as root)
+pkill -x hyprlock              # stuck at the hyprlock screen
 snapper rollback 80            # broke it with an update, see above
 ```
 
@@ -397,14 +544,19 @@ SDDM login-looping but the TTY works almost always means the Hyprland session di
 **Ladder 2: no TTY at all, or both passwords lost.** Boot an Arch ISO. `sudo` on this machine requires a password (no `NOPASSWD` backdoor outside the scoped `nethogs` rule), so if no password works anywhere, the ISO is the backstop, not a trick:
 
 ```bash
-# from the ISO (by-UUID so a renamed disk can't fool you):
-mount -o subvol=@ /dev/disk/by-uuid/600e2481-86c4-40a8-9c2a-a287f3fc1c64 /mnt
-mount -o subvol=@home /dev/disk/by-uuid/600e2481-86c4-40a8-9c2a-a287f3fc1c64 /mnt/home
+# from the ISO. LUKS first -- nothing below works until this is done.
+cryptsetup open /dev/nvme0n1p2 root
+mount -o subvol=@  /dev/mapper/root /mnt
+mount -o subvol=@home /dev/mapper/root /mnt/home
 arch-chroot /mnt
-passwd uthman                  # or: snapper list + snapper rollback 80
+passwd justin                  # or: snapper list + snapper rollback 80
 reboot
 ```
 
 `@home` is a separate subvolume, so even a full `@` rollback never touches your files. If you only need one file back, mount `@home` and copy it to a USB stick without chrooting at all.
+
+If the passphrase is the thing you lost, none of the ladders help — that is the
+one failure mode LUKS introduces, and it is why the passphrase needs to live
+outside this machine.
 
 **Know before it happens.** Root TTY login needs the root password; if root was never given one (locked `!` account), Ladder 1's `passwd` path doesn't exist and you go straight to Ladder 2. Worth verifying now, while nothing is broken: `sudo passwd -S root` should not report `L`.

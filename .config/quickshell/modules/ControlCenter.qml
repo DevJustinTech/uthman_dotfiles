@@ -332,7 +332,12 @@ FloatingWindow {
     color: "transparent"
     visible: root.open || closeAnim.running
 
-    IpcHandler { target: "controlcenter"; function toggle(): void { root.open = !root.open } }
+    // The "controlcenter" IPC target is owned by shell.qml, which wraps this
+    // window in a lazy Loader so the ~1000-line module only compiles on first
+    // open. An IpcHandler here too would be dead code and Quickshell warns
+    // about it: "Handler was registered but will not be used because another
+    // handler is registered for target controlcenter". Drive it through
+    // shell.qml instead.
 
     onOpenChanged: if(open) { ghUserProc.running=true; weatherProc.running=true; volProbe.running=true; root.calOffset=0; root.rebuildCal(); root.loadTopActivities(); root.loadActivityLast7(); Qt.callLater(function(){ card.forceActiveFocus() }); openAnim.restart() } else closeAnim.restart()
 

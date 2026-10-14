@@ -61,8 +61,13 @@ else
     matugen image "$WALLPAPER" --mode "$MODE" --type "$THEME_TYPE" --contrast "$CONTRAST" --source-color-index 0
 fi
 
-if [[ $? -ne 0 ]]; then
-    echo "Error: matugen failed"
+# matugen exits non-zero if ANY output could not be written -- including ones
+# this machine has no business writing (a root-owned path, another user's notes
+# vault). The palette it did generate is still valid, so verify that instead of
+# trusting the exit code, otherwise one dead output makes every wallpaper change
+# look like a total failure and skips the cursor + reload steps below.
+if [[ ! -s "$HOME/.config/theme/colors.lua" ]]; then
+    echo "Error: matugen produced no palette at ~/.config/theme/colors.lua"
     exit 1
 fi
 
@@ -133,10 +138,7 @@ for _zprof in "$HOME/.config/zen"/*.Default* "$HOME/.config/zen"/*.default*; do
     done
 done &
 
-# Live-update Cavasik colors (matugen already regenerated ~/.config/cavasik/colors.rgb)
-dbus-send --session --type=method_call --dest="io.github.TheWisker.Cavasik" \
-    "/io/github/TheWisker/Cavasik" "io.github.TheWisker.Cavasik.set_fg_colors" \
-    string:"${HOME}/.config/cavasik/colors.rgb" 2>/dev/null &
+
 
 # Live-reload any running nvim instances (via the --listen sockets).
 for sock in /tmp/nvim-"$USER"/*.sock; do

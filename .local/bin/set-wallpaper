@@ -40,6 +40,10 @@ elif command -v swww >/dev/null 2>&1; then
     DAEMON="swww-daemon"
 fi
 
+# (The wallpaper itself is painted by the awww daemon started in
+# hypr/autostart.lua. This shell has no background layer of its own -- the
+# wallpaper hits above are images inside panels, not a desktop backdrop.)
+
 if [[ -n "$WALL" ]]; then
     if ! pgrep -x "$DAEMON" >/dev/null 2>&1; then
         setsid "$DAEMON" >/dev/null 2>&1 &

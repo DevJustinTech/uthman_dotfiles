@@ -30,12 +30,29 @@ header "Checking dependencies..."
 # and the app launcher is the local rofi shim ~/.local/bin/walker-dmenu — so neither
 # walker, mako nor swaync is a real dependency.
 DEPS=(hyprland quickshell kitty matugen starship zsh lsd zoxide fzf cava btop stow hyprlock hypridle hyprsunset wl-clipboard cliphist rofi thunar tumbler thunar-archive-plugin thunar-volman file-roller catfish ffmpegthumbnailer poppler-glib)
+
+# hypridle owns idle/lock now that the Quickshell shell below replaces
+# omarchy-shell (which used to handle idle through shell.json's idle.lock).
+# Without it nothing ever locks the screen.
 MISSING=()
 
 for dep in "${DEPS[@]}"; do
-    # wl-clipboard ships wl-copy/wl-paste, not a `wl-clipboard` binary
-    check="$dep"
-    [ "$dep" = "wl-clipboard" ] && check="wl-copy"
+    # Some entries ship no binary named after the package, so `command -v`
+    # gives a false negative for them. Those are queried via pacman instead.
+    case "$dep" in
+        # wl-clipboard ships wl-copy/wl-paste, not a `wl-clipboard` binary
+        wl-clipboard) check="wl-copy" ;;
+        tumbler|thunar-archive-plugin|thunar-volman|poppler-glib)
+            if pacman -Q "$dep" &>/dev/null; then
+                success "Found: $dep"
+                continue
+            fi
+            MISSING+=("$dep")
+            warn "Not found: $dep"
+            continue
+            ;;
+        *) check="$dep" ;;
+    esac
     if ! command -v "$check" &>/dev/null; then
         MISSING+=("$dep")
         warn "Not found: $dep"
@@ -167,8 +184,34 @@ else
     info "Skipped. Run later with: matugen image ~/your-wallpaper.jpg"
 fi
 
-# ── Step 6: System-level extras (fonts, SDDM, fastfetch art) ───────────────
+# ── Step 6: System-level extras (fonts, cursor base, SDDM, fastfetch art) ───
 header "System extras (needs sudo for fonts/SDDM)..."
+
+# ── Cursor base ────────────────────────────────────────────────────────────
+# matugen-cursor recolours the stock Bibata Modern Ice theme, so the BASE theme
+# must exist at ~/.local/share/icons/Bibata-Modern-Ice before it can run. With
+# the base missing it prints "cursor base missing" and skips the cursor
+# entirely, leaving the pointer stuck on whatever theme was there before.
+#
+# It ships as cursor-theme/.local/share/icons/Bibata-Modern-Ice, but stow maps
+# top-level entries one-for-one onto $HOME, so that path would land at
+# ~/cursor-theme -- somewhere nothing reads. cursor-theme is stow-ignored and
+# linked into place here instead.
+CURSOR_BASE_SRC="$DOTFILES_DIR/cursor-theme/.local/share/icons/Bibata-Modern-Ice"
+CURSOR_BASE_DST="$HOME/.local/share/icons/Bibata-Modern-Ice"
+
+if [ -d "$CURSOR_BASE_SRC" ]; then
+    # A real dir here (from a previous manual copy) blocks the symlink.
+    if [ -e "$CURSOR_BASE_DST" ] && [ ! -L "$CURSOR_BASE_DST" ]; then
+        info "Normalizing existing real dir $CURSOR_BASE_DST into a symlink..."
+        rm -rf "$CURSOR_BASE_DST"
+    fi
+    mkdir -p "$HOME/.local/share/icons"
+    ln -sfn "$CURSOR_BASE_SRC" "$CURSOR_BASE_DST"
+    success "Cursor base linked: $CURSOR_BASE_DST"
+else
+    warn "Cursor base not found at $CURSOR_BASE_SRC - matugen-cursor will skip the pointer theme."
+fi
 
 # Inter from repos; Iceland is vendored (SDDM runs as its own user and
 # cannot read $HOME fonts, so both must live in /usr/share/fonts).

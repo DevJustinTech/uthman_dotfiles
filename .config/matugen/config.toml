@@ -2,28 +2,33 @@
 contrast = 0.2
 variation = "standard"
 
-[config.reload_apps]
-waybar = true
+# No reload_apps block. This used to send a Waybar signal on write; nothing on
+# this desktop runs Waybar, and it was never used anyway -- the Quickshell
+# shell polls ~/.config/quickshell/colors.css on a 1s timer instead, because
+# matugen replaces the file (new inode) rather than editing it.
 
 [templates.waybar]
 input_path = "~/.config/matugen/templates/waybar-colors.css"
 output_path = "~/.config/quickshell/colors.css"
 
+# ── Hyprland ────────────────────────────────────────────────────────────
+# One Lua module, consumed by ~/.config/hypr/theme.lua via require("theme.colors").
+# It lives at ~/.config/theme/colors.lua rather than theme/current/ because
+# package.path resolves "theme.colors" to exactly that path.
+#
+# This replaces the three hyprland-colors.conf outputs that used to be
+# `source`d from hyprland.conf. Source directives are gone under Hyprland's
+# Lua config, so a .conf palette has nowhere to hook in any more.
+[templates.hyprland-colors]
+input_path = "~/.config/matugen/templates/hyprland-colors.lua"
+output_path = "~/.config/theme/colors.lua"
+
 [templates.hyprland-theme]
-input_path = "~/.config/matugen/templates/hyprland-colors.conf"
-output_path = "~/.config/theme/themes/snow_black/colors.conf"
+input_path = "~/.config/matugen/templates/hyprland-colors.lua"
+output_path = "~/.config/theme/themes/snow_black/colors.lua"
 
-[templates.hyprland-current]
-input_path = "~/.config/matugen/templates/hyprland-colors.conf"
-output_path = "~/.config/omarchy/current/theme/colors.conf"
-
-[templates.hyprland-standalone]
-input_path = "~/.config/matugen/templates/hyprland-colors.conf"
-output_path = "~/.config/theme/current/colors.conf"
-
-[templates.hyprlock-current]
-input_path = "~/.config/matugen/templates/hyprlock-colors.conf"
-output_path = "~/.config/omarchy/current/theme/hyprlock.conf"
+# hyprlock is still a .conf application, so it keeps a .conf palette and is
+# pulled in by ~/.config/hypr/hyprlock.conf.
 
 [templates.hyprlock-standalone]
 input_path = "~/.config/matugen/templates/hyprlock-colors.conf"
@@ -50,13 +55,7 @@ output_path = "~/.config/theme/themes/snow_black/pear-desktop.css"
 input_path = "~/.config/matugen/templates/pear-desktop.css"
 output_path = "~/.config/theme/current/pear-desktop.css"
 
-[templates.cavasik-theme]
-input_path = "~/.config/matugen/templates/cavasik-colors.rgb"
-output_path = "~/.config/theme/themes/snow_black/cavasik-colors.rgb"
-
-[templates.cavasik-current]
-input_path = "~/.config/matugen/templates/cavasik-colors.rgb"
-output_path = "~/.config/cavasik/colors.rgb"
+# (cavasik outputs removed -- see "Intentionally absent" at the end of this file)
 
 [templates.gtk-theme]
 input_path = "~/.config/matugen/templates/gtk.css"
@@ -162,10 +161,24 @@ output_path = "~/.config/theme/current/zen-usercontent.css"
 input_path = "~/.config/matugen/templates/zathurarc"
 output_path = "~/.config/zathura/zathurarc"
 
-[templates.sddm]
-input_path = "~/.config/matugen/templates/sddm-palette.qml"
-output_path = "/usr/share/sddm/themes/elarun-custom/Palette.qml"
-
-[templates.obsidian-current]
-input_path = "~/.config/matugen/templates/obsidian.css"
-output_path = "~/uthman_notes/.obsidian/snippets/matugen.css"
+# ── Intentionally absent ────────────────────────────────────────────────
+# These four were dropped rather than left to fail:
+#
+#   sddm      -> /usr/share/sddm/themes/elarun-custom/Palette.qml
+#   obsidian  -> ~/uthman_notes/.obsidian/snippets/matugen.css
+#   cavasik   -> ~/.config/cavasik/colors.rgb
+#   hyprlock-omarchy -> ~/.config/omarchy/current/theme/hyprlock.conf
+#
+# matugen aborts the whole run on an output it cannot write, so leaving a
+# root-owned or nonexistent-path output in the default set makes EVERY
+# wallpaper change report failure and skip the cursor/reload steps in
+# getTheme. That is a worse failure than the feature being off.
+#
+# sddm: /usr/share is root-owned and the SDDM greeter runs as its own user, so
+#   a wallpaper-driven login palette would need a root prompt on every theme
+#   change. Omarchy's login theme stays instead. To use elarun-custom anyway,
+#   install it and repoint SDDM by hand -- see README "Login screen".
+# obsidian: pointed at a personal notes vault path that does not exist here.
+# cavasik: Cavasik is not installed; this desktop uses plain cava.
+# hyprlock-omarchy: only read by the Omarchy shell we replaced. The live
+#   hyprlock palette (hyprlock-standalone) is still generated.
