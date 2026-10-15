@@ -128,7 +128,10 @@ FloatingWindow {
         }
     }
 
-    // scan: 12s discovery in the background, re-list at 4/8/12s as the cache fills
+    // scan: one bluetoothctl session does a ~11s discovery, then stops itself
+    // via `scan off` — never kill it: a SIGTERM'd `bluetoothctl scan on` leaves
+    // BlueZ Discovering forever (per-client StopDiscovery: only a power cycle
+    // clears that). Re-list at 4/8/12s as the cache fills.
     function scanStart() {
         if (root.scanning || !root.powered) return
         root.scanning = true
@@ -139,11 +142,12 @@ FloatingWindow {
         scanTick3.restart()
     }
     function scanStop() {
-        scanProc.running = false
+        // deliberately no scanProc.running=false: killing the scanning session
+        // is what used to leave BlueZ discovering forever. It stops itself.
         scanTick1.stop(); scanTick2.stop(); scanTick3.stop()
         if (root.scanning) { root.scanning = false; root.statusMsg = "" }
     }
-    Process { id: scanProc; command: ["sh", "-c", "timeout 13 bluetoothctl scan on >/dev/null 2>&1"] ; onExited: { root.scanning = false; root.statusMsg = ""; root.refresh() } }
+    Process { id: scanProc; command: ["sh", "-c", "{ echo 'scan on'; sleep 11; echo 'scan off'; } | timeout 15 bluetoothctl >/dev/null 2>&1"] ; onExited: { root.scanning = false; root.statusMsg = ""; root.refresh() } }
     Timer { id: scanTick1; interval: 4000; onTriggered: devProc.running = true }
     Timer { id: scanTick2; interval: 8000; onTriggered: devProc.running = true }
     Timer { id: scanTick3; interval: 12000; onTriggered: devProc.running = true }
