@@ -23,34 +23,51 @@ THEME="$HOME/.config/theme/current"
 SELF=$(readlink -f "${BASH_SOURCE[0]}")
 DOTFILES_DIR=$(cd "$(dirname "$SELF")/../.." && pwd)
 
-# Focus the app's own window if it is already up. Windows are matched by pid as
-# well as title: title alone would happily focus the main browser when, say,
-# WhatsApp Web is open there.
-focus_match() {
-    [ -n "$MATCH" ] || return 1
-    command -v hyprctl >/dev/null || return 1
-    command -v jq >/dev/null || return 1
-    local pids addr
-    pids=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, -)
+# Address of this app's window, or empty. Windows are matched by pid as well as
+# title: title alone would happily pick up the main browser when, say, WhatsApp
+# Web is open there. A title that no longer matches still falls back to the
+# app's first window, so navigating away focuses instead of duplicating.
+app_window() {
+    command -v hyprctl >/dev/null 2>&1 || return 1
+    command -v jq >/dev/null 2>&1 || return 1
+    local pids
+    pids=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
     [ -n "$pids" ] || return 1
-    addr=$(hyprctl clients -j 2>/dev/null | jq -r --arg m "$MATCH" --arg p "$pids" '
+    hyprctl clients -j 2>/dev/null | jq -r --arg m "$MATCH" --arg p "$pids" '
         ($p | split(",") | map(tonumber)) as $pids
-        | .[]
-        | select(.pid as $x | $pids | index($x))
-        | select((.title // "") | test($m; "i"))
-        | .address' | head -1)
-    [ -n "$addr" ] && [ "$addr" != "null" ] || return 1
-    # Hyprland 0.56 evaluates this as Lua (see config/quickshell/AGENTS.md).
-    # The .conf-era `focuswindow address:0x…` is a syntax error there, so it
-    # fails and every launch silently opened a duplicate window instead.
-    hyprctl dispatch "hl.dsp.focus({window=$addr})" >/dev/null
+        | [ .[] | select(.pid as $x | $pids | index($x)) ] as $w
+        | (( $w | map(select((.title // "") | test($m; "i"))) ) + $w)
+        | .[0].address // empty'
 }
 
-# Already running on this profile? Focus it. If the user has navigated somewhere
-# the title regex no longer matches, hand the URL to the live instance rather
-# than doing nothing at all.
+# The window argument is the STRING "address:0x…". A bare hex number -- which is
+# what config/quickshell/AGENTS.md documents -- makes hl.focus report
+# "window not found" for a perfectly valid window, and the same mistake is in
+# ThemeEditor.qml and WorkspaceViewer.qml.
+#
+# hyprctl also exits 0 even when the dispatcher refuses the call, so the focus is
+# confirmed rather than assumed: a silent refusal would otherwise look like
+# success and the caller would open a duplicate.
+focus_window() {
+    local addr=$1 i
+    hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })" >/dev/null 2>&1
+    for i in 1 2 3 4 5; do
+        [ "$(hyprctl activewindow -j 2>/dev/null | jq -r '.address // empty')" = "$addr" ] && return 0
+        sleep 0.1
+    done
+    return 1
+}
+
+# Already running on this profile? Focus its window. A second launch must never
+# open a duplicate -- that is the whole point of these entries.
 if pgrep -f -q -- "-profile $PROFDIR" 2>/dev/null; then
-    focus_match && exit 0
+    addr=$(app_window || true)
+    if [ -n "$addr" ] && focus_window "$addr"; then
+        exit 0
+    fi
+    # Running, but nothing could be focused (still starting up, or every window
+    # closed): hand the URL to the live instance instead of starting a second
+    # process on a profile that is already locked.
     exec uwsm-app -- zen --profile "$PROFDIR" --new-window "$URL"
 fi
 

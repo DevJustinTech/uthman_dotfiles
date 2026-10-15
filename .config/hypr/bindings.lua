@@ -53,16 +53,27 @@ o.bind("SUPER + SHIFT + O", "Obsidian", o.launch("obsidian -disable-gpu --enable
 
 -- If a web app URL contains #, type it as ## to prevent Hyprland treating it
 -- as a comment. Web apps open chromeless (Chrome --app style) via:
---   ffapp <name> <url> [title-regex]
-o.bind("SUPER + SHIFT + A", "ChatGPT", "ffapp chatgpt https://chatgpt.com ChatGPT")
-o.bind("SUPER + ALT + SHIFT + A", "Grok", "ffapp grok https://grok.com Grok")
-o.bind("SUPER + SHIFT + C", "Calendar", "ffapp heycal https://app.hey.com/calendar/weeks/ Calendar")
-o.bind("SUPER + SHIFT + E", "Email", "ffapp heymail https://app.hey.com \"IMBOX|HEY\"")
-o.bind("SUPER + SHIFT + Y", "YouTube", "ffapp youtube https://youtube.com/ YouTube")
-o.bind("SUPER + CTRL + SHIFT + G", "Google Messages", "ffapp messages https://messages.google.com/web/conversations Messages")
-o.bind("SUPER + SHIFT + P", "Google Photos", "ffapp photos https://photos.google.com/ \"Google Photos\"")
-o.bind("SUPER + SHIFT + X", "X", "ffapp x https://x.com/ \"\\\\bX\\\\b\"")
-o.bind("SUPER + ALT + SHIFT + X", "X Post", "ffapp x https://x.com/compose/post \"\\\\bX\\\\b\"")
+--   zenapp <name> <url> [title-regex]
+--
+-- These used to call ffapp, which could never have worked here: Firefox is not
+-- installed, ~/firefox does not exist, and its focus path references $ADDR where
+-- the variable is $addr. zenapp does the same job on Zen, needs no Firefox, and
+-- shares its profile names with the web app entries in
+-- .local/share/applications, so a keybind and its app-menu row focus the same
+-- window instead of opening two.
+--
+-- The regexes stay loose on purpose: zenapp matches windows by pid first, so the
+-- pattern only picks among that app's own windows -- a bare "/ X" is enough and
+-- never has to fight Hyprland's Lua escaping for \b.
+o.bind("SUPER + SHIFT + A", "ChatGPT", "zenapp chatgpt https://chatgpt.com ChatGPT")
+o.bind("SUPER + ALT + SHIFT + A", "Grok", "zenapp grok https://grok.com Grok")
+o.bind("SUPER + SHIFT + C", "Calendar", "zenapp heycal https://app.hey.com/calendar/weeks/ Calendar")
+o.bind("SUPER + SHIFT + E", "Email", "zenapp heymail https://app.hey.com \"IMBOX|HEY\"")
+o.bind("SUPER + SHIFT + Y", "YouTube", "zenapp youtube https://youtube.com/ YouTube")
+o.bind("SUPER + CTRL + SHIFT + G", "Google Messages", "zenapp gmessages https://messages.google.com/web/conversations Messages")
+o.bind("SUPER + SHIFT + P", "Google Photos", "zenapp gphotos https://photos.google.com/ \"Google Photos\"")
+o.bind("SUPER + SHIFT + X", "X", "zenapp x https://x.com/ \"/ X\"")
+o.bind("SUPER + ALT + SHIFT + X", "X Post", "zenapp x https://x.com/compose/post \"/ X\"")
 
 -- ── Print safety ────────────────────────────────────────────────────────
 -- Print must never launch an action. The keyboard/greeter can emit a spurious
@@ -98,6 +109,11 @@ o.bind("SUPER + SHIFT + T", "OCR from screenshot", "shot ocr")
 -- because spurious Print events fired screenshot overlays during unrelated
 -- chords. The same hazard applies to this one.
 o.bind("SUPER + SHIFT + S", "Pretty screenshot", "shot pretty")
+-- D: drag-area capture. Omarchy's applications.lua binds SUPER SHIFT D to its
+-- Docker TUI; unbind that first, or both run on the chord. Docker stays
+-- reachable as `omarchy-launch-docker-tui` from a terminal.
+hl.unbind("SUPER + SHIFT + D")
+o.bind("SUPER + SHIFT + D", "Screenshot (drag area)", "shot")
 
 -- ── Shell panels ────────────────────────────────────────────────────────
 -- Omarchy puts its menu on SUPER+SPACE and a panel set on SUPER+H/U/B. All of
