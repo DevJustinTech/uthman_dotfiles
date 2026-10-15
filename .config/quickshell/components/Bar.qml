@@ -109,11 +109,30 @@ PanelWindow {
     IpcHandler { target: "failwatch"; function toggle(): void { fwPanel.open = !fwPanel.open } }
     MediaOsd { id: mediaOsd; colors: palette }
 
-    // bar sides toggle — SUPER SHIFT SPACE leaves middle island
-    // default: island only, full bar appears on toggle. Matches upstream and
-    // the screenshots in the README; also the better fit for a 1366px panel,
-    // where the full row of pills is cramped.
+    // Bar sides.
+    //
+    // Two separate things: barsPinned is what SUPER SHIFT SPACE toggles, and
+    // barsVisible is what actually paints. Unpinned, the sides stay hidden and
+    // sweep in when the cursor reaches either edge, then retract when it
+    // leaves -- the mouse is the whole interaction, no key needed.
+    // Pinned, the toggle holds them open regardless of the pointer.
+    //
+    // Default is island only: it matches upstream and the README screenshots,
+    // and suits a 1366px panel better than the full row of pills.
+    property bool barsPinned: false
     property bool barsVisible: false
+    // Which end the cursor is over -- a zone, or the row it slid out to.
+    property bool leftHover: false
+    property bool rightHover: false
+    function refreshBars() {
+        barsVisible = barsPinned || leftHover || rightHover
+    }
+    function setBars(pinned: bool) {
+        barsPinned = pinned
+        leftHover = false
+        rightHover = false
+        refreshBars()
+    }
     // center style — SUPER ALT SPACE flips trapezoid tab against the Dynamic Island
     property bool dynamicIsland: false
     // island hover swells the NowPlaying glass card; the linger timer keeps it from
@@ -132,13 +151,59 @@ PanelWindow {
 
     IpcHandler {
         target: "bar"
-        function toggle(): void { bar.barsVisible = !bar.barsVisible }
+        // Toggles the PIN, not the current visibility: pressing it while the
+        // sides are out on hover would otherwise unpin them and they would
+        // vanish under the cursor.
+        function toggle(): void { bar.setBars(!bar.barsPinned) }
         function toggleIsland(): void { bar.dynamicIsland = !bar.dynamicIsland; bar.pulseIsland() }
     }
 
     Item {
         id: content
         anchors.fill: parent
+
+        // ── hover reveal ────────────────────────────────────────────────
+        // Two invisible strips at the ends of the bar. HoverHandler is used
+        // rather than MouseArea on purpose: it tracks the pointer without
+        // accepting a button, so it does not become a click target of its own
+        // and the pills underneath keep working.
+        //
+        // z is ABOVE the rows deliberately. The strip has to stay the hovered
+        // item while the row animates out from under the cursor -- at a lower
+        // z the row covered it, hover dropped, the row retracted, and the
+        // whole thing oscillated. A HoverHandler accepts no button, so the
+        // MouseAreas in the rows still receive clicks through it.
+        //
+        // enabled is gated on the pin: when the sides are pinned open the
+        // strips go dead so moving the pointer away cannot yank them shut.
+        Item {
+            id: leftZone
+            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+            width: 110
+            z: 2
+            HoverHandler {
+                id: leftHoverHandler
+                enabled: !bar.barsPinned
+                onHoveredChanged: {
+                    bar.leftHover = hovered
+                    bar.refreshBars()
+                }
+            }
+        }
+        Item {
+            id: rightZone
+            anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+            width: 200
+            z: 2
+            HoverHandler {
+                id: rightHoverHandler
+                enabled: !bar.barsPinned
+                onHoveredChanged: {
+                    bar.rightHover = hovered
+                    bar.refreshBars()
+                }
+            }
+        }
 
         RowLayout {
             id: leftRow
