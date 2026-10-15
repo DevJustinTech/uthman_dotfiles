@@ -16,11 +16,9 @@ end
 
 shell_window("System Monitor", 920, 640)
 shell_window("Monitors", 460, 620)
-shell_window("PhoneBridge", 460, 520)
 shell_window("ThemeEditor", 460, 740)
 shell_window("Earbuds", 380, 420)
 shell_window("Bluetooth", 440, 560)
-shell_window("WhatsApp", 640, 720)
 -- DriveHealth's window title is "Hardware Health", not the module name.
 hl.window_rule({ match = { class = QS, title = "^Hardware Health$" }, float = true, center = true, size = { 600, 640 } })
 shell_window("Dictionary", 560, 500)

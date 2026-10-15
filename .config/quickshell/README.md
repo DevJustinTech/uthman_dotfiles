@@ -25,7 +25,7 @@ modules/
   BellButton.qml             opens/closes the notification drawer, count badge
   NotificationToast.qml      glass toast popups (critical never expires, actions supported)
   NotificationCenter.qml     daemon + drawer panel + history archive
-  PhoneBridge.qml             adb phone bridge — send/pull files, screenshot, WhatsApp forwarder (see PhoneBridge.md)
+
 scripts/                     helper scripts the bar shells out to
 ```
 

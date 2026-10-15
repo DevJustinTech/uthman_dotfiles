@@ -1,29 +1,5 @@
 # TODO
 
-## ~~PhoneBridge~~ — done
-
-Connected and verified 2026-10-02. Probe is 9/9 PASS.
-
-The phone's wifi IP is **192.168.165.198:5555** (itel A663LC). Earlier it
-looked like "the router" in a ping scan — it was the phone, on the same
-subnet as the laptop all along. Only `init.sh` had never been re-run against
-it, so the config still carried the stale `192.168.98.30` from an old network.
-
-Kept working after the timeout fix:
-
-- `~/phonebridge/phonebridge` — every adb call bounded (connect 8s, shell
-  30s, push/pull 300s); `TimeoutExpired` → exit 124 so existing error paths
-  handle it
-- `init.sh:31` — `timeout 8 adb connect`
-- `PhoneBridge.qml` — 15s `discoveryWatchdog` kills a hung connect/list and
-  clears `busy`, which previously latched `true` and blocked all refreshes
-
-### Gotcha
-
-`init.sh` writes `device`/`target` from whatever adb sees first. Run it while
-cabled and it records the USB serial (`10665403B6010710`), which dies on
-unplug. Re-run it **unplugged** to keep the wifi target.
-
 ## Monitor scale — needs a logout to settle
 
 `.config/hypr/monitors.conf` says scale `1` (1920x1080, integer 1:1) with

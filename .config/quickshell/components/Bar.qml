@@ -82,12 +82,11 @@ PanelWindow {
     // ScreenTime (211 lines) — `screentime` bind
     ScreenTime { id: stPanel; colors: palette }
     IpcHandler { target: "screentime"; function toggle(): void { stPanel.open = !stPanel.open } }
-    // PhoneBridge (1216 lines, 18 Process) — IPC-only, never pill-wired.
-    // Panel owns target "phonebridge" itself, so NO Bar proxy here.
-    // NOTE: inbox/notif watchers start on first open, not bar startup.
-    PhoneBridge { id: phonePanel; colors: palette }
-    // WhatsApp PARKED (ban caution, 2026-09-17): kept on disk, unwired so no daemon spawns.
-    // WhatsApp { id: waPanel; colors: palette }
+    // PhoneBridge and WhatsApp were removed at the user's request, along with
+    // their binds, float rules, systemd unit, helpers and logo. The phonebridge
+    // backend was never installed here, so the module only ever logged
+    // "Process failed to start ... /home/justin/phonebridge/phonebridge" and
+    // loading it cost ~1200 lines of QML to build on every shell start.
     // Launcher lives here (not shell.qml) so Bar pills/IPC can reach it —
     // and `plugins` (PluginMenu scrapped, all ten ride the launcher now).
     AppLauncher { id: launcherPanel; colors: palette }

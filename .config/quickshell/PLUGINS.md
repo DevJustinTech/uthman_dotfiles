@@ -35,7 +35,6 @@ Rules of the house (from AGENTS.md / memory.md):
 | FailWatch.qml + FailWatchPanel.qml | **silent-failure watchdog** — failed systemd units + journal OOM/segfault/oops; notify-send alerts, per-row log ids (`journalctl -u`, `--after-cursor`), on-demand `pacman -Qkk` | `failwatch` | Utilities hub (no bind) | daemon `failwatch.service` (scripts/failwatch-daemon.py) → `~/.local/share/failwatch/`; panel only (no bar pill) |
 | Dictionary.qml | **dictionary** — definitions, IPA, audio, examples, synonym/antonym chips, Datamuse related words, session cache + history | `dict` | Utilities hub (no bind) | pure QML (dictionaryapi.dev, no key); Enter to define, chips drill down |
 | Grap.qml | **grep search** — instant content search (home by default, `@path` to scope), file-type icons, Enter opens match in nano (kitty) at line | `grap` | Utilities hub (no bind) | FloatingWindow 600×470 glass; debounced ripgrep, ↑↓ + Enter, Esc |
-| PhoneBridge.qml | ADB file sender: drop-to-phone, pull browser, queue, progress | `phonebridge` | `SUPER ALT K` | wireless ADB, one-time cable tcpip; no app on phone |
 | Bar pills (ArchLogo, Memory, Cpu, Network, Temp, Tray, DndIndicator, ScriptIndicator) | status pills | — | — | ScriptIndicator runs scripts/update.sh + idle.sh |
 
 ## Unwired / dormant
@@ -43,12 +42,10 @@ Rules of the house (from AGENTS.md / memory.md):
 | File | State | To activate |
 |---|---|---|
 | modules/LockScreen.qml | PAM API fixed (`onCompleted`), UI needs redo (no blur/animations, Esc bypasses auth) | wire into shell.qml + rebind `SUPER CTRL L`; user chose hyprlock for now |
-| modules/WhatsApp.qml + Toast.qml | PARKED 2026-09-17 (WhatsApp-ToS ban caution): code + session kept, unwired from Bar.qml, SUPER ALT W off, no daemon runs; WhatsApp pings via PhoneBridge shade polling | rewire `WhatsApp {}` in Bar.qml + restore bind + `SUPER HOME` |
 
 ## Roadmap (wanted, not started)
 
 From memory.md roadmap — do NOT start until de-omarchification done:
-1. WhatsApp notification center
 2. Habit tracker
 3. Gmail inbox integration
 4. Password store integration

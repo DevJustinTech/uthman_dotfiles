@@ -66,8 +66,8 @@ for p in controlcenter sysmon wifi; do
     pause
 done
 
-say "Act III — launcher, keybinds, phone bridge."
-for p in launcher keybinds phonebridge; do
+say "Act III — launcher, keybinds."
+for p in launcher keybinds; do
     run $QS ipc call "$p" toggle
     pause; pause
     run $QS ipc call "$p" toggle

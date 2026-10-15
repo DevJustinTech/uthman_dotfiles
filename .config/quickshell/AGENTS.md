@@ -63,11 +63,11 @@ installed and is not packaged for Linux** on any repo or the AUR (only
 unrelated hits: cathode-phosphor icon themes, Minecraft mods, R packages).
 Qt fell back to a default face and every one of those glyphs rendered as
 **tofu** — the empty boxes in the notification-centre header, and a blank
-square where a WhatsApp or browser notification should have shown its icon.
+square where an app or browser notification should have shown its icon.
 
 All of it is now `FiraCode Nerd Font` (which is `colors.fontSans`), with the
 glyphs remapped. **Nerd Font carries no brand glyphs**, so the per-app
-icon table in `NotificationCenter.appGlyph()` — WhatsApp, Firefox, Chrome,
+icon table in `NotificationCenter.appGlyph()` — Firefox, Chrome,
 Spotify, Telegram, Discord, and the rest — now uses a neutral stand-in from
 the icon set (chat bubble, globe, music note) rather than the brand mark.
 

@@ -51,7 +51,6 @@ PanelWindow {
         {key:"SUPER Shift + Space", desc:"Toggle bar sides", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call bar toggle"},
         {key:"SUPER Alt + Space", desc:"Island style", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call bar toggleIsland"},
         {key:"SUPER Alt + T", desc:"Screen time", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call screentime toggle"},
-        {key:"SUPER Alt + K", desc:"Phone link", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call phonebridge toggle"},
         {key:"SUPER Alt + D", desc:"Hardware health", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call drives toggle"},
         {key:"SUPER + ,", desc:"Notification center", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call notifications toggle"},
         {key:"SUPER Shift + ,", desc:"Do not disturb", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call notifications toggleDnd"},

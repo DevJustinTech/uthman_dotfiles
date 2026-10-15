@@ -55,7 +55,6 @@ PanelWindow {
         { id: "qs-github", name: "GitHub", genericName: "notifs · PRs · heatmap", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "github" },
         { id: "qs-notes", name: "Quick Notes", genericName: "idea capture · draggable", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "notes" },
         { id: "qs-screentime", name: "Screen Time", genericName: "usage heatmaps · app ranks", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "screentime" },
-        { id: "qs-phonebridge", name: "PhoneBridge", genericName: "send & pull files over ADB", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "phonebridge" },
         { id: "qs-drives", name: "Drive Health", genericName: "SMART + RAM + speed test", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "drives" },
         { id: "qs-monitors", name: "Monitors", genericName: "DPI / scale · rotate · display", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "monitors" },
         { id: "qs-failwatch", name: "FailWatch", genericName: "failed units · journal errors", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "󰈅", qsTarget: "failwatch" },

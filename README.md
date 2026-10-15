@@ -319,7 +319,6 @@ Overlays are `PanelWindow` layer-shell popups. Larger tools are regular Hyprland
 | `PkgManager` | pacman + AUR search, queue, install progress, updates | `SUPER+I` |
 | `PdfViewer` | PDF/EPUB library: recents, favorites, full-text search, Zathura handoff | `SUPER ALT+N`, `utpdf <file>` |
 | `Wallshelf` | Wallhaven storefront: browse, bulk download, set-as-wallpaper | `SUPER CTRL+Space` |
-| `PhoneBridge` | ADB phone bridge: drag-send files, clipboard push, remote browser + pull, ring, screenshot | `SUPER ALT+K` |
 | `ThemePanel` | Wallpaper slideshow with preview, applies via `set-wallpaper` | `SUPER+E` |
 | `PowerMenu` | Lock, logout, suspend, reboot, shutdown | `SUPER+Escape` |
 | `ClipboardPanel` | Clipboard manager (Hyprland window): history with image previews (cliphist backend) plus a Sticky shelf of pinned snippets in LocalStorage, fired with `SUPER ALT 1-9` | `SUPER CTRL+V` (window), `SUPER CTRL+P` (pin current clipboard from anywhere) |
@@ -340,9 +339,9 @@ Overlays are `PanelWindow` layer-shell popups. Larger tools are regular Hyprland
 | `MediaOsd` | Volume/brightness/mic overlay | Fn keys |
 | `PassPrompt` | System password prompt (`SUDO_ASKPASS` backend) | privileged panel actions |
 
-Unwired but still on disk: `QuickNotes` (scratch idea capture; nothing instantiates it, so its `notes` target is never served and the panel never opens) and `WhatsApp` (PARKED, not retired: kept with session intact but commented out of `Bar.qml` and unused over ban caution; WhatsApp pings come from PhoneBridge shade polling meanwhile). `NetRate` and `WeatherIcon` are shared helpers, not surfaces. If you rewire an unwired file, update `PLUGINS.md` and the cheatsheet entry with it.
+Unwired but still on disk: `QuickNotes` (scratch idea capture; nothing instantiates it, so its `notes` target is never served and the panel never opens) . `NetRate` and `WeatherIcon` are shared helpers, not surfaces. If you rewire an unwired file, update `PLUGINS.md` and the cheatsheet entry with it.
 
-`PhoneBridge.md` next to the module documents the ADB backend contract. `PLUGINS.md` is the registry of every module, its IPC target, and its bind. Keep both current when you change a module.
+`PLUGINS.md` is the registry of every module, its IPC target, and its bind. Keep both current when you change a module.
 
 ## Notifications
 
@@ -359,8 +358,6 @@ These live outside this repo but plug into the shell:
 | Repo | What it is |
 |------|------------|
 | `~/projects/screentime` | Screen time Go daemon + SQLite store |
-| `~/phonebridge` | ADB backend for the PhoneBridge module |
-| `~/whatsapp-bridge` | WhatsApp daemon (parked) |
 | `github.com/codetesla51/qemu-launch` | Bubble Tea QEMU launcher: ISOs from `~/Downloads`, per-VM store in `~/VMs` |
 
 ## WatchCat
@@ -408,7 +405,7 @@ The full list lives in `.config/hypr/bindings.lua`. Every panel also closes on `
 
 ## Helper scripts
 
-`~/.local/bin/` (stowed from this repo) holds the CLI surface: `set-wallpaper`, `getTheme`, `shot`, `record`, `utpdf`, `vol`, `bright`, `nightlight`, `lock`, `phone-pair`, `qemu-launch`, and more. These are what binds, panels, and muscle memory call.
+`~/.local/bin/` (stowed from this repo) holds the CLI surface: `set-wallpaper`, `getTheme`, `shot`, `record`, `utpdf`, `vol`, `bright`, `nightlight`, `lock`, `qemu-launch`, and more. These are what binds, panels, and muscle memory call.
 
 ## Tools
 
