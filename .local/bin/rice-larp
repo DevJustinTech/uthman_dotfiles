@@ -6,7 +6,7 @@
 # workspace is never touched. Wallpaper is restored at the end unless
 # --keep-theme is given.
 #
-# Usage: rice-larp [--dry-run] [--fast] [--no-wallpaper] [--keep-theme]
+# Usage: rice-larp [--dry-run] [--fast] [--no-wallpaper] [--keep-theme] [--record]
 # Stop anytime: pkill -f rice-larp   (also closes every LARP window)
 
 set -u
@@ -14,30 +14,167 @@ STEP=3
 DRY=0
 WALLPAPER=1
 KEEP_THEME=0
+RECORD=0
+usage() {
+    cat <<'EOF'
+rice-larp — autopilot rice showcase
+
+Usage: rice-larp [options]
+
+  --dry-run        Print the commands instead of running them
+  --fast           1s pauses instead of 3s
+  --no-wallpaper   Skip Act IV (the wallpaper/theme swap)
+  --keep-theme     Don't restore the original wallpaper afterwards
+  --record         Capture the show to ~/Videos with gpu-screen-recorder
+  -h, --help       Show this help
+
+Stop anytime:  pkill -f rice-larp
+Record env:    LARP_VIDEO_DIR   output directory (default ~/Videos)
+                LARP_REC_MONITOR monitor name (default: first reported)
+EOF
+}
 for a in "$@"; do
     case "$a" in
         --dry-run) DRY=1 ;;
         --fast) STEP=1 ;;
         --no-wallpaper) WALLPAPER=0 ;;
         --keep-theme) KEEP_THEME=1 ;;
-        -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
-        *) echo "unknown flag: $a" >&2; exit 2 ;;
+        --record) RECORD=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "unknown flag: $a" >&2; usage >&2; exit 2 ;;
     esac
 done
 
-QS="quickshell -p ~/.config/quickshell"
+QS=(quickshell -p "$HOME/.config/quickshell")
 ORIG_BG="$(readlink ~/.config/theme/current/background 2>/dev/null || true)"
+
+# Hyprland 0.56 dispatchers are Lua. The legacy `dispatch exec [workspace ...]`
+# form is a syntax error here, so every dispatch goes through these helpers.
+LARP_WS='{workspace="special:larp"}'
+
+# Terminal for the show. foot (not kitty) because kitty's default font was too
+# small on camera and its windows tripped "terminal too small". The size is
+# forced per-invocation rather than by editing foot.ini, so your everyday
+# terminals keep whatever size you normally use.
+LARP_TERM="${LARP_TERM:-foot}"
+LARP_TERM_FONT="${LARP_TERM_FONT:-JetBrainsMono Nerd Font:size=14}"
+LARP_TERM_SIZE="${LARP_TERM_SIZE:-110x30}"
+# term_cmd <title> <command...> — explicit -W keeps btop/cmatrix off the
+# "too small" path regardless of how the workspace happens to be sized.
+term_cmd() {
+    printf '%s -T %s -f "%s" -W %s %s' \
+        "$LARP_TERM" "$1" "$LARP_TERM_FONT" "$LARP_TERM_SIZE" "$2"
+}
+
+# Wrap a string as a Lua single-quoted literal (backslashes first, then quotes),
+# so command text containing double quotes survives the trip through the API.
+lua_quote() {
+    local s=${1//\\/\\\\}
+    s=${s//\'/\\\'}
+    printf "'%s'" "$s"
+}
+
+# Launch on the larp workspace, then confirm the window actually appeared.
+# We deliberately do NOT remember its address for cleanup: addresses go stale
+# when the special workspace toggles, and closing a stale address closes an
+# unrelated window. close_larp_windows re-queries instead.
+larp_exec() {
+    local title="$1" cmd="$2" found=0 i
+    run hyprctl dispatch "hl.dsp.exec_cmd($(lua_quote "$cmd"),$LARP_WS)"
+    for (( i = 0; i < 24; i++ )); do
+        if hyprctl clients -j 2>/dev/null | jq -e --arg t "$title" \
+            'any(.[]; .title == $t)' >/dev/null 2>&1; then
+            found=1; break
+        fi
+        sleep 0.25
+    done
+    (( found || DRY )) || echo "warn: '$title' never appeared" >&2
+}
+
+larp_toggle() { run hyprctl dispatch "hl.dsp.workspace.toggle_special($(lua_quote "$1"))"; }
+
+# Close one window by its exact title, address read fresh. `// empty` matters:
+# a null address makes window.close() close some *other* window.
+close_title() {
+    local a
+    a="$(hyprctl clients -j 2>/dev/null | jq -r --arg t "$1" \
+        'map(select(.title == $t)) | .[0].address // empty' 2>/dev/null)"
+    [[ -n "$a" ]] || return 0
+    run hyprctl dispatch "hl.dsp.window.close($a)" >/dev/null 2>&1 || true
+    sleep 0.4
+}
+
+# One terminal at a time. The special workspace TILES whatever is on it, so
+# three simultaneous windows each got ~10 rows and btop refused to draw
+# ("Terminal size too small ... needs 80x24"). Sequential keeps each one
+# full-screen and legible.
+show_term() {
+    larp_exec "$1" "$(term_cmd "$1" "$2")"
+    pause; pause; pause
+    close_title "$1"
+}
 
 say()  { notify-send -a LARP "rice-larp" "$1"; }
 pause() { sleep "$STEP"; }
-run()  { (( DRY )) && { echo "+ $*"; return; }; "$@"; }
+# Guard against an empty $1 (QS is unquoted) so "" can't become a command.
+run()  { (( DRY )) && { echo "+ $*"; return; }; [[ -n "${1:-}" ]] && "$@"; }
+
+REC_PID=""
+REC_FILE=""
+start_recorder() {
+    local mon
+    mon="${LARP_REC_MONITOR:-$(gpu-screen-recorder --list-monitors 2>/dev/null | head -n1 | cut -d'|' -f1)}"
+    if [[ -z "$mon" ]]; then
+        echo "recording: could not detect a monitor; use LARP_REC_MONITOR" >&2
+        return 1
+    fi
+    local dir="${LARP_VIDEO_DIR:-$HOME/Videos}"
+    mkdir -p "$dir" || return 1
+    REC_FILE="$dir/rice-$(date +%Y%m%d-%H%M%S).mp4"
+    say "Recording $mon → $REC_FILE"
+    # 60fps: cmatrix scrolls fast and btop updates constantly; 30 looks strobed.
+    gpu-screen-recorder -w "$mon" -f 60 -c mp4 -k h264 -o "$REC_FILE" \
+        >/dev/null 2>&1 &
+    REC_PID=$!
+    sleep 1   # let it attach to the display before Act I opens
+}
+
+# SIGINT, never SIGKILL: mp4 writes its index at finalize time, so a hard kill
+# leaves an unplayable file. Called from cleanup so pkill still finalizes.
+stop_recorder() {
+    (( RECORD )) || return 0
+    [[ -n "$REC_PID" ]] || return 0
+    kill -INT "$REC_PID" 2>/dev/null || true
+    wait "$REC_PID" 2>/dev/null || true
+    REC_PID=""
+    [[ -n "$REC_FILE" ]] && say "Saved $REC_FILE"
+    return 0
+}
+
+# Close only windows we launched, re-querying each pass.
+#
+# hl.dsp.window.close(addr) does NOT fail on a stale address — it closes some
+# other window instead. So every address we dispatch must be one that exists at
+# that instant, freshly read from hyprctl. Never close a remembered address.
+# The dispatcher's own title filter is ignored too, hence jq for the matching.
+close_larp_windows() {
+    local a list i
+    for (( i = 0; i < 3; i++ )); do
+        list="$(hyprctl clients -j 2>/dev/null | jq -r \
+            'map(select(.title | startswith("larp-"))) | .[].address // empty' \
+            2>/dev/null)"
+        [[ -z "$list" ]] && return 0
+        for a in $list; do
+            run hyprctl dispatch "hl.dsp.window.close($a)" >/dev/null 2>&1 || true
+        done
+        sleep 0.5   # closes are async; re-query before dispatching again
+    done
+}
 
 cleanup() {
+    stop_recorder
     say "Show's over — striking the set."
-    # Close only our titled windows, nothing else.
-    for t in larp-matrix larp-top larp-fetch; do
-        run hyprctl dispatch closewindow "title:^$t$" >/dev/null 2>&1 || true
-    done
+    close_larp_windows
     if (( WALLPAPER && ! KEEP_THEME )) && [[ -n "$ORIG_BG" && -f "$ORIG_BG" ]]; then
         run set-wallpaper "$ORIG_BG" >/dev/null 2>&1 || true
     fi
@@ -46,35 +183,35 @@ cleanup() {
 trap cleanup INT TERM
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1" >&2; exit 1; }; }
-need hyprctl; need notify-send; need kitty
-# Guard everything the acts shell out to, so a missing tool fails loudly up
-# front instead of silently no-op'ing halfway through the show.
-need cmatrix; need btop; need fastfetch; need quickshell
+need hyprctl; need notify-send; need jq
+need "$LARP_TERM"; need cmatrix; need btop; need fastfetch; need quickshell
 (( WALLPAPER )) && need set-wallpaper
+(( RECORD )) && need gpu-screen-recorder
+
+if (( RECORD && ! DRY )); then
+    start_recorder || { echo "recording unavailable; running without capture" >&2; RECORD=0; }
+fi
 
 say "Act I — terminals. Stop me with: pkill -f rice-larp"
-run hyprctl dispatch 'exec [workspace special:larp] kitty --title larp-matrix cmatrix'
+larp_toggle larp
 pause
-run hyprctl dispatch 'exec [workspace special:larp] kitty --title larp-top btop'
-pause
-run hyprctl dispatch "exec [workspace special:larp] kitty --title larp-fetch sh -c 'fastfetch; exec zsh'"
-pause
-run hyprctl dispatch togglespecialworkspace larp
-pause; pause
+show_term larp-matrix 'cmatrix'
+show_term larp-top 'btop'
+show_term larp-fetch 'zsh -c "fastfetch; exec zsh"'
 
 say "Act II — panels. Control center, system monitor, wifi."
 for p in controlcenter sysmon wifi; do
-    run $QS ipc call "$p" toggle
+    run "${QS[@]}" ipc call "$p" toggle
     pause; pause
-    run $QS ipc call "$p" toggle
+    run "${QS[@]}" ipc call "$p" toggle
     pause
 done
 
 say "Act III — launcher, keybinds."
 for p in launcher keybinds; do
-    run $QS ipc call "$p" toggle
+    run "${QS[@]}" ipc call "$p" toggle
     pause; pause
-    run $QS ipc call "$p" toggle
+    run "${QS[@]}" ipc call "$p" toggle
     pause
 done
 
@@ -100,7 +237,7 @@ if (( WALLPAPER )); then
 fi
 
 # Back to terminals for the finale, then strike the set.
-run hyprctl dispatch togglespecialworkspace larp
+larp_toggle larp
 pause
 say "Finale — that was the whole rice. Bye."
 pause

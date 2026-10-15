@@ -116,10 +116,33 @@ FloatingWindow {
         var ta = pins[a - 1], tb = pins[b - 1]
         savePin(a, tb); savePin(b, ta); loadPins()
     }
+    // Image headers, matched by leading byte rather than by string. A PNG's
+    // magic is a single 0x89 byte and JPEG's starts 0xFF 0xD8; writing those as
+    // literal characters in source does not survive the trip, so compare
+    // charCodeAt. Anything that starts like a raster image is refused rather
+    // than stored as mojibake.
+    function looksBinary(t) {
+        if (!t || t.length < 2) return false
+        var c0 = t.charCodeAt(0)
+        var c1 = t.charCodeAt(1)
+        return (c0 === 0x89 && c1 === 0x50)                    // .PNG
+            || (c0 === 0xFF && c1 === 0xD8)                    // JPEG
+            || (c0 === 0x47 && c1 === 0x49 && t.indexOf("GIF8") === 0)
+            || (c0 === 0x42 && t.indexOf("BM") === 0)         // BMP
+            || (c0 === 0x3C && t.indexOf("<?xml") === 0)      // SVG
+    }
     // pin into a chosen slot (drag) or the first free one (button, CTRL P)
     function pinText(text, slot) {
         var t = text.trim()
         if (!t) return
+        // Belt and braces with the wl-paste --type text/plain guard: this also
+        // covers a drag out of history and any future caller, so binary can never
+        // reach the pins table however the text arrived. Image headers are
+        // identified by magic bytes, not by extension.
+        if (root.looksBinary(t)) {
+            notify("Images can't be pinned yet")
+            return
+        }
         if (pins.indexOf(t) >= 0) { notify("Already pinned"); return }
         var target = slot > 0 ? slot : pins.indexOf("") + 1
         if (target < 1) { notify("All 9 slots are full"); return }
@@ -214,13 +237,24 @@ FloatingWindow {
     }
 
     // pin whatever is on the live clipboard (single process, no temp file)
+    // Ask for text ONLY. Without --type text/plain, wl-paste will happily dump the
+    // raw bytes of an image sitting on the clipboard, and those land in the pins
+    // table as a few KB of PNG header noise that renders as nothing. This is how
+    // slot 1 became a string starting 89 50 4e 47. cliphist's own "[[ binary data"
+    // guard catches images from history; the keybind path had no equivalent.
     Process {
         id: captureProc
-        command: ["sh", "-c", "wl-paste --no-newline 2>/dev/null | head -c 2000"]
+        command: ["sh", "-c", "wl-paste --no-newline --type text/plain 2>/dev/null | head -c 2000"]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: {
                 var body = text.replace(/\s+$/, "")
+                // A PNG header surviving a text/plain request means something odd
+                // is on the clipboard; refuse rather than store garbage.
+                if (root.looksBinary(body)) {
+                    root.notify("Clipboard holds an image, not text")
+                    return
+                }
                 if (body.trim()) root.pinText(body, 0)
                 else root.notify("Clipboard is empty")
             }
