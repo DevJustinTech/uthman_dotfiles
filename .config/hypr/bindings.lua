@@ -26,7 +26,7 @@ end
 
 -- ── Application launches ────────────────────────────────────────────────
 -- No SUPER + RETURN here. Omarchy already binds it to omarchy-launch-terminal
--- (and SUPER CTRL T to Herdr, SUPER ALT RETURN to Tmux), so binding it again
+-- (and SUPER CTRL RETURN to Herdr, SUPER ALT RETURN to Tmux), so binding it again
 -- fired twice: this repo's hardcoded kitty plus Omarchy's launcher, which goes
 -- through ~/.local/bin/xdg-terminal-exec and so now opens foot. Two terminals
 -- per press, one of each.
