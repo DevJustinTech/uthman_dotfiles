@@ -1,4 +1,9 @@
-import QtQuick 2.0
+import QtQuick 6.0
+// SddmComponents is imported for parity with the omarchy theme even though the
+// components here are hand-rolled; sddm/userModel/sessionModel are context
+// properties injected by the greeter, not exports of that module.
+import SddmComponents 6.0
+import "."   // Palette.qml sits beside Main.qml
 
 // elarun-custom — password-only, logo top.
 // Colors from Palette.qml (matugen). Display font: Iceland.
@@ -10,9 +15,18 @@ Rectangle {
 
     Palette { id: pal }
 
-    // sessionModel fills in asynchronously. Bind through count so the default
-    // resolves to the real last session once it arrives instead of a stale -1.
-    property int sessionIndex: sessionModel.count > 0 ? sessionModel.lastIndex : 0
+    // sessionModel fills in asynchronously, and in Qt6 it is a QAbstractItemModel
+    // rather than the Qt5 list model: there is no .count and no .name role on the
+    // delegate. Read names out of it once, into a plain string array, and use
+    // rowCount()/data() to do it. Same pattern the omarchy theme uses.
+    property var sessionNames: {
+        var out = []
+        var n = sessionModel.rowCount()
+        for (var i = 0; i < n; i++)
+            out.push((sessionModel.data(sessionModel.index(i, 0), Qt.DisplayRole) || "").toString())
+        return out
+    }
+    property int sessionIndex: sessionNames.length > 0 ? sessionModel.lastIndex : 0
     property string failMsg: ""
     property bool loggingIn: false
     property string loginUser: userModel.lastUser !== "" ? userModel.lastUser : "uthman"
@@ -31,8 +45,8 @@ Rectangle {
         }
         // clamp to a valid index at click time so a correct password can't hang
         // on a stale index (or on an empty model)
-        if (sessionIndex < 0 || sessionIndex >= sessionModel.count)
-            sessionIndex = sessionModel.count > 0 ? sessionModel.lastIndex : 0
+        if (sessionIndex < 0 || sessionIndex >= sessionNames.length)
+            sessionIndex = sessionNames.length > 0 ? sessionModel.lastIndex : 0
         failMsg = ""
         loggingIn = true
         sddm.login(root.loginUser, pwField.text, sessionIndex)
@@ -72,7 +86,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "Welcome, " + root.loginUser
             color: pal.text
-            font.family: "Iceland"
+            font.family: "Inter Display"
             font.pixelSize: 34
         }
 
@@ -128,7 +142,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Password"
                 color: root.faint
-                font.family: "Iceland"
+                font.family: "Inter Display"
                 font.pixelSize: 20
                 visible: pwField.text === ""
             }
@@ -147,7 +161,7 @@ Rectangle {
                 anchors.centerIn: parent
                 text: root.loggingIn ? "PLEASE WAIT" : "LOG IN"
                 color: root.loggingIn ? root.dim : pal.background
-                font.family: "Iceland"
+                font.family: "Inter Display"
                 font.pixelSize: 20
                 font.weight: Font.Bold
                 font.letterSpacing: 4
@@ -171,7 +185,7 @@ Rectangle {
                 anchors.centerIn: parent
                 text: root.failMsg
                 color: pal.error
-                font.family: "Iceland"
+                font.family: "Inter Display"
                 font.pixelSize: 16
                 visible: root.failMsg !== "" && !root.loggingIn
             }
@@ -217,7 +231,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: "SESSION"
             color: root.faint
-            font.family: "Iceland"
+            font.family: "Inter Display"
             font.pixelSize: 14
             font.weight: Font.Bold
             font.letterSpacing: 2
@@ -237,7 +251,7 @@ Rectangle {
             height: 40
             orientation: ListView.Horizontal
             spacing: 10
-            model: sessionModel
+            model: root.sessionNames
             currentIndex: root.sessionIndex
             boundsBehavior: Flickable.StopAtBounds
             clip: true
@@ -257,9 +271,9 @@ Rectangle {
                 Text {
                     id: sessLabel
                     anchors.centerIn: parent
-                    text: model.name
+                    text: modelData
                     color: index === root.sessionIndex ? pal.primary : root.dim
-                    font.family: "Iceland"
+                    font.family: "Inter Display"
                     font.pixelSize: 16
                 }
                 MouseArea {

@@ -47,6 +47,10 @@ trap cleanup INT TERM
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1" >&2; exit 1; }; }
 need hyprctl; need notify-send; need kitty
+# Guard everything the acts shell out to, so a missing tool fails loudly up
+# front instead of silently no-op'ing halfway through the show.
+need cmatrix; need btop; need fastfetch; need quickshell
+(( WALLPAPER )) && need set-wallpaper
 
 say "Act I — terminals. Stop me with: pkill -f rice-larp"
 run hyprctl dispatch 'exec [workspace special:larp] kitty --title larp-matrix cmatrix'
@@ -75,14 +79,23 @@ for p in launcher keybinds; do
 done
 
 if (( WALLPAPER )); then
-    BGDIR="$(dirname "$ORIG_BG")"
-    NEXT="$(ls "$BGDIR" 2>/dev/null | grep -v '^background' | grep -iE '\.(jpg|jpeg|png|webp|gif)$' | grep -vF "$(basename "$ORIG_BG")" | head -n 1)"
-    if [[ -n "${NEXT:-}" ]]; then
-        say "Act IV — new wallpaper, whole desktop recolors."
-        run set-wallpaper "$BGDIR/$NEXT"
-        pause; pause; pause
+    # ORIG_BG must resolve to a real file before we derive a directory from it;
+    # otherwise dirname "" is "." and we would wallpaper off the cwd.
+    if [[ -z "$ORIG_BG" || ! -f "$ORIG_BG" ]]; then
+        say "Act IV skipped — current wallpaper symlink unresolved."
     else
-        say "Act IV skipped — no spare wallpaper found."
+        BGDIR="$(dirname "$ORIG_BG")"
+        NEXT="$(find "$BGDIR" -maxdepth 1 -type f \
+            \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \
+               -o -iname '*.webp' -o -iname '*.gif' \) \
+            ! -name "$(basename "$ORIG_BG")" -print -quit 2>/dev/null)"
+        if [[ -n "$NEXT" ]]; then
+            say "Act IV — new wallpaper, whole desktop recolors."
+            run set-wallpaper "$NEXT"
+            pause; pause; pause
+        else
+            say "Act IV skipped — no spare wallpaper found."
+        fi
     fi
 fi
 
