@@ -102,11 +102,17 @@ FloatingWindow {
                 try {
                     var segs = text.split("---DF---")
                     var blk = JSON.parse(segs[0]).blockdevices || []
-                    var disk = null
+                    // zram devices are TYPE "disk" too and zram0 is listed
+                    // first, so a first-disk-wins pick reported the 7.6G
+                    // compressed swap as "the drive": no SMART, no model, no
+                    // throughput. Skip virtual block devices, take the real one.
+                    var disk = null, anyDisk = null
                     for (var i = 0; i < blk.length; i++) {
-                        if (blk[i].type === "disk") { disk = blk[i]; break }
+                        if (blk[i].type !== "disk") continue
+                        if (!anyDisk) anyDisk = blk[i]
+                        if (!/^(zram|loop|ram|sr|dm-)/.test(blk[i].name)) { disk = blk[i]; break }
                     }
-                    if (!disk && blk.length > 0) disk = blk[0]
+                    if (!disk) disk = anyDisk
                     if (disk) {
                         root.devName = disk.name || ""
                         root.model = String(disk.model || "").trim() || root.devName
@@ -137,15 +143,29 @@ FloatingWindow {
     }
 
     // ===== SMART via udisks (no root) =====
+    //
+    // The drive decides the interface, and this machine's is NVMe: SATA drives
+    // expose Drive.Ata (SmartFailing bool, power-on in seconds), NVMe drives
+    // expose NVMe.Controller (SmartCriticalWarning array, power-on in hours)
+    // and no Drive.Ata at all. Reading the Ata interface blindly left every
+    // field empty; trim() then ate the "SMART " prefix and the parser below
+    // concluded udisks was down, while the drive's data sat one interface
+    // over. Hours are scaled to seconds and warnings to a bool here, so the
+    // parser keeps its shape.
     function refreshSmart() {
         smartProc.command = ["sh", "-c",
             "P=$(busctl --system call org.freedesktop.UDisks2 /org/freedesktop/UDisks2 org.freedesktop.DBus.ObjectManager GetManagedObjects 2>/dev/null | grep -oE '/org/freedesktop/UDisks2/drives/[A-Za-z0-9_]+' | head -1); " +
             "if [ -z \"$P\" ]; then echo SMART_NONE; exit 0; fi; " +
-            "F=$(busctl --system get-property org.freedesktop.UDisks2 \"$P\" org.freedesktop.UDisks2.Drive.Ata SmartFailing 2>/dev/null | awk '{print $2}'); " +
-            "T=$(busctl --system get-property org.freedesktop.UDisks2 \"$P\" org.freedesktop.UDisks2.Drive.Ata SmartTemperature 2>/dev/null | awk '{print $2}'); " +
-            "H=$(busctl --system get-property org.freedesktop.UDisks2 \"$P\" org.freedesktop.UDisks2.Drive.Ata SmartPowerOnSeconds 2>/dev/null | awk '{print $2}'); " +
-            "S=$(busctl --system get-property org.freedesktop.UDisks2 \"$P\" org.freedesktop.UDisks2.Drive.Ata SmartSelftestStatus 2>/dev/null | awk '{print $2}' | tr -d '\"'); " +
-            "echo \"SMART $F $T $H $S\""]
+            "A=org.freedesktop.UDisks2.Drive.Ata; N=org.freedesktop.UDisks2.NVMe.Controller; " +
+            "g() { busctl --system get-property org.freedesktop.UDisks2 \"$P\" \"$1\" \"$2\" 2>/dev/null | awk '{print $2}'; }; " +
+            "if busctl --system get-property org.freedesktop.UDisks2 \"$P\" $A SmartFailing >/dev/null 2>&1; then " +
+            "F=$(g $A SmartFailing); T=$(g $A SmartTemperature); H=$(g $A SmartPowerOnSeconds); S=$(g $A SmartSelftestStatus | tr -d '\"'); " +
+            "elif busctl --system get-property org.freedesktop.UDisks2 \"$P\" $N SmartTemperature >/dev/null 2>&1; then " +
+            "W=$(g $N SmartCriticalWarning); F=false; [ \"${W:-0}\" -gt 0 ] && F=true; " +
+            "T=$(g $N SmartTemperature); H=$(g $N SmartPowerOnHours); S=$(g $N SmartSelftestStatus | tr -d '\"'); " +
+            "H=$(( ${H:-0} * 3600 )); " +
+            "else echo SMART_UNSUPPORTED; exit 0; fi; " +
+            "echo \"SMART ${F:-false} ${T:-0} ${H:-0} $S\""]
         smartProc.running = true
     }
     Process {
@@ -156,7 +176,9 @@ FloatingWindow {
                 var line = text.trim().split("\n").pop() || ""
                 if (line.indexOf("SMART ") !== 0) {
                     root.smartOk = false
-                    root.note = "SMART unavailable (is udisks running?)"
+                    if (line === "SMART_NONE") root.note = "no drive found via udisks"
+                    else if (line === "SMART_UNSUPPORTED") root.note = "this drive reports no SMART data"
+                    else root.note = "SMART read failed"
                     return
                 }
                 var p = line.split(/\s+/)
@@ -183,10 +205,13 @@ FloatingWindow {
         if (root.selfBusy) return
         root.selfBusy = true
         root.selfMsg = "self-test running…"
+        // Same interface choice as refreshSmart -- SmartSelftestStart has the
+        // same call shape on both, only the interface name differs.
         selfProc.command = ["sh", "-c",
             "P=$(busctl --system call org.freedesktop.UDisks2 /org/freedesktop/UDisks2 org.freedesktop.DBus.ObjectManager GetManagedObjects 2>/dev/null | grep -oE '/org/freedesktop/UDisks2/drives/[A-Za-z0-9_]+' | head -1); " +
             "if [ -z \"$P\" ]; then echo SELF_NONE; exit 0; fi; " +
-            "busctl --system call org.freedesktop.UDisks2 \"$P\" org.freedesktop.UDisks2.Drive.Ata SmartSelftestStart sa{sv} short 0 >/dev/null 2>&1 && echo SELF_STARTED || echo SELF_DENIED"]
+            "IF=org.freedesktop.UDisks2.Drive.Ata; busctl --system get-property org.freedesktop.UDisks2 \"$P\" $IF SmartFailing >/dev/null 2>&1 || IF=org.freedesktop.UDisks2.NVMe.Controller; " +
+            "busctl --system call org.freedesktop.UDisks2 \"$P\" $IF SmartSelftestStart sa{sv} short 0 >/dev/null 2>&1 && echo SELF_STARTED || echo SELF_DENIED"]
         selfProc.running = true
     }
     Process {
