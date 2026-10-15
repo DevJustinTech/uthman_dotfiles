@@ -1,5 +1,12 @@
 #!/bin/sh
 # Minimal xdg-terminal-exec: `xdg-terminal-exec [--dir=<path>] [--] [command ...]`.
+# Terminal is foot, not kitty. Swapping the name alone is not enough: kitty's
+# --directory is not a foot flag (foot spells it -D/--working-directory), and
+# foot's -e is documented as "ignored (for compatibility with xterm -e)", so
+# the command is passed straight through -- foot's usage is
+# `foot [options] [command [args]]`.
+# This shim sits in ~/.local/bin and shadows /usr/bin/xdg-terminal-exec, so it
+# decides the terminal for GUI apps too, not just for SUPER+RETURN.
 dir="$HOME"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -10,7 +17,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 if [ $# -eq 0 ]; then
-  exec uwsm-app -- kitty --directory="$dir"
+  exec uwsm-app -- foot --working-directory="$dir"
 else
-  exec uwsm-app -- kitty --directory="$dir" -e "$@"
+  exec uwsm-app -- foot --working-directory="$dir" "$@"
 fi
