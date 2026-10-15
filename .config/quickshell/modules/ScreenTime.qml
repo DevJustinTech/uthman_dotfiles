@@ -167,10 +167,10 @@ FloatingWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Text { visible: root.todayH > 0; text: root.todayH; color: colors.foreground; font.family: "Iceland"; font.pixelSize: 118; lineHeight: 0.8 }
-                Text { visible: root.todayH > 0; text: "h"; color: colors.alpha(colors.outline, 0.7); font.family: "Iceland"; font.pixelSize: 44; Layout.alignment: Qt.AlignBaseline; Layout.leftMargin: 4; Layout.rightMargin: 10 }
-                Text { text: root.todayM; color: colors.foreground; font.family: "Iceland"; font.pixelSize: 118; lineHeight: 0.8 }
-                Text { text: "m"; color: colors.alpha(colors.outline, 0.7); font.family: "Iceland"; font.pixelSize: 44; Layout.alignment: Qt.AlignBaseline; Layout.leftMargin: 4 }
+                Text { visible: root.todayH > 0; text: root.todayH; color: colors.foreground; font.family: "Inter Display"; font.pixelSize: 118; lineHeight: 0.8 }
+                Text { visible: root.todayH > 0; text: "h"; color: colors.alpha(colors.outline, 0.7); font.family: "Inter Display"; font.pixelSize: 44; Layout.alignment: Qt.AlignBaseline; Layout.leftMargin: 4; Layout.rightMargin: 10 }
+                Text { text: root.todayM; color: colors.foreground; font.family: "Inter Display"; font.pixelSize: 118; lineHeight: 0.8 }
+                Text { text: "m"; color: colors.alpha(colors.outline, 0.7); font.family: "Inter Display"; font.pixelSize: 44; Layout.alignment: Qt.AlignBaseline; Layout.leftMargin: 4 }
             }
             RowLayout {
                 Layout.fillWidth: true

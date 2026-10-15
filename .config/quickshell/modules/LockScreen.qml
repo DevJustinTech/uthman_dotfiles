@@ -130,7 +130,7 @@ Item {
                         id: clockText
                         text: Qt.formatDateTime(new Date(), "hh:mm")
                         color: "white"
-                        font.family: "Iceland"
+                        font.family: "Inter Display"
                         font.pixelSize: 160
                         font.weight: Font.Light
                         Layout.alignment: Qt.AlignHCenter
@@ -142,7 +142,7 @@ Item {
                     Text {
                         text: Qt.formatDateTime(new Date(), "dddd, MMMM dd")
                         color: Qt.rgba(1, 1, 1, 0.7)
-                        font.family: "Iceland"
+                        font.family: "Inter Display"
                         font.pixelSize: 30
                         Layout.alignment: Qt.AlignHCenter
                     }

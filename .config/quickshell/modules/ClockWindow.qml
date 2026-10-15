@@ -217,7 +217,7 @@ FloatingWindow {
                     Text {
                         text: root.hhmm
                         color: colors.primary
-                        font.family: "Iceberg"
+                        font.family: "Inter Display"
                         font.pixelSize: 34
                         font.letterSpacing: 2
                         Layout.alignment: Qt.AlignHCenter
@@ -225,7 +225,7 @@ FloatingWindow {
                     Text {
                         text: root.ss
                         color: colors.tertiary
-                        font.family: "Iceberg"
+                        font.family: "Inter Display"
                         font.pixelSize: 13
                         Layout.alignment: Qt.AlignHCenter
                     }

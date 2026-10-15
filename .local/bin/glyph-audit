@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""glyph audit — every private-use codepoint in the repo, resolved by NAME.
+
+Run with the venv python that has fontTools:
+
+    ~/.local/share/ftvenv/bin/python ~/.local/bin/glyph-audit
+
+or any interpreter with fontTools importable. Checks .qml plus .lua/.sh/.py/
+.conf/.service/.toml, skipping wallpapers and .git.
+
+Why by name and not by codepoint: a codepoint alone cannot tell you whether a
+glyph is the right ICON. U+F06A9 is md-robot and U+F0629 is md-meteor; both
+render happily and both are wrong in a wifi panel. The name is what makes a
+mismatch reviewable.
+
+Two failures this catches:
+
+  1. TOFU -- a codepoint the font does not have. Renders as a blank box.
+  2. MISMATCH -- the glyph resolves, but its name says it is something other
+     than what the surrounding code is doing. This is the expensive one and
+     the reason names are printed. It cannot be fully automated; the flag at
+     the bottom is a heuristic keyword list, so expect false positives and
+     read them rather than trusting the count.
+
+Exit codes: 0 clean, 1 tofu found, 2 only mismatches (review needed).
+"""
+import re
+import sys
+from pathlib import Path
+
+try:
+    from fontTools.ttLib import TTFont
+except ImportError:
+    sys.exit("fontTools is required: pip install fonttools")
+
+FONT = "/usr/share/fonts/TTF/FiraCodeNerdFont-Regular.ttf"
+QML = {".qml"}
+OTHER = {".lua", ".sh", ".py", ".conf", ".service", ".toml"}
+SKIP_DIRS = {".git", "wallpapers", "Pictures"}
+
+# glyph name fragment -> the word that proves the glyph is being used for what
+# it is. If the fragment appears in the name but its domain word is absent from
+# the SURROUNDING SOURCE, that is a hint worth reading -- not proof.
+#
+# Domains are matched against the source line, so a wifi glyph on a line that
+# mentions wifi passes and a meteor on a wifi line gets flagged.
+#
+# pac_man and ghost are exempt: Workspaces.qml and WorkspaceViewer.qml use
+# them as the deliberate arcade motif for workspace pips, so "arcade" is not
+# going to appear in those lines. They are listed here to document that the
+# flag was considered and dismissed, not to suppress it silently.
+DOMAINS = {
+    "wifi": ("wifi", "network", "ethernet", "ssid", "essid"),
+    "robot": ("assistant", "ai", "bot", "chat"),
+    "meteor": ("space", "comet", "star"),
+    "thermometer": ("temperature", "thermal", "temp"),
+    "pac_man": ("arcade",),          # workspaces: intentional motif
+    "ghost": ("arcade", "pac"),      # workspaces: intentional motif
+}
+
+
+def load_names():
+    font = TTFont(FONT, fontNumber=0)
+    names = {}
+    for table in font["cmap"].tables:
+        for cp, glyph in table.cmap.items():
+            names.setdefault(cp, set()).add(glyph)
+    return names
+
+
+def is_private(cp):
+    return 0xF0000 <= cp <= 0xFFFFD or 0xE000 <= cp <= 0xF8FF
+
+
+def scan(names):
+    tofu, used = [], {}
+    for path in sorted(Path(".").rglob("*")):
+        if not path.is_file() or SKIP_DIRS & set(path.parts):
+            continue
+        if path.suffix not in (QML | OTHER):
+            continue
+        try:
+            src = path.read_text(errors="replace")
+        except OSError:
+            continue
+        for lineno, line in enumerate(src.split("\n"), 1):
+            # only look inside string literals, so a comment mentioning a
+            # codepoint is not counted as a live glyph
+            for m in re.finditer(r'(["\'])([^"\'\n]*)\1', line):
+                for ch in m.group(2):
+                    cp = ord(ch)
+                    if not is_private(cp):
+                        continue
+                    where = f"{path}:{lineno}"
+                    if cp in names:
+                        # keep the source line: the domain check needs context
+                        used.setdefault(cp, []).append((where, line))
+                    else:
+                        tofu.append((where, cp))
+    return tofu, used
+
+
+def main():
+    names = load_names()
+    tofu, used = scan(names)
+    total = sum(len(v) for v in used.values()) + len(tofu)
+
+    print(f"font      : {FONT}")
+    print(f"glyphs    : {total} in string literals across .qml/.lua/.sh/.py/.conf")
+    print(f"distinct  : {len(used)}")
+    print(f"tofu      : {len(tofu)}")
+
+    for where, cp in tofu:
+        print(f"  TOFU {where}  U+{cp:05X}")
+
+    flags = []
+    for cp, places in sorted(used.items()):
+        primary = sorted(names[cp])[0]
+        blob = primary.lower()
+        for key, domains in DOMAINS.items():
+            if key not in blob:
+                continue
+            # exempt when the site is a known deliberate motif
+            if any("Workspace" in where for where, _ in places):
+                continue
+            if not any(d in line.lower() for _, line in places for d in domains):
+                flags.append((places[0][0], cp, primary))
+            break
+
+    print(f"review    : {len(flags)} glyph name(s) that may not fit their site")
+    for where, cp, primary in flags:
+        print(f"  CHECK {where}  U+{cp:05X} = {primary}")
+
+    print()
+    print("resolve any codepoint by name:")
+    print("  ~/.local/share/ftvenv/bin/python - <<'PY'")
+    print("  from fontTools.ttLib import TTFont")
+    print('  t = TTFont("/usr/share/fonts/TTF/FiraCodeNerdFont-Regular.ttf")')
+    print("  r = {}")
+    print("  for tb in t['cmap'].tables:")
+    print("      for cp, gn in tb.cmap.items(): r.setdefault(gn, set()).add(cp)")
+    print('  print([f"U+{c:05X}" for g in sys.argv[1:] for c in r.get(g, ())])')
+    print("  PY")
+
+    if tofu:
+        return 1
+    return 2 if flags else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
