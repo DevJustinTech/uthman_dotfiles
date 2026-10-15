@@ -439,11 +439,22 @@ PanelWindow {
                 }
             }
 
-            // island line (comet sweep): quiet dim hairline, one comet crosses
-            // every 4s. No MouseArea: clicks pass through.
+            // Island underline: a hairline that REACTS instead of animating on
+            // its own.
+            //
+            // This replaced three intertwined sine waves on a 66ms Timer. That
+            // cost about a third of a core (33.9% CPU on quickshell) because it
+            // repainted unconditionally, 15 times a second, forever, whether or
+            // not anything was playing: a full-width Canvas, three strokes,
+            // ~450 lineTo per stroke, so roughly 20k canvas ops per second to
+            // draw a decorative ripple nobody was watching.
+            //
+            // Now the line only has a gradient and a handful of bars that move
+            // to the real spectrum, and only while music is actually playing.
+            // Idle it is a static hairline costing nothing.
+            // No MouseArea: clicks pass through.
             Item {
                 id: islandLine
-                property real wavePhase: 0
                 anchors { left: parent.left; right: parent.right; top: parent.top }
                 anchors.leftMargin: island.inset + 8
                 anchors.rightMargin: island.inset + 8
@@ -464,43 +475,34 @@ PanelWindow {
                     }
                 }
 
-                // smooth-scrolling intertwined sines: solid curves, traveling phase
-                Timer {
-                    interval: 66
-                    running: true
-                    repeat: true
-                    triggeredOnStart: true
-                    onTriggered: {
-                        islandLine.wavePhase += 0.28
-                        waveCanvas.requestPaint()
-                    }
-                }
-                Canvas {
-                    id: waveCanvas
-                    anchors { left: parent.left; right: parent.right; top: parent.top }
-                    height: 11
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.reset()
-                        var t = islandLine.wavePhase
-                        var midY = 5.5
-                        function wave(col, amp, waves, speed, lw) {
-                            ctx.strokeStyle = col
-                            ctx.lineWidth = lw
-                            ctx.lineCap = "round"
-                            ctx.beginPath()
-                            for (var x = 0; x <= width; x += 3) {
-                                var y = midY + amp * Math.sin((x / width) * Math.PI * 2 * waves + t * speed)
-                                if (x === 0) ctx.moveTo(x, y)
-                                else ctx.lineTo(x, y)
-                            }
-                            ctx.stroke()
+                // Live spectrum, pushed from NowPlaying's existing cava feed --
+                // no second cava process, no timer of our own. Repeater is bound
+                // to vizLevels, so a level update is one property write per bar
+                // and Qt animates only that bar. Idle, vizLevels is empty and no
+                // bars exist to paint.
+                Row {
+                    id: spectrum
+                    anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom }
+                    anchors.bottomMargin: 0
+                    height: 4
+                    spacing: 2
+                    opacity: nowPlaying.isPlaying ? 0.85 : 0
+
+                    Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+
+                    Repeater {
+                        model: nowPlaying.isPlaying ? nowPlaying.vizLevels : []
+                        delegate: Rectangle {
+                            required property int modelData
+                            width: 2
+                            radius: 1
+                            color: island.glowBase
+                            height: 1 + Math.max(0, Math.min(100, modelData)) / 100 * 4
+                            Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
                         }
-                        wave(colors.alpha(colors.primary, 0.8), 2.4, 2.5, 1.0, 1.2)
-                        wave(colors.alpha(colors.secondary, 0.65), 1.8, 3.5, -1.3, 1.0)
-                        wave(colors.alpha(colors.tertiary, 0.65), 1.3, 5.0, 0.7, 1.0)
                     }
                 }
+
             }
         }
 
