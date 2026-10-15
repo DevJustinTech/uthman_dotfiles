@@ -31,6 +31,19 @@ PanelWindow {
     property real shownUl: 0
     property string stUpOutText: ""
 
+    // Icons above the BMP must NOT be written as "\uF05A9" -- a JS/QML \u escape
+    // reads exactly four hex digits, so that is U+F05A plus the character "9",
+    // and U+F05A is fa-info_circle. That is how the wifi toggle ended up
+    // rendering an info button.
+    //
+    // String.fromCharCode is not the answer either: it also takes a 16-bit
+    // code unit, so 0xF05A9 truncates to 0x05A9 (a Hebrew letter) and the icon
+    // renders blank. fromCodePoint takes the whole value.
+    //
+    // Verified names: 0xF05A9 = md-wifi (connected),
+    //                 0xF05AA = md-wifi_off (not connected)
+    readonly property string glyphWifi: String.fromCodePoint(0xF05A9)
+    readonly property string glyphWifiOff: String.fromCodePoint(0xF05AA)
     readonly property var wifiDev: {
         var devs = Networking.devices.values
         return devs.find(d => d.type === DeviceType.Wifi) ?? null
@@ -256,7 +269,7 @@ PanelWindow {
                     // different codepoint and still renders as something.
                     //   \uF05A9 = md-wifi      connected  (matches the bar pill)
                     //   \uF05AA = md-wifi_off  not connected
-                    Text { anchors.centerIn: parent; text: "\uF05A9"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
+                    Text { anchors.centerIn: parent; text: root.glyphWifi; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
                     Layout.alignment: Qt.AlignVCenter
                 }
                 Text {
@@ -278,22 +291,7 @@ PanelWindow {
                          : root.wifiConnected ? colors.alpha(colors.primary, 0.15) : "transparent"
                     Text {
                         anchors.centerIn: parent
-                        // U+F06A9 is the same glyph the bar's network pill uses for a live
-                        // connection (Network.qml). The font's name table calls it
-                        // md-robot, which is what caused a false "this is broken"
-                        // report earlier -- a glyph's name says what it is, not what
-                        // it is for in a given spot. Use the pill's icon here so the
-                        // panel and the bar agree on what "connected" looks like.
-                        //   U+F06A9  connected with internet (matches the bar pill)
-                        //   U+F05AA  md-wifi_off, not connected
-                        // md-wifi_alert is deliberately NOT used for a no-internet
-                        // state: at 11-12px it is pixel-for-pixel near md-wifi, so
-                        // the two would be indistinguishable in practice.
-                        // \uF05A9 = md-wifi (connected, matches the bar pill)
-                        // \uF05AA = md-wifi_off (not connected)
-                        // Keyed on connection, not wifiEnabled: the radio can be up
-                        // with no network attached, and that is the case this must show.
-                        text: root.wifiConnected ? "\uF05A9" : "\uF05AA"
+                        text: root.wifiConnected ? root.glyphWifi : root.glyphWifiOff
                         color: root.wifiConnected ? colors.primary : colors.alpha(colors.outline, 0.7)
                         font.family: colors.fontSans
                         font.pixelSize: 13
