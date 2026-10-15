@@ -9,15 +9,15 @@ screensaver_in_focus() {
   hyprctl activewindow -j 2>/dev/null | jq -e '.class == "org.screensaver"' >/dev/null 2>&1
 }
 exit_screensaver() {
-  hyprctl keyword cursor:invisible false &>/dev/null || true
+  hyprctl eval 'hl.config({cursor={invisible=false}})' &>/dev/null || true
   pkill -x tte 2>/dev/null || true
-  pkill -f org.screensaver 2>/dev/null || true
+  pkill -f -- '--app-id=org.screensaver' 2>/dev/null || true
   exit 0
 }
 trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
 printf '\033]11;rgb:00/00/00\007'
-hyprctl keyword cursor:invisible true &>/dev/null || true
-hyprctl dispatch focuswindow 'class:org.screensaver' &>/dev/null || true
+hyprctl eval 'hl.config({cursor={invisible=true}})' &>/dev/null || true
+hyprctl dispatch 'hl.dsp.focus({window="class:org.screensaver"})' &>/dev/null || true
 tty=$(tty 2>/dev/null)
 BRAND_FILE="$HOME/.config/branding"
 [ -f "$BRAND_FILE" ] || BRAND_FILE="$HOME/.config/branding/screensaver.txt"

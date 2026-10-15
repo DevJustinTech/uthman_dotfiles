@@ -24,7 +24,9 @@ focus_match() {
         | jq -r --arg m "$MATCH" '.[] | select((.title // "") | test($m; "i")) | .address' \
         | head -1)
     [ -n "$addr" ] && [ "$addr" != "null" ] || return 1
-    hyprctl dispatch focuswindow "address:$ADDR" >/dev/null
+    # hyprctl dispatch wraps its argument as Lua now; the "address:" selector
+    # must travel inside the expression ($addr, not the never-set $ADDR).
+    hyprctl dispatch "hl.dsp.focus({window=\"address:$addr\"})" >/dev/null
 }
 
 # Profile locked = this app already has an instance. Never launch into a

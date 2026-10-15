@@ -1,13 +1,7 @@
 #!/bin/bash
-# touchpad [on|off|toggle] — enable/disable the laptop touchpad via hyprctl
-export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr/ 2>/dev/null | head -1)
-DEV=$(hyprctl devices -j 2>/dev/null | python3 -c "import json,sys,re; d=json.load(sys.stdin); print(next((m['name'] for m in d.get('mice',[]) if re.search('touchpad|trackpad', m.get('name',''), re.I)), ''))")
-[[ -z "$DEV" ]] && exit 1
-set_state() { hyprctl keyword "device:$DEV:enabled" "$1" >/dev/null; }
-case "${1:-toggle}" in
-  on) set_state true ;;
-  off) set_state false ;;
-  *)
-    CUR=$(hyprctl getoption "device:$DEV:enabled" 2>/dev/null | awk '/int:/{print $2}')
-    [[ "$CUR" == "1" ]] && set_state false || set_state true ;;
-esac
+# touchpad [on|off|toggle] — enable/disable the laptop touchpad.
+#
+# Delegates to Omarchy's toggle: it flips the device through the Hyprland Lua
+# device API, shows the OSD, and writes the state file its login-time restore
+# reads. A local version meant the touchpad came back on every login.
+exec omarchy-toggle-touchpad "${1:-toggle}"

@@ -2,14 +2,17 @@
 # winfx [transparent|gaps] — window effect toggles via hyprctl
 export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr/ 2>/dev/null | head -1)
 case "$1" in
-  transparent) hyprctl dispatch toggleopaque >/dev/null ;;
+  transparent)
+    # toggleopaque is gone under the Lua config. getprop still reads window
+    # props; flip the opaque value through the Lua dispatcher (value: string).
+    CUR=$(hyprctl getprop active opaque 2>/dev/null | head -1)
+    if [[ "$CUR" == "true" ]]; then NEW=0; else NEW=1; fi
+    hyprctl dispatch "hl.dsp.window.set_prop({prop=\"opaque\", value=\"$NEW\"})" >/dev/null ;;
   gaps)
-    IN=$(hyprctl getoption general:gaps_in 2>/dev/null | awk '/int:/{print $2}')
+    IN=$(hyprctl -j getoption general:gaps_in 2>/dev/null | jq -r '.css' 2>/dev/null | awk '{print $1}')
     if [[ "$IN" == "0" ]]; then
-      hyprctl keyword general:gaps_in 5 >/dev/null
-      hyprctl keyword general:gaps_out 10 >/dev/null
+      hyprctl eval 'hl.config({general={gaps_in=5, gaps_out=10}})' >/dev/null
     else
-      hyprctl keyword general:gaps_in 0 >/dev/null
-      hyprctl keyword general:gaps_out 0 >/dev/null
+      hyprctl eval 'hl.config({general={gaps_in=0, gaps_out=0}})' >/dev/null
     fi ;;
 esac

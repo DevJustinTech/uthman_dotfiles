@@ -1,14 +1,27 @@
 #!/bin/bash
 if ! command -v tte &>/dev/null; then echo "tte not found" >&2; exit 1; fi
-pgrep -f org.screensaver >/dev/null && exit 0
+# tte can exist yet still fail to run (its terminaltexteffects package
+# missing): every effect attempt then prints a traceback, and the fullscreen
+# window becomes an error-spam loop. Probe once here instead of blanking.
+if ! tte --version >/dev/null 2>&1; then echo "tte is not runnable (missing terminaltexteffects?)" >&2; exit 1; fi
+# Match the foot window's --app-id flag specifically: a plain `pgrep -f
+# org.screensaver` also matches unrelated processes that merely mention the
+# string (which made pkill -f org.screensaver elsewhere suicide-prone).
+pgrep -f -- '--app-id=org.screensaver' >/dev/null && exit 0
 if [ -f ~/.config/branding-off ] && [ "$1" != "force" ]; then exit 0; fi
 command -v walker >/dev/null 2>&1 && walker -q 2>/dev/null || true
 focused=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused==true) | .name // empty' 2>/dev/null)
 [ -z "$focused" ] && focused=$(hyprctl monitors -j 2>/dev/null | jq -r '.[0].name // empty' 2>/dev/null)
 EFFECT_ARGS=""
 [[ "$*" == *"decrypt"* ]] && EFFECT_ARGS="--effect decrypt"
+# Hyprland 0.56 evaluates dispatchers as Lua: build the command text, then wrap
+# it in a Lua single-quoted literal so spaces and embedded quotes survive.
+lua_quote() { local s=${1//\\/\\\\}; s=${s//\'/\\\'}; printf "'%s'" "$s"; }
 for m in $(hyprctl monitors -j 2>/dev/null | jq -r '.[] | .name' 2>/dev/null); do
-  hyprctl dispatch focusmonitor "$m" >/dev/null 2>&1
-  hyprctl dispatch exec -- kitty --class=org.screensaver -o font_size=10 -o tab_bar_min_tabs=2 -e screensaver $EFFECT_ARGS >/dev/null 2>&1 &
+  hyprctl dispatch "hl.dsp.focus({monitor=\"$m\"})" >/dev/null 2>&1
+  # foot, not kitty: --app-id keeps the org.screensaver class that windows.lua
+  # and the screensaver focus check match on. -f overrides the size-9 default.
+  TERM_CMD="foot --app-id=org.screensaver -f \"JetBrainsMono Nerd Font:size=10\" screensaver $EFFECT_ARGS"
+  hyprctl dispatch "hl.dsp.exec_cmd($(lua_quote "$TERM_CMD"))" >/dev/null 2>&1 &
 done
-[ -n "$focused" ] && hyprctl dispatch focusmonitor "$focused" >/dev/null 2>&1
+[ -n "$focused" ] && hyprctl dispatch "hl.dsp.focus({monitor=\"$focused\"})" >/dev/null 2>&1

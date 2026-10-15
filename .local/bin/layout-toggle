@@ -1,6 +1,11 @@
 #!/bin/bash
 # layout-toggle — toggle dwindle/master tiling layout via hyprctl
 export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr/ 2>/dev/null | head -1)
-CUR=$(hyprctl getoption general:layout 2>/dev/null | awk '/str:/{print $2}')
-if [[ "$CUR" == "master" ]]; then hyprctl keyword general:layout dwindle >/dev/null
-else hyprctl keyword general:layout master >/dev/null; fi
+# general:layout still reads via getoption; writes go through hl.config --
+# `hyprctl keyword` is refused under the Lua config parser ("Use eval").
+CUR=$(hyprctl -j getoption general:layout 2>/dev/null | jq -r '.str // empty')
+if [[ "$CUR" == "master" ]]; then
+  hyprctl eval 'hl.config({general={layout="dwindle"}})' >/dev/null
+else
+  hyprctl eval 'hl.config({general={layout="master"}})' >/dev/null
+fi
