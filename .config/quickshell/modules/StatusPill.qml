@@ -21,7 +21,8 @@ Item {
     signal toggleDndRequested()
 
     // --- tray filtering ---
-    readonly property var hiddenApps: ["spotify"]
+    // Spotifast keeps a tray icon; the NowPlaying pill already covers it.
+    readonly property var hiddenApps: ["spotify", "spotifast"]
     readonly property var trayItems: SystemTray.items.values.filter(function(it) {
         var s = ((it.id || "") + " " + (it.title || "")).toLowerCase()
         for (var i = 0; i < hiddenApps.length; i++)

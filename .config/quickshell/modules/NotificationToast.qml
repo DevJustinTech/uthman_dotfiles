@@ -51,7 +51,7 @@ Rectangle {
         if (n.indexOf("mozilla") !== -1) return ""
         if (n.indexOf("chrome") !== -1) return ""
         if (n.indexOf("chromium") !== -1) return ""
-        if (n.indexOf("spotify") !== -1) return ""
+        if (n.indexOf("spotify") !== -1 || n.indexOf("spotifast") !== -1) return ""
         if (n.indexOf("telegram") !== -1) return ""
         if (n.indexOf("discord") !== -1) return ""
         if (n.indexOf("kitty") !== -1) return ""

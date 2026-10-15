@@ -45,7 +45,9 @@ o.bind("SUPER + ALT + SHIFT + B", "Browser (private)", o.launch("firefox --priva
 -- runaway zoom. (Zen launch key removed 10-08 -- too close to the zoom chord.)
 hl.unbind("SUPER + CTRL + Z")
 
-o.bind("SUPER + SHIFT + M", "Music", o.launch("spotify"))
+-- Music: the `music` wrapper opens Spotifast and says how to install it
+-- instead of dying as a bare "command not found" when it is absent.
+o.bind("SUPER + SHIFT + M", "Music", o.launch("music"))
 o.bind("SUPER + SHIFT + N", "Editor", o.launch("zed"))
 o.bind("SUPER + SHIFT + O", "Obsidian", o.launch("obsidian -disable-gpu --enable-wayland-ime"))
 

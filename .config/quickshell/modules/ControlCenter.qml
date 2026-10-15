@@ -201,7 +201,7 @@ FloatingWindow {
         {app: "kitty", secs: 5400},
         {app: "firefox", secs: 3200},
         {app: "code", secs: 1800},
-        {app: "spotify", secs: 900}
+        {app: "spotifast", secs: 900}
     ]
     property var activityLast7: []
     property real activityMax: 1
