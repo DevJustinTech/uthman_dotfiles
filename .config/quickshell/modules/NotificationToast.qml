@@ -146,6 +146,40 @@ Rectangle {
         exitAnim.start()
     }
 
+    // Activate on click, then dismiss. Mirrors NotificationCenter's
+    // activateNotification so the toast and the history drawer behave the same:
+    //
+    //   1. the notification's "default" action, which is what a body click means
+    //      in the spec. Toast action chips deliberately exclude "default" (they
+    //      are filtered to named actions), so it has to be found separately.
+    //   2. a body that is a single-line absolute path to an existing file gets
+    //      opened -- this is the tier that serves screenshots, whose
+    //      notifications carry no actions at all.
+    //   3. otherwise just dismiss.
+    //
+    // The existence check runs in the same shell as the open so the two cannot
+    // disagree. QML's File type is NOT available in this context; using it
+    // throws ReferenceError before the open, which is what made the
+    // notification centre silently swallow every click when this logic was
+    // first written there.
+    function activate() {
+        if (state_ !== "open") return
+        let list = (alive && notification.actions !== undefined) ? notification.actions : []
+        for (let i = 0; i < list.length; i++)
+            if (list[i].identifier === "default") { list[i].invoke(); root.dismiss(); return }
+        let candidate = (alive && notification.summary !== undefined ? notification.summary : "").trim()
+        if (!candidate && alive && notification.body !== undefined)
+            candidate = notification.body.replace(/<[^>]*>/g, "").trim()
+        if (candidate && candidate.indexOf("\n") < 0 && candidate.indexOf(" ") < 0
+            && candidate.charAt(0) === "/") {
+            let ext = candidate.split(".").pop().toLowerCase()
+            let images = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif", "jxl", "svg", "jfif"]
+            let cmd = images.indexOf(ext) >= 0 ? "imv" : "xdg-open"
+            Quickshell.execDetached(["sh", "-c", 'test -f "$1" && exec ' + cmd + ' "$1"', "sh", candidate])
+        }
+        root.dismiss()
+    }
+
     Component.onCompleted: {
 
         if (alive && !critical && notification.expireTimeout > 0)
@@ -357,11 +391,14 @@ Rectangle {
             }
         }
     }
-    // whole-card click = dismiss (behind interactive children)
+    // whole-card click = activate, then dismiss (behind interactive children).
+    // Was dismiss(), which meant a click on a screenshot notification closed
+    // the toast and did nothing else -- the same complaint that the history
+    // drawer had, fixed there in c825800.
     MouseArea {
         anchors.fill: parent
         z: -1
         enabled: root.state_ === "open"
-        onClicked: root.dismiss()
+        onClicked: root.activate()
     }
 }
