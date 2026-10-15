@@ -67,12 +67,18 @@ FloatingWindow {
     property string selfMsg: ""
     property string note: ""
 
-    title: "HW " + Math.round(liveWriteMBs) + "/" + Math.round(liveReadMBs)
+    // Stable title: windows.lua sizes this panel as "Hardware Health" and
+    // window rules match by title when the window appears. It used to be the
+    // live "HW <write>/<read>" speed readout, which the rule could never
+    // match -- so the panel silently ran at its implicit 640x540 instead,
+    // squeezing the banner, graph and vortex below their designed heights.
+    // The live rates still show in the speed-test row inside the panel.
+    title: "Hardware Health"
     IpcHandler { target: "dbg"; function go(): void { root.runSpeed() } }
-    implicitWidth: 640
-    implicitHeight: 540
+    implicitWidth: 600
+    implicitHeight: 640
     minimumSize: Qt.size(580, 480)
-    maximumSize: Qt.size(760, 700)
+    maximumSize: Qt.size(760, 644)   // 644 = tallest that still clears the 54px bar
     color: "transparent"
     visible: root.open || closeAnim.running
     // NOTE: no IpcHandler here — Bar.qml owns target "drives" and lazy-loads this.
