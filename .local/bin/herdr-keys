@@ -1,0 +1,23 @@
+#!/bin/bash
+# herdr-keys — Herdr's keybindings as a searchable rofi list.
+#
+# Omarchy's stock chord for this is SUPER+CTRL+K -> omarchy-menu-herdr-keybindings,
+# but in menu mode that script renders through the stock omarchy shell
+# (omarchy-menu-select -> "omarchy-shell shell summon omarchy.menu"), and this
+# session runs the fork shell in its place: the call failed with "omarchy-shell
+# is not running", a line that lands nowhere visible, so the chord did nothing.
+# The script's --print mode needs no shell -- it is the same annotated list,
+# built from `herdr --default-config` with ~/.config/herdr/config.toml merged
+# over it -- so pipe it into the rofi dmenu shim instead. Width and height
+# mirror the stock call: 800 wide, 40% of the focused monitor tall.
+set -o pipefail
+
+monitor_height=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused == true) | .height' 2>/dev/null)
+if [[ ! $monitor_height =~ ^[0-9]+$ ]] || ((monitor_height <= 0)); then
+  monitor_height=768
+fi
+menu_height=$((monitor_height * 40 / 100))
+
+omarchy-menu-herdr-keybindings --print \
+  | walker-dmenu --dmenu -p 'Herdr keybindings' --width 800 --height "$menu_height" \
+  >/dev/null

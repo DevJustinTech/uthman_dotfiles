@@ -178,7 +178,7 @@ for _, keys in ipairs({
   "SUPER + SPACE", "SUPER + H", "SUPER + U", "SUPER + ALT + B",
   "SUPER + CTRL + E", "SUPER + CTRL + V", "SUPER + ALT + SPACE", "SUPER + CTRL + SPACE",
   "SUPER + E", "SUPER + N", "SUPER + I", "SUPER + K", "SUPER + L",
-  "SUPER + ALT + P", "SUPER + ALT + T", "SUPER + ALT + K", "SUPER + ALT + D",
+  "SUPER + ALT + P", "SUPER + ALT + T", "SUPER + ALT + K", "SUPER + CTRL + K", "SUPER + ALT + D",
   "SUPER + ALT + E", "SUPER + ESCAPE", "SUPER + ALT + O", "SUPER + SHIFT + SPACE",
 }) do
   hl.unbind(keys)
@@ -186,6 +186,13 @@ end
 
 o.bind("SUPER + SPACE", "Launcher", open("launcher"))
 o.bind("SUPER + K", "Keybind cheatsheet", open("keybinds"))
+-- Herdr's keybindings. Omarchy's chord for this runs
+-- omarchy-menu-herdr-keybindings, whose menu renders through the stock shell
+-- (omarchy-menu-select -> "omarchy-shell shell summon omarchy.menu") -- the
+-- shell this session replaces -- so the chord died silently. The default is
+-- dropped in the unbind list above; herdr-keys shows the same list (herdr
+-- --default-config merged with ~/.config/herdr/config.toml) in the rofi picker.
+o.bind("SUPER + CTRL + K", "Herdr keybindings", o.launch("herdr-keys"))
 o.bind("SUPER + H", "Wi-Fi panel", open("wifi"))
 o.bind("SUPER + U", "System monitor", open("sysmon"))
 -- Was SUPER + C. That chord is Omarchy's Universal copy; the panel is here
@@ -239,6 +246,13 @@ o.bind("SUPER + R", "Screen record toggle", o.launch("record"))
 -- Reboot bind removed 2026-10-03: too easy to fat-finger. Use the power menu.
 o.bind("SUPER + SHIFT + Q", "Shut down", "systemctl poweroff")
 hl.unbind("SUPER + SHIFT + R")
+-- The physical power button. logind is set to HandlePowerKey=ignore so the key
+-- reaches the session, and Omarchy's stock bind for it ("Power menu",
+-- omarchy-menu toggle system) renders through the stock shell this session
+-- replaces -- so the button did nothing. Point it at the fork's power panel;
+-- locked keeps it working from the lock screen, where stock also had it.
+hl.unbind("XF86PowerOff")
+o.bind("XF86PowerOff", "Power menu", open("power"), { locked = true })
 
 -- ── Full reload (SUPER HOME) ────────────────────────────────────────────
 -- Reloads Hyprland then kills and restarts quickshell, so every module
