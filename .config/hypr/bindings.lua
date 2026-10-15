@@ -167,8 +167,15 @@ o.bind("SUPER + SHIFT + D", "Screenshot (drag area)", "shot")
 -- Omarchy puts its menu on SUPER+SPACE and a panel set on SUPER+H/U/B. All of
 -- those are unbound here first so the shell's own panels land cleanly --
 -- otherwise two bindings fire on the same chord.
+--
+-- SUPER + C is deliberately NOT in this list. Omarchy binds it to Universal
+-- copy (default/hypr/bindings/clipboard.lua: CTRL+C, or CTRL+Insert in a
+-- terminal), and unbinding it here to reach the clipboard panel removed copy
+-- from the chord instead -- while its SUPER+V and SUPER+X siblings stayed, so
+-- the trio was left inconsistent. The clipboard panel lives on
+-- SUPER + CTRL + V below; C/V/X stay Omarchy's.
 for _, keys in ipairs({
-  "SUPER + SPACE", "SUPER + H", "SUPER + U", "SUPER + C", "SUPER + ALT + B",
+  "SUPER + SPACE", "SUPER + H", "SUPER + U", "SUPER + ALT + B",
   "SUPER + CTRL + E", "SUPER + CTRL + V", "SUPER + ALT + SPACE", "SUPER + CTRL + SPACE",
   "SUPER + E", "SUPER + N", "SUPER + I", "SUPER + K", "SUPER + L",
   "SUPER + ALT + P", "SUPER + ALT + T", "SUPER + ALT + K", "SUPER + ALT + D",
@@ -181,7 +188,8 @@ o.bind("SUPER + SPACE", "Launcher", open("launcher"))
 o.bind("SUPER + K", "Keybind cheatsheet", open("keybinds"))
 o.bind("SUPER + H", "Wi-Fi panel", open("wifi"))
 o.bind("SUPER + U", "System monitor", open("sysmon"))
-o.bind("SUPER + C", "Clipboard", open("clipboard"))
+-- Was SUPER + C. That chord is Omarchy's Universal copy; the panel is here
+-- instead, alongside the sticky-pin chord below.
 o.bind("SUPER + ALT + B", "Battery panel", open("battery"))
 o.bind("SUPER + ALT + C", "Pomodoro", open("pomodoro"))
 o.bind("SUPER + ALT + L", "Lyrics", open("lyrics"))
