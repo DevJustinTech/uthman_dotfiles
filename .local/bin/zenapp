@@ -138,20 +138,27 @@ log "not running -> launching"
 touch "$STAMP"
 exec 9>&-
 
-# Zen decides for itself how many windows a cold start opens, and that count is
-# not something this script can infer. A cold AppImage start takes longer than it
-# looks, so it is sampled twice: the single 6s sample this replaced reported
-# "0 window(s)" for a launch that was merely still coming up.
+# Zen decides for itself what a cold start leaves behind, and that is not
+# something this script can infer. It is sampled for a full minute because the
+# answer arrives late: a cold AppImage start mounts its squashfs image first, and
+# the earlier single sample at 6s reported "0 window(s)" for a launch that was
+# still assembling itself, then 1 window at 20s for one that ended up with more.
+# Every window is listed, flagged with whether it belongs to this app, so a
+# companion window is identified rather than merely counted -- and a window that
+# Zen does not put in its session store is exactly what a count would hide.
 sample_windows() {
     local pids w
     pids=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
-    w=$(hyprctl clients -j 2>/dev/null | jq -rc --arg p "$pids" \
-        '($p | split(",") | map(tonumber)) as $i | [.[] | select(.pid as $x | $i | index($x)) | .title]')
-    log "$1 after launch: $(printf '%s' "$w" | jq -r 'length' 2>/dev/null) window(s) ${w}"
+    w=$(hyprctl clients -j 2>/dev/null | jq -rc --arg p "$pids" '
+        ($p | split(",") | map(tonumber)) as $i
+        | [ .[] | { own: ((.pid as $x | $i | index($x)) != null), class, title } ]')
+    log "$1: ${w:-<no windows at all>}"
 }
 (
-    sleep 8; sample_windows 8s
-    sleep 12; sample_windows 20s
+    for _t in $(seq 6 6 60); do
+        sleep 6
+        sample_windows "${_t}s"
+    done
 ) &
 
 # Zen refuses to start on a -profile path that does not exist yet — it opens a
