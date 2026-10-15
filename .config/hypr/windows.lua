@@ -10,13 +10,19 @@
 local QS = "^(quickshell|org.quickshell)$"
 
 -- Centre a shell window at a fixed size.
+--
+-- Keep every height at 644 or under. This screen is 1366x768 and the bar is 54
+-- tall, so a centred window any taller puts its top edge behind the bar -- and
+-- because the opaque part of the bar is the island in its middle, what
+-- disappears is the middle of the panel rather than a corner. Four were over:
+-- ThemeEditor 740, Clipboard 730, Wallshelf 700, Screen Time 660.
 local function shell_window(title, width, height)
   hl.window_rule({ match = { class = QS, title = title }, float = true, center = true, size = { width, height } })
 end
 
 shell_window("System Monitor", 920, 640)
 shell_window("Monitors", 460, 620)
-shell_window("ThemeEditor", 460, 740)
+shell_window("ThemeEditor", 460, 620)
 shell_window("Earbuds", 380, 420)
 shell_window("Bluetooth", 440, 560)
 -- DriveHealth's window title is "Hardware Health", not the module name.
@@ -26,16 +32,14 @@ shell_window("Package Manager", 980, 640)
 shell_window("WatchCat", 920, 440)
 shell_window("Control Center", 760, 600)
 shell_window("PDF Library", 960, 640)
-shell_window("Wallshelf", 980, 700)
+shell_window("Wallshelf", 980, 620)
 shell_window("Pomodoro", 400, 540)
 shell_window("GitHubDash", 760, 560)
 shell_window("QuickNotes", 460, 600)
--- 580x620, not 660x730: this screen is 1366x768 and the bar is 54 tall, so a
--- centred window taller than ~644 has its top edge behind the bar -- at 730 it
--- sat 35px under it, which is the island in the middle of the bar hiding the
--- panel's header. 620 puts the top edge at y=74, with 20px of air.
+-- Was 660x730, which put the top edge 35px behind the bar; the note on
+-- shell_window above is the arithmetic.
 shell_window("Clipboard", 580, 620)
-shell_window("Screen Time", 700, 660)
+shell_window("Screen Time", 700, 620)
 shell_window("Grap", 600, 470)
 shell_window("Clock", 360, 408)
 

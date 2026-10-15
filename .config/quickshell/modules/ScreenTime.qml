@@ -18,11 +18,13 @@ FloatingWindow {
     // title-matched window rule, which is actively misleading.
     title: "Screen Time"
     implicitWidth: 700
-    implicitHeight: 660
+    implicitHeight: 620
     // pinned like Monitors: a min/max range lets the window land off-spec
-    // and clip the content. Rule pins the same 700x660.
-    minimumSize: Qt.size(700, 660)
-    maximumSize: Qt.size(700, 660)
+    // and clip the content. Rule pins the same 700x620 -- which is also the
+    // most that clears the 54px bar on this 768-tall screen; at 660 the top
+    // edge sat flush against it.
+    minimumSize: Qt.size(700, 620)
+    maximumSize: Qt.size(700, 620)
     color: "transparent"
     visible: root.open || closeAnim.running
 

@@ -20,10 +20,13 @@ FloatingWindow {
     property string fontUi: "JetBrainsMono Nerd Font Mono"
 
     title: "ThemeEditor"
+    // Height matches windows.lua's rule. 644 is the most that clears the 54px
+    // bar on this 768-tall screen, so it is the ceiling whether the rule is in
+    // play or not.
     implicitWidth: 460
-    implicitHeight: 740
-    minimumSize: Qt.size(440, 700)
-    maximumSize: Qt.size(480, 800)
+    implicitHeight: 620
+    minimumSize: Qt.size(440, 560)
+    maximumSize: Qt.size(480, 644)
     color: "transparent"
     visible: root.open || closeAnim.running
 
