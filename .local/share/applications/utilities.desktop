@@ -1,11 +1,11 @@
 [Desktop Entry]
 Name=Utilities
-Comment=Quickshell utility hub: pomodoro, GitHub, notes, phone and more (no keybind needed)
+Comment=Quickshell utilities: GitHub, Screen Time, Pomodoro, notes and more (opens the app launcher filtered to them)
 # Via qs-ipc, not `quickshell -p ~/...`: Exec lines are not shell-expanded.
-Exec=qs-ipc plugins toggle
+Exec=qs-ipc launcher utilities
 Icon=applications-system
 Terminal=false
 Type=Application
 Categories=System;Utility;
-Keywords=utility;quickshell;pomodoro;github;notes;hub;
+Keywords=utility;utilities;quickshell;plugins;pomodoro;github;notes;hub;
 StartupWMClass=quickshell

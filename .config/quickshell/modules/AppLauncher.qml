@@ -21,7 +21,13 @@ PanelWindow {
     WlrLayershell.namespace: "qs-launcher"
     focusable: true
 
-    IpcHandler { target: "launcher"; function toggle(): void { root.open = !root.open } }
+    IpcHandler {
+        target: "launcher"
+        function toggle(): void { root.open = !root.open }
+        // Utilities entry / `plugins` alias: show the ten plugin apps
+        // instead of toggling the launcher itself (see showUtilities).
+        function utilities(): void { root.showUtilities() }
+    }
 
     // reset state on open/close
     property bool allowHover: false
@@ -49,7 +55,8 @@ PanelWindow {
         return true
     })
     // quickshell plugins ride the launcher as apps now (PluginMenu
-    // scrapped) — plain data, launch() toggles by qsTarget.
+    // scrapped) — plain data, launch() toggles by qsTarget. The Utilities
+    // desktop entry filters the list down to these (see showUtilities).
     readonly property var pluginApps: [
         { id: "qs-pomodoro", name: "Pomodoro", genericName: "focus timer · stats", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "pomodoro" },
         { id: "qs-github", name: "GitHub", genericName: "notifs · PRs · heatmap", comment: "quickshell plugin", keywords: ["plugin", "quickshell"], glyph: "", qsTarget: "github" },
@@ -127,9 +134,31 @@ PanelWindow {
         return scored.slice(0,50).map(function(x){return x.e})
     }
 
+    // Utilities view: the ten plugin apps are launcher entries since upstream
+    // folded PluginMenu away. Show them without closing the launcher —
+    // filtering in place when it is already up (the click path), opening
+    // straight into the filtered view otherwise.
+    function showUtilities(): void {
+        if (open) {
+            search.text = "plugin"
+        } else {
+            open = true   // onOpenChanged clears search.text; set it after
+            Qt.callLater(function(){ search.text = "plugin" })
+        }
+    }
+
     function launch(entry) {
         if (!entry) return
         bumpUsage(entry.id)
+        // Clicked the Utilities entry: it is a door back into this launcher.
+        // Closing and letting `plugins toggle` re-open it just flickers —
+        // filter the list in place instead. The second spelling covers
+        // launcher instances still holding the pre-fix desktop entry.
+        var cmd = entry.command || []
+        if (cmd[0] === "qs-ipc" && (cmd[1] === "plugins" || cmd[2] === "utilities")) {
+            showUtilities()
+            return
+        }
         root.open = false
         Qt.callLater(function(){
             // quickshell plugins live in the launcher now: toggle by target.

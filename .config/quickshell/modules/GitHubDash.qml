@@ -10,7 +10,7 @@ import QtQuick.Controls
 // Polls in the background every 5 min and notify-sends on new
 // notifications or finished workflow runs (silent baseline on first poll).
 // Data via `gh` (already authed); rows open in the browser. No keybind by
-// design — lives in the Utilities hub (SUPER+Space → "util").
+// design — rides the app launcher (Utilities entry, or search "github").
 FloatingWindow {
     id: root
     property var colors

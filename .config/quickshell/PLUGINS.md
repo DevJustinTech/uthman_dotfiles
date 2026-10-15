@@ -11,7 +11,7 @@ Rules of the house (from AGENTS.md / memory.md):
 
 | Module | What it does | IPC target | Keybind | Notes |
 |---|---|---|---|---|
-| AppLauncher.qml | app launcher | `launcher` | `SUPER SPACE` | |
+| AppLauncher.qml | app launcher + the ten plugin apps (PluginMenu folded in upstream; qsTarget entries) | `launcher` (`plugins` alias) | `SUPER SPACE` | Utilities entry in the app menu opens it filtered to the plugins |
 | Workspaces.qml | live Hyprland workspaces | — | — | bar pill, left row |
 | Clock.qml | bar clock, alt format on right-click | — | — | left-click opens ClockWindow |
 | ClockWindow.qml | small draggable clock window | `clockwin` | via bar clock click | FastFetch-style FloatingWindow |
@@ -29,12 +29,12 @@ Rules of the house (from AGENTS.md / memory.md):
 | ControlCenter.qml | **control center** — bento grid (now playing, weather+pomodoro, quick controls, network, pet, activity, cava visualizer) | `controlcenter` | `SUPER ALT P` | FloatingWindow 760×580 tight glass, Esc to close; pomodoro replaced SUPER ALT C calendar |
 | MediaOsd.qml | volume/brightness/mic OSD overlay | `media` (`volup/voldown/volmute/micmute/briup/bridown/brimax/brimin`) | Fn-row keys (XF86) | replaced omarchy swayosd; binds in bindings.conf |
 | Pomodoro.qml | **pomodoro timer** — focus/short/long cycle, adjustable durations, session dots, daily stats, phase notifications | `pomodoro` | `SUPER ALT C` | FloatingWindow 400×540 glass, Esc to close; space/R/N keys |
-| GitHubDash.qml | **github dashboard** — tabs: Overview (heatmap, stats, top repos) · Inbox · Pulls · Actions (running jobs); bg polls every 5 min, notify-sends on new | `github` | Utilities hub (no bind) | FloatingWindow 760×560 glass; 1-4 tabs, R refresh, rows open in browser |
-| PluginMenu.qml | pick-and-open bento cards for **extras/plugins only** (glyph + desc + arrow, keyboard nav, blur) | `plugins` | SUPER+Space → "util" (desktop entry, no Hypr bind) | native modules excluded; hub for Pomodoro, GitHubDash, notes, phone, drives |
+| GitHubDash.qml | **github dashboard** — tabs: Overview (heatmap, stats, top repos) · Inbox · Pulls · Actions (running jobs); bg polls every 5 min, notify-sends on new | `github` | Launcher → Utilities (no bind) | FloatingWindow 760×560 glass; 1-4 tabs, R refresh, rows open in browser |
+| ~~PluginMenu.qml~~ | folded into AppLauncher (upstream 9dd4fb1) — the ten plugin apps ride the launcher as entries | `plugins` (alias) | Utilities entry in the app menu | opens the launcher's utilities view; hub for Pomodoro, GitHubDash, notes, drives |
 | ScreenTime.qml | usage tracker: GitHub heatmap, top apps ranked, week bars, login count | `screentime` | `SUPER ALT T` | samples focused window every 10s → SQLite; gap >4h = new login |
-| FailWatch.qml + FailWatchPanel.qml | **silent-failure watchdog** — failed systemd units + journal OOM/segfault/oops; notify-send alerts, per-row log ids (`journalctl -u`, `--after-cursor`), on-demand `pacman -Qkk` | `failwatch` | Utilities hub (no bind) | daemon `failwatch.service` (scripts/failwatch-daemon.py) → `~/.local/share/failwatch/`; panel only (no bar pill) |
-| Dictionary.qml | **dictionary** — definitions, IPA, audio, examples, synonym/antonym chips, Datamuse related words, session cache + history | `dict` | Utilities hub (no bind) | pure QML (dictionaryapi.dev, no key); Enter to define, chips drill down |
-| Grap.qml | **grep search** — instant content search (home by default, `@path` to scope), file-type icons, Enter opens match in nano (foot) at line | `grap` | Utilities hub (no bind) | FloatingWindow 600×470 glass; debounced ripgrep, ↑↓ + Enter, Esc |
+| FailWatch.qml + FailWatchPanel.qml | **silent-failure watchdog** — failed systemd units + journal OOM/segfault/oops; notify-send alerts, per-row log ids (`journalctl -u`, `--after-cursor`), on-demand `pacman -Qkk` | `failwatch` | Launcher → Utilities (no bind) | daemon `failwatch.service` (scripts/failwatch-daemon.py) → `~/.local/share/failwatch/`; panel only (no bar pill) |
+| Dictionary.qml | **dictionary** — definitions, IPA, audio, examples, synonym/antonym chips, Datamuse related words, session cache + history | `dict` | Launcher → Utilities (no bind) | pure QML (dictionaryapi.dev, no key); Enter to define, chips drill down |
+| Grap.qml | **grep search** — instant content search (home by default, `@path` to scope), file-type icons, Enter opens match in nano (foot) at line | `grap` | Launcher → Utilities (no bind) | FloatingWindow 600×470 glass; debounced ripgrep, ↑↓ + Enter, Esc |
 | Bar pills (ArchLogo, Memory, Cpu, Network, Temp, Tray, DndIndicator, ScriptIndicator) | status pills | — | — | ScriptIndicator runs scripts/update.sh + idle.sh |
 
 ## Unwired / dormant

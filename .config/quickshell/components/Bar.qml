@@ -88,9 +88,11 @@ PanelWindow {
     // "Process failed to start ... /home/justin/phonebridge/phonebridge" and
     // loading it cost ~1200 lines of QML to build on every shell start.
     // Launcher lives here (not shell.qml) so Bar pills/IPC can reach it —
-    // and `plugins` (PluginMenu scrapped, all ten ride the launcher now).
+    // and `plugins` (PluginMenu scrapped; the ten plugin apps ride the
+    // launcher now, so the alias lands on its utilities view — opening, not
+    // toggling: nothing needs to close the launcher through here).
     AppLauncher { id: launcherPanel; colors: palette }
-    IpcHandler { target: "plugins"; function toggle(): void { launcherPanel.open = !launcherPanel.open } }
+    IpcHandler { target: "plugins"; function toggle(): void { launcherPanel.showUtilities() } }
 
     // KeybindsPanel resident (battery treatment): lazy first-paint flashed
     // white — the list build stalls the first frames. Opened constantly,

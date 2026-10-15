@@ -6,7 +6,7 @@ import QtQuick.Controls
 import QtQuick.LocalStorage 2.0
 
 // QuickNotes: small floating idea capture window.
-// Opens from the PluginMenu tile (`ipc call notes toggle`).
+// Opens from the app launcher (Utilities view / search "notes"; `ipc call notes toggle`).
 // LocalStorage backed (qs_ideas). Pinned notes get a pastel colour and
 // double as reminders (one digest notification per day).
 FloatingWindow {

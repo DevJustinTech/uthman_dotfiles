@@ -41,7 +41,7 @@ Item {
             // corner of a bar is expected to do.
             onClicked: Quickshell.execDetached([
                 "sh", "-c",
-                "quickshell -p ~/.config/quickshell ipc call plugins toggle"
+                "quickshell -p ~/.config/quickshell ipc call launcher toggle"
             ])
         }
     }
