@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# omarchy-shell — shim in front of the stock /usr/share/omarchy/bin/omarchy-shell.
+#
+# The stock wrapper forwards IPC to the shell at $OMARCHY_PATH/shell, but this
+# session runs the dotfiles quickshell fork instead (quickshell -p
+# ~/.config/quickshell, see hypr/autostart.lua), so every call came back
+# "omarchy-shell is not running". The loud fallout is omarchy-system-sleep-lock:
+# it runs `omarchy-shell lock lock` before every suspend and polls `lock
+# status` for 12 seconds. That could never succeed, so the machine suspended
+# with no lock screen up, then notified "Screen did not lock before suspend".
+#
+# Only the lock target is answered here, with the locker this machine uses
+# everywhere else (SUPER+L, hypridle idle and before_sleep, ~/.local/bin/lock):
+# hyprlock. It starts via systemd-run because the caller lives in
+# omarchy-sleep-lock.service (Type=simple, KillMode=control-group); a plain
+# child would be killed the moment that service exits at suspend, which is
+# the exact failure this shim exists to prevent. The fixed unit name keeps the
+# watchdog's retries idempotent instead of stacking hyprlock instances.
+# Everything else defers to the stock wrapper, unchanged.
+set -euo pipefail
+
+if [[ ${1:-} == lock ]]; then
+  case ${2:-} in
+    lock)
+      if ! pidof hyprlock >/dev/null; then
+        /usr/bin/systemd-run --user --collect --quiet \
+          --unit=hyprlock-suspend -- /usr/bin/hyprlock
+      fi
+      if pidof hyprlock >/dev/null; then
+        printf '{"requested":true,"secure":true}\n'
+      else
+        printf '{"requested":true,"secure":false}\n'
+      fi
+      exit 0
+      ;;
+    status)
+      if pidof hyprlock >/dev/null; then
+        printf '{"secure":true,"requested":true}\n'
+      else
+        printf '{"secure":false,"requested":false}\n'
+      fi
+      exit 0
+      ;;
+  esac
+fi
+
+exec /usr/share/omarchy/bin/omarchy-shell "$@"
