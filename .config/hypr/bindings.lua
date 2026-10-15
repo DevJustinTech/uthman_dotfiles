@@ -25,7 +25,16 @@ local function open(target, method)
 end
 
 -- ── Application launches ────────────────────────────────────────────────
-o.bind("SUPER + RETURN", "Terminal", o.launch("kitty"))
+-- No SUPER + RETURN here. Omarchy already binds it to omarchy-launch-terminal
+-- (and SUPER CTRL T to Herdr, SUPER ALT RETURN to Tmux), so binding it again
+-- fired twice: this repo's hardcoded kitty plus Omarchy's launcher, which goes
+-- through ~/.local/bin/xdg-terminal-exec and so now opens foot. Two terminals
+-- per press, one of each.
+--
+-- Leaving it to Omarchy is the better behaviour anyway: omarchy-launch-terminal
+-- opens in the current terminal's working directory, which the bare binary does
+-- not. Anything else wanting a terminal should go through the same shim so it
+-- follows whatever terminal is configured, rather than hardcoding a name.
 o.bind("SUPER + SHIFT + F", "File manager", o.launch("thunar"))
 -- Firefox is the default xdg handler, so the old `xdg-open <url>` form resolved
 -- to it anyway -- it just forced a URL on every launch. Bind firefox directly.
