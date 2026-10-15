@@ -30,7 +30,11 @@ shell_window("Wallshelf", 980, 700)
 shell_window("Pomodoro", 400, 540)
 shell_window("GitHubDash", 760, 560)
 shell_window("QuickNotes", 460, 600)
-shell_window("Clipboard", 660, 730)
+-- 580x620, not 660x730: this screen is 1366x768 and the bar is 54 tall, so a
+-- centred window taller than ~644 has its top edge behind the bar -- at 730 it
+-- sat 35px under it, which is the island in the middle of the bar hiding the
+-- panel's header. 620 puts the top edge at y=74, with 20px of air.
+shell_window("Clipboard", 580, 620)
 shell_window("Screen Time", 700, 660)
 shell_window("Grap", 600, 470)
 shell_window("Clock", 360, 408)

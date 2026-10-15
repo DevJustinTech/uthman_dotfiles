@@ -22,10 +22,16 @@ FloatingWindow {
     property var pins: ["","","","","","","","",""]   // index 0 = slot 1, "" = empty
 
     title: "Clipboard"
-    implicitWidth: 620
-    implicitHeight: 680
-    minimumSize: Qt.size(560, 600)
-    maximumSize: Qt.size(660, 730)
+    // Matches the 580x620 window rule in ~/.config/hypr/windows.lua, which is
+    // what decides the size on screen. It was 620x680 here against a 660x730
+    // rule -- agreeing on one number keeps the panel from changing size
+    // depending on whether a rule is in play. The 644 cap is the screen, not a
+    // preference: this display is 768 tall and the bar is 54, so anything
+    // taller ends up with its top edge behind the bar's centre island.
+    implicitWidth: 580
+    implicitHeight: 620
+    minimumSize: Qt.size(500, 480)
+    maximumSize: Qt.size(640, 644)
     color: "transparent"
     visible: root.open || closeAnim.running
 
