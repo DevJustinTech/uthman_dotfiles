@@ -29,7 +29,7 @@ header "Checking dependencies..."
 # Note: notifications are owned by the Quickshell shell (org.freedesktop.Notifications),
 # and the app launcher is the local rofi shim ~/.local/bin/walker-dmenu — so neither
 # walker, mako nor swaync is a real dependency.
-DEPS=(hyprland quickshell kitty matugen starship zsh lsd zoxide fzf cava btop stow hyprlock hypridle hyprsunset wl-clipboard cliphist rofi thunar tumbler thunar-archive-plugin thunar-volman file-roller catfish ffmpegthumbnailer poppler-glib)
+DEPS=(hyprland quickshell foot matugen starship zsh lsd zoxide fzf cava btop stow hyprlock hypridle hyprsunset wl-clipboard cliphist rofi thunar tumbler thunar-archive-plugin thunar-volman file-roller catfish ffmpegthumbnailer poppler-glib)
 
 # hypridle owns idle/lock now that the Quickshell shell below replaces
 # omarchy-shell (which used to handle idle through shell.json's idle.lock).
@@ -213,19 +213,14 @@ else
     warn "Cursor base not found at $CURSOR_BASE_SRC - matugen-cursor will skip the pointer theme."
 fi
 
-# Inter from repos; Iceland is vendored (SDDM runs as its own user and
-# cannot read $HOME fonts, so both must live in /usr/share/fonts).
+# Inter from repos: the SDDM theme's display font since the Qt6 port replaced
+# Iceland, so the old vendored-font step is gone. SDDM runs as its own user
+# and cannot read $HOME fonts, so it must live in /usr/share/fonts.
 if fc-list | grep -qi " inter"; then
     success "Inter already installed"
 else
     info "Installing inter-font (sudo)..."
     sudo pacman -S --needed --noconfirm inter-font && success "Inter installed" || warn "inter-font install failed"
-fi
-if fc-list | grep -qi iceland; then
-    success "Iceland already installed"
-else
-    info "Installing vendored Iceland to /usr/share/fonts (sudo)..."
-    sudo cp "$DOTFILES_DIR/assets/fonts/Iceland-Regular.ttf" /usr/share/fonts/TTF/ && sudo fc-cache -f && success "Iceland installed" || warn "Iceland install failed"
 fi
 
 # SDDM theme (source of truth: sddm/elarun-custom/; Palette.qml refreshes

@@ -6,8 +6,8 @@ import SddmComponents 6.0
 import "."   // Palette.qml sits beside Main.qml
 
 // elarun-custom — password-only, logo top.
-// Colors from Palette.qml (matugen). Display font: Iceland.
-// Icons: FiraCode Nerd Font (Iceland has no icon glyphs).
+// Colors from Palette.qml (matugen). Display font: Inter Display.
+// Icons: FiraCode Nerd Font (Inter Display has no icon glyphs).
 Rectangle {
     id: root
     anchors.fill: parent
@@ -121,9 +121,9 @@ Rectangle {
                 color: pal.text
                 selectionColor: pal.primary
                 selectedTextColor: pal.background
-                // NOTE: bullets render in FiraCode, not Iceland — Iceland has
-                // no bullet glyph, so Qt fell back to another font whose dots
-                // looked oversized next to the rest of the theme.
+                // NOTE: bullets render in FiraCode, not Inter Display — Inter
+                // Display has no bullet glyph, so Qt fell back to another font
+                // whose dots looked oversized next to the rest of the theme.
                 font.family: "FiraCode Nerd Font"
                 font.pixelSize: 18
                 echoMode: TextInput.Password

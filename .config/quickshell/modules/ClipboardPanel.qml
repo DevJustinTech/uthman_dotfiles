@@ -7,7 +7,7 @@ import Quickshell.Io
 
 // Clipboard Manager: history from cliphist plus 9 pinned notes.
 //   SUPER CTRL V   open the window
-//   SUPER CTRL P   pin whatever is on the clipboard right now
+//   SUPER CTRL J   pin whatever is on the clipboard right now
 //   SUPER ALT 1-9  copy a pinned note to the clipboard, no window
 // In the window: type to filter, Up/Down move, Enter copies, CTRL P pins
 // the selected clip, Delete drops it, Esc clears the search then closes.
