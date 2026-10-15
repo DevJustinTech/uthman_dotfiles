@@ -249,7 +249,14 @@ PanelWindow {
                     border.width: 1; border.color: colors.alpha(colors.primary, 0.3)
                     // U+F06A9, matching the toggle and the bar pill, so the panel does not
                     // show one icon in its header and a different one in its control
-                    Text { anchors.centerIn: parent; text: "󰘩"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
+                    // Icons are \u escapes on purpose, each verified by NAME against
+                    // FiraCode Nerd Font. Writing these as literal private-use
+                    // characters is how a md-meteor (U+F0629) ended up standing
+                    // in for a wifi icon: a literal is one copy-paste away from a
+                    // different codepoint and still renders as something.
+                    //   \uF05A9 = md-wifi      connected  (matches the bar pill)
+                    //   \uF05AA = md-wifi_off  not connected
+                    Text { anchors.centerIn: parent; text: "\uF05A9"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
                     Layout.alignment: Qt.AlignVCenter
                 }
                 Text {
@@ -282,7 +289,11 @@ PanelWindow {
                         // md-wifi_alert is deliberately NOT used for a no-internet
                         // state: at 11-12px it is pixel-for-pixel near md-wifi, so
                         // the two would be indistinguishable in practice.
-                        text: root.wifiConnected ? "󰘩" : "󰖪"
+                        // \uF05A9 = md-wifi (connected, matches the bar pill)
+                        // \uF05AA = md-wifi_off (not connected)
+                        // Keyed on connection, not wifiEnabled: the radio can be up
+                        // with no network attached, and that is the case this must show.
+                        text: root.wifiConnected ? "\uF05A9" : "\uF05AA"
                         color: root.wifiConnected ? colors.primary : colors.alpha(colors.outline, 0.7)
                         font.family: colors.fontSans
                         font.pixelSize: 13
