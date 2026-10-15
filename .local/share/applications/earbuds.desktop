@@ -1,7 +1,8 @@
 [Desktop Entry]
 Name=Earbuds
 Comment=Bluetooth headset batteries and connection (quickshell)
-Exec=quickshell -p ~/.config/quickshell ipc call earbuds toggle
+# Via qs-ipc, not `quickshell -p ~/...`: Exec lines are not shell-expanded.
+Exec=qs-ipc earbuds toggle
 Icon=audio-headphones
 Terminal=false
 Type=Application

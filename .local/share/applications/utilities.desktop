@@ -1,7 +1,8 @@
 [Desktop Entry]
 Name=Utilities
 Comment=Quickshell utility hub: pomodoro, GitHub, notes, phone and more (no keybind needed)
-Exec=quickshell -p ~/.config/quickshell ipc call plugins toggle
+# Via qs-ipc, not `quickshell -p ~/...`: Exec lines are not shell-expanded.
+Exec=qs-ipc plugins toggle
 Icon=applications-system
 Terminal=false
 Type=Application

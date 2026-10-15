@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# qs-ipc — send an IPC call to the dotfiles quickshell shell.
+#
+# Why this exists: desktop-entry Exec lines are NOT shell-expanded. The literal
+# string `-p ~/.config/quickshell` in a .desktop file reaches quickshell with a
+# literal `~`, and it dies with:
+#
+#     Could not open config file at "~/.config/quickshell"
+#
+# Anything launched from the app launcher (DesktopEntry.execute(), gtk-launch)
+# spawns the argv directly — no shell — so any `~` or `$VAR` in an Exec= line is
+# passed through verbatim. Keybinds are unaffected because Hyprland routes them
+# through `sh -c`, which does expand the tilde. That asymmetry is why Package
+# Manager worked on SUPER+I but silently did nothing from the app menu.
+#
+# The `-p` value must match the running shell exactly: a mismatched path fails
+# with "Target not found" even while a shell is clearly up. Resolving $HOME here
+# (rather than hardcoding /home/<user>) keeps this correct on every machine.
+#
+# usage: qs-ipc <target> [method]     (method defaults to "toggle")
+
+set -euo pipefail
+
+target=${1:?usage: qs-ipc <target> [method]}
+method=${2:-toggle}
+
+exec quickshell -p "${HOME:?HOME is unset}/.config/quickshell" ipc call "$target" "$method"

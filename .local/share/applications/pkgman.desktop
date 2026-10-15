@@ -1,7 +1,9 @@
 [Desktop Entry]
 Name=Package Manager
 Comment=Search, install, remove and update Arch packages (pacman + AUR via yay)
-Exec=quickshell -p ~/.config/quickshell ipc call pkgman toggle
+# Via qs-ipc, not `quickshell -p ~/...`: Exec lines are not shell-expanded, so
+# a literal `~` here reaches quickshell unexpanded and the panel never opens.
+Exec=qs-ipc pkgman toggle
 Icon=system-software-install
 Terminal=false
 Type=Application
