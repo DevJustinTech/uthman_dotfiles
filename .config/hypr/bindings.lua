@@ -120,7 +120,10 @@ o.bind("SUPER + ALT + B", "Battery panel", open("battery"))
 o.bind("SUPER + ALT + C", "Pomodoro", open("pomodoro"))
 o.bind("SUPER + ALT + L", "Lyrics", open("lyrics"))
 o.bind("SUPER + E", "Theme panel", open("theme"))
-o.bind("SUPER + ALT + G", "Theme editor", open("themeedit"))
+-- Was SUPER + ALT + G, which Omarchy binds to "Move active window out of
+-- group"; both survived and this repo's won, so group-exit was unreachable.
+-- Moved to a chord verified free in the live bind list.
+o.bind("SUPER + ALT + H", "Theme editor", open("themeedit"))
 o.bind("SUPER + N", "System info", open("fastfetch"))
 o.bind("SUPER + I", "Package manager", open("pkgman"))
 o.bind("SUPER + ALT + N", "PDF library", open("pdfviewer"))
@@ -132,7 +135,12 @@ o.bind("SUPER + ALT + D", "Drive health", open("drives"))
 o.bind("SUPER + ALT + E", "Earbuds", open("earbuds"))
 o.bind("SUPER + ALT + Y", "WatchCat", open("watchcat"))
 o.bind("SUPER + CTRL + V", "Clipboard window", open("clipboard"))
-o.bind("SUPER + CTRL + P", "Pin clipboard to sticky shelf", ipc("sticky", "pin"))
+-- Was SUPER + CTRL + P. Omarchy binds that chord to its Power menu and both
+-- survived, so the power menu was unreachable from the keyboard. Moved to a
+-- chord verified free in the live bind list, and next to the other clipboard
+-- chords rather than parked arbitrarily. SUPER + CTRL + V is the clipboard
+-- window, so P-adjacent would have been natural but is taken.
+o.bind("SUPER + CTRL + J", "Pin clipboard to sticky shelf", ipc("sticky", "pin"))
 o.bind("SUPER + ESCAPE", "Power menu", open("power"))
 o.bind("SUPER + L", "Lock screen", "pidof hyprlock || hyprlock")
 o.bind("SUPER + ALT + SPACE", "Island style", ipc("bar", "toggleIsland"))
