@@ -68,13 +68,48 @@ focus_window() {
     return 1
 }
 
-# Already running on this profile? Focus its window, and never fall through to a
-# launch while a window exists -- that is the whole point of these entries.
-#
-# The window is waited for rather than assumed: a cold profile takes seconds to
-# map one, and a second click inside that gap is indistinguishable from "not
-# running". Treating it as such is what started a second process.
-if pgrep -f -q -- "-profile $PROFDIR" 2>/dev/null; then
+# ── One decision at a time ────────────────────────────────────────────────────
+# A double tap fires twice inside the same second, and neither run can see the
+# other's app: uwsm-app goes through systemd, so the app is not in the process
+# table yet when the second one looks. Both then decide to launch, two Zen
+# instances fight over one profile lock, and two taps become four windows. The
+# lock makes "look, then decide" atomic; the stamp covers the gap where the
+# first run has released the lock but its app has not appeared yet.
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/zenapp-$APP.lock"
+STAMP="${XDG_RUNTIME_DIR:-/tmp}/zenapp-$APP.launched"
+exec 9>"$LOCK"
+flock 9
+
+# A check that quietly answers "not running" is what made every press open a new
+# instance, so the tool it leans on is verified once per run. pgrep exits 1 for
+# "no match", which is the normal case here; anything else means pgrep itself is
+# unhappy and focusing cannot be trusted.
+_probe=0
+pgrep -f -- "zz-zenapp-capability-probe-$$" >/dev/null 2>&1 || _probe=$?
+case $_probe in
+    0|1) ;;
+    *) log "pgrep misfired (exit $_probe); focusing may be unreliable" ;;
+esac
+
+# NOTE: this procps has no `pgrep -q`. The original check here was
+# `pgrep -q ... 2>/dev/null`, whose "invalid option" error was swallowed and then
+# read as "the app is not running" -- so the focus path never ran once and every
+# press started another instance. No -q, and no hiding stderr.
+is_running() { pgrep -f -- "-profile $PROFDIR" >/dev/null 2>&1; }
+
+if ! is_running && [ -f "$STAMP" ] &&
+    [ "$(( $(date +%s) - $(stat -c %Y "$STAMP" 2>/dev/null || echo 0) ))" -lt 30 ]; then
+    log "a launch is already in flight; waiting for it"
+    for _ in $(seq 1 20); do
+        is_running && break
+        sleep 0.25
+    done
+fi
+
+# Running? Focus its window, and never fall through to a launch while a window
+# exists -- that is the whole point of these entries. The window is waited for
+# rather than assumed: a cold profile takes seconds to map one.
+if is_running; then
     addr=""
     for _ in $(seq 1 20); do
         RUNNING=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
@@ -90,10 +125,25 @@ if pgrep -f -q -- "-profile $PROFDIR" 2>/dev/null; then
     fi
     # Up, but genuinely windowless: let the live instance open the window rather
     # than starting a second process on a profile that is already locked.
-    log "windowless; clients: $(hyprctl clients -j 2>/dev/null | jq -rc '[.[] | {pid, class}]' 2>/dev/null)"
+    log "windowless; handing the URL over"
+    exec 9>&-
     exec uwsm-app -- zen --profile "$PROFDIR" --new-window "$URL"
 fi
+
 log "not running -> launching"
+touch "$STAMP"
+exec 9>&-
+
+# Zen decides for itself how many windows a cold start opens, and that count is
+# not something this script can infer. A stray second window is exactly the
+# failure being chased here, so it is made to report itself instead.
+(
+    sleep 6
+    _p=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
+    _w=$(hyprctl clients -j 2>/dev/null | jq -rc --arg p "$_p" \
+        '($p | split(",") | map(tonumber)) as $i | [.[] | select(.pid as $x | $i | index($x)) | .title]')
+    log "6s later: $(printf '%s' "$_w" | jq -r 'length' 2>/dev/null) window(s) ${_w}"
+) &
 
 # Zen refuses to start on a -profile path that does not exist yet — it opens a
 # "Profile Missing" window instead — so the profile has to be there first.
@@ -133,4 +183,5 @@ user_pref("zen.welcome-screen.seen", true);
 PREFS
 fi
 
+exec 9>&-
 exec uwsm-app -- zen --no-remote -profile "$PROFDIR" --new-window "$URL"
