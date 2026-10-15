@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# zenapp — open a URL in a chromeless per-site Zen window (Chrome --app style).
+# usage: zenapp <name> <url> [title-regex]
+#
+# The Zen counterpart of ffapp. Zen, unlike Chromium, has no --app= flag, so
+# "chromeless" is done with userChrome.css — the same mechanism getTheme uses
+# for the main profile. Each app gets its own profile under
+# ~/.config/zen/apps.<name>, so apps keep separate cookies and run beside the
+# main browser and each other (--no-remote + a per-app profile: a second
+# process on one profile would hit the profile lock, so sharing the main
+# profile is not an option).
+set -euo pipefail
+
+APP=${1:?usage: zenapp <name> <url> [title-regex]}
+URL=${2:?usage: zenapp <name> <url> [title-regex]}
+MATCH=${3:-}
+
+PROFDIR="$HOME/.config/zen/apps.$APP"
+THEME="$HOME/.config/theme/current"
+
+# Dotfiles root, from this script's real path. The ~/.local/bin entry is a stow
+# symlink, so BASH_SOURCE alone would resolve to ~/.local/bin and miss firefox/.
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+DOTFILES_DIR=$(cd "$(dirname "$SELF")/../.." && pwd)
+
+# Focus the app's own window if it is already up. Windows are matched by pid as
+# well as title: title alone would happily focus the main browser when, say,
+# WhatsApp Web is open there.
+focus_match() {
+    [ -n "$MATCH" ] || return 1
+    command -v hyprctl >/dev/null || return 1
+    command -v jq >/dev/null || return 1
+    local pids addr
+    pids=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, -)
+    [ -n "$pids" ] || return 1
+    addr=$(hyprctl clients -j 2>/dev/null | jq -r --arg m "$MATCH" --arg p "$pids" '
+        ($p | split(",") | map(tonumber)) as $pids
+        | .[]
+        | select(.pid as $x | $pids | index($x))
+        | select((.title // "") | test($m; "i"))
+        | .address' | head -1)
+    [ -n "$addr" ] && [ "$addr" != "null" ] || return 1
+    # Hyprland 0.56 evaluates this as Lua (see config/quickshell/AGENTS.md).
+    # The .conf-era `focuswindow address:0x…` is a syntax error there, so it
+    # fails and every launch silently opened a duplicate window instead.
+    hyprctl dispatch "hl.dsp.focus({window=$addr})" >/dev/null
+}
+
+# Already running on this profile? Focus it. If the user has navigated somewhere
+# the title regex no longer matches, hand the URL to the live instance rather
+# than doing nothing at all.
+if pgrep -f -q -- "-profile $PROFDIR" 2>/dev/null; then
+    focus_match && exit 0
+    exec uwsm-app -- zen --profile "$PROFDIR" --new-window "$URL"
+fi
+
+# Zen refuses to start on a -profile path that does not exist yet — it opens a
+# "Profile Missing" window instead — so the profile has to be there first.
+mkdir -p "$PROFDIR/chrome"
+
+# Chromeless + themed, recomposed on every launch so a wallpaper change lands
+# without re-provisioning. Real files, not symlinks: Zen's sandboxed UI process
+# silently skips a symlinked userChrome.css.
+{
+    if [ -f "$DOTFILES_DIR/firefox/app-userChrome.css" ]; then
+        cat "$DOTFILES_DIR/firefox/app-userChrome.css"
+    else
+        # Without this the window is an ordinary browser window with tabs.
+        printf '%s\n' '#navigator-toolbox { display: none !important; }'
+    fi
+    for _css in "$THEME/firefox.css" "$THEME/zen.css"; do
+        [ -f "$_css" ] || continue
+        printf '\n'
+        cat "$_css"
+    done
+} > "$PROFDIR/chrome/userChrome.css"
+if [ -f "$THEME/zen-usercontent.css" ]; then
+    cp -f "$THEME/zen-usercontent.css" "$PROFDIR/chrome/userContent.css"
+fi
+
+# user.js is read at startup and never written by Zen, so it stays declarative.
+# First run only: anything added here later would not reach existing profiles,
+# but clobbering it every launch would drop hand-edits.
+if [ ! -f "$PROFDIR/user.js" ]; then
+    cat > "$PROFDIR/user.js" <<'PREFS'
+// Managed by zenapp from the dotfiles. Written once, on profile creation.
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.aboutwelcome.enabled", false);
+user_pref("browser.sessionstore.resume_from_crash", false);
+user_pref("zen.welcome-screen.seen", true);
+PREFS
+fi
+
+exec uwsm-app -- zen --no-remote -profile "$PROFDIR" --new-window "$URL"

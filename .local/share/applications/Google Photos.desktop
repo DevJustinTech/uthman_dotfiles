@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Google Photos
+# Chromeless Zen window via zenapp, not omarchy-launch-webapp: that helper only
+# recognises the Chromium family and falls back to chromium --app=, which is
+# how these used to open. zenapp gives each site its own Zen profile.
+Exec=zenapp gphotos https://photos.google.com/ "Google Photos"
+Terminal=false
+Type=Application
+Icon=google-photos
+StartupNotify=true

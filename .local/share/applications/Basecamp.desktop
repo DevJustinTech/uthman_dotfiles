@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Basecamp
+# Chromeless Zen window via zenapp, not omarchy-launch-webapp: that helper only
+# recognises the Chromium family and falls back to chromium --app=, which is
+# how these used to open. zenapp gives each site its own Zen profile.
+Exec=zenapp basecamp https://launchpad.37signals.com "Basecamp"
+Terminal=false
+Type=Application
+Icon=basecamp
+StartupNotify=true
