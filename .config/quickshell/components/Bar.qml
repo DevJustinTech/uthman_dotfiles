@@ -121,17 +121,38 @@ PanelWindow {
     // and suits a 1366px panel better than the full row of pills.
     property bool barsPinned: false
     property bool barsVisible: false
-    // Which end the cursor is over -- a zone, or the row it slid out to.
+    // Which end the cursor is over. The hover strips are sized to cover the
+    // whole row, so this stays true while the pointer travels along the pills.
     property bool leftHover: false
     property bool rightHover: false
+
+    // Retracting is deferred, revealing is not. Going in should feel instant;
+    // coming out should not fire on a single dropped frame or a 1px gap
+    // between two pills, which read as flicker.
+    Timer {
+        id: barsGrace
+        interval: 320
+        onTriggered: bar.barsVisible = bar.barsPinned
+    }
     function refreshBars() {
-        barsVisible = barsPinned || leftHover || rightHover
+        const wanted = barsPinned || leftHover || rightHover
+        if (wanted) {
+            barsGrace.stop()
+            barsVisible = true
+        } else if (!barsGrace.running) {
+            barsGrace.restart()
+        }
     }
     function setBars(pinned: bool) {
         barsPinned = pinned
         leftHover = false
         rightHover = false
-        refreshBars()
+        if (pinned) {
+            barsGrace.stop()
+            barsVisible = true
+        } else {
+            barsGrace.restart()
+        }
     }
     // center style — SUPER ALT SPACE flips trapezoid tab against the Dynamic Island
     property bool dynamicIsland: false
@@ -163,24 +184,33 @@ PanelWindow {
         anchors.fill: parent
 
         // ── hover reveal ────────────────────────────────────────────────
-        // Two invisible strips at the ends of the bar. HoverHandler is used
-        // rather than MouseArea on purpose: it tracks the pointer without
-        // accepting a button, so it does not become a click target of its own
-        // and the pills underneath keep working.
+        // One invisible strip per end of the bar, sized to COVER THE WHOLE
+        // ROW it reveals. This is the part that matters: a strip that only
+        // covers the corner makes the sides unusable, because you flick the
+        // pointer into the corner, the row slides out, and then every step
+        // toward the pill you actually wanted carries you off the strip and
+        // the row retracts before the click lands. The rows are ~210px and
+        // ~420px wide, so a fixed 110/200px strip covered only the first
+        // pill or two of each.
         //
-        // z is ABOVE the rows deliberately. The strip has to stay the hovered
-        // item while the row animates out from under the cursor -- at a lower
-        // z the row covered it, hover dropped, the row retracted, and the
-        // whole thing oscillated. A HoverHandler accepts no button, so the
-        // MouseAreas in the rows still receive clicks through it.
+        // Width binds to the row's own width, so it stays correct as the
+        // pills change (battery appearing, CPU label growing).
+        //
+        // z is BELOW the rows. A strip on top shadowed the pills and ate
+        // their clicks. Below, the rows sit on top and take every click;
+        // HoverHandler only tracks the pointer and accepts no button, so it
+        // never competes for the press.
+        //
+        // Overlap with the centre island is harmless for the same reason:
+        // the island's own items are above these strips.
         //
         // enabled is gated on the pin: when the sides are pinned open the
         // strips go dead so moving the pointer away cannot yank them shut.
         Item {
             id: leftZone
             anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-            width: 110
-            z: 2
+            width: Math.max(120, leftRow.width + 60)
+            z: -1
             HoverHandler {
                 id: leftHoverHandler
                 enabled: !bar.barsPinned
@@ -193,8 +223,8 @@ PanelWindow {
         Item {
             id: rightZone
             anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-            width: 200
-            z: 2
+            width: Math.max(200, rightRow.width + 60)
+            z: -1
             HoverHandler {
                 id: rightHoverHandler
                 enabled: !bar.barsPinned
