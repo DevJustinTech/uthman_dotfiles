@@ -121,10 +121,20 @@ PanelWindow {
     // and suits a 1366px panel better than the full row of pills.
     property bool barsPinned: false
     property bool barsVisible: false
-    // Which end the cursor is over. The hover strips are sized to cover the
-    // whole row, so this stays true while the pointer travels along the pills.
-    property bool leftHover: false
-    property bool rightHover: false
+    // Hover is tracked in four bits, not two. The strips sit BELOW the rows and
+    // every pill has a hoverEnabled MouseArea, so crossing a pill can take
+    // hover away from the strip underneath it. That produced a repeating cycle:
+    // pointer rests on a pill -> strip hover drops -> 320ms grace -> row
+    // retracts and slides 40px away -> pill no longer under the cursor -> strip
+    // hover returns -> row slides back under the cursor -> hover drops again.
+    // Counting the row itself as hovered closes the loop, so leaving the
+    // pointer on a pill is no longer ambiguous.
+    property bool leftZoneHover: false
+    property bool leftRowHover: false
+    property bool rightZoneHover: false
+    property bool rightRowHover: false
+    readonly property bool leftHover: leftZoneHover || leftRowHover
+    readonly property bool rightHover: rightZoneHover || rightRowHover
 
     // Retracting is deferred, revealing is not. Going in should feel instant;
     // coming out should not fire on a single dropped frame or a 1px gap
@@ -143,10 +153,15 @@ PanelWindow {
             barsGrace.restart()
         }
     }
+    function clearHover() {
+        leftZoneHover = false
+        leftRowHover = false
+        rightZoneHover = false
+        rightRowHover = false
+    }
     function setBars(pinned: bool) {
         barsPinned = pinned
-        leftHover = false
-        rightHover = false
+        clearHover()
         if (pinned) {
             barsGrace.stop()
             barsVisible = true
@@ -215,7 +230,7 @@ PanelWindow {
                 id: leftHoverHandler
                 enabled: !bar.barsPinned
                 onHoveredChanged: {
-                    bar.leftHover = hovered
+                    bar.leftZoneHover = hovered
                     bar.refreshBars()
                 }
             }
@@ -229,7 +244,7 @@ PanelWindow {
                 id: rightHoverHandler
                 enabled: !bar.barsPinned
                 onHoveredChanged: {
-                    bar.rightHover = hovered
+                    bar.rightZoneHover = hovered
                     bar.refreshBars()
                 }
             }
@@ -244,6 +259,15 @@ PanelWindow {
             transform: Translate { x: bar.barsVisible ? 0 : -40; Behavior on x { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } } }
             ArchLogo { colors: bar.colors }
             Workspaces { colors: bar.colors }
+            // Counts as hovered so the pill MouseAreas above cannot starve the
+            // strip below and start the retract/reveal cycle.             // is emptied so nothing on top of this row can take hover away.
+            HoverHandler {
+                enabled: !bar.barsPinned
+                onHoveredChanged: {
+                    bar.leftRowHover = hovered
+                    bar.refreshBars()
+                }
+            }
         }
 
         // Trapezoid tab (\_____/) — soft 8px bottom corners, no border.
@@ -503,6 +527,13 @@ PanelWindow {
                 onOpenRequested: toggleWatchCat()
             }
             Battery { colors: bar.colors; onOpenRequested: batPanel.open = !batPanel.open }
+            HoverHandler {
+                enabled: !bar.barsPinned
+                onHoveredChanged: {
+                    bar.rightRowHover = hovered
+                    bar.refreshBars()
+                }
+            }
         }
 
     }
