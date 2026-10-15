@@ -45,7 +45,7 @@ Item {
         }
     }
     Timer {
-        interval: 30000; running: true; repeat: true
+        interval: 30000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
             // optimistic reset, so one flaky probe cannot latch "down"
             if (root.disconnected) root.online = true
