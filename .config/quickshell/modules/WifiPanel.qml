@@ -247,9 +247,9 @@ PanelWindow {
                     Layout.preferredWidth: 26; Layout.preferredHeight: 26; radius: 13
                     color: colors.alpha(colors.primary, 0.15)
                     border.width: 1; border.color: colors.alpha(colors.primary, 0.3)
-                    // md-wifi = U+F05A9 (was U+F092F, md-wifi_strength_outline -- same mislabelling
-                    // as the toggle below)
-                    Text { anchors.centerIn: parent; text: "󰤩"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
+                    // U+F06A9, matching the toggle and the bar pill, so the panel does not
+                    // show one icon in its header and a different one in its control
+                    Text { anchors.centerIn: parent; text: "󰘩"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
                     Layout.alignment: Qt.AlignVCenter
                 }
                 Text {
@@ -271,18 +271,18 @@ PanelWindow {
                          : root.wifiConnected ? colors.alpha(colors.primary, 0.15) : "transparent"
                     Text {
                         anchors.centerIn: parent
-                        // GLYPHS VERIFIED BY NAME against FiraCode Nerd Font (the font colors.fontSans
-                        // resolves to). Do not "fix" these by eyeballing codepoints.
-                        //   md-wifi       = U+F05A9  plain connected wifi icon
-                        //   md-wifi_off   = U+F05AA  not connected
-                        // The "on" branch used U+F092F, which is
-                        // md-wifi_strength_outline -- a signal-strength glyph, so it
-                        // rendered as the not-connected sign whether or not anything was
-                        // actually connected.
-                        // Keyed on connection, not wifiEnabled: the radio can be on
-                        // with no network attached, which is the exact case the old
-                        // glyph could not express.
-                        text: root.wifiConnected ? "󰤩" : "󰖪"
+                        // U+F06A9 is the same glyph the bar's network pill uses for a live
+                        // connection (Network.qml). The font's name table calls it
+                        // md-robot, which is what caused a false "this is broken"
+                        // report earlier -- a glyph's name says what it is, not what
+                        // it is for in a given spot. Use the pill's icon here so the
+                        // panel and the bar agree on what "connected" looks like.
+                        //   U+F06A9  connected with internet (matches the bar pill)
+                        //   U+F05AA  md-wifi_off, not connected
+                        // md-wifi_alert is deliberately NOT used for a no-internet
+                        // state: at 11-12px it is pixel-for-pixel near md-wifi, so
+                        // the two would be indistinguishable in practice.
+                        text: root.wifiConnected ? "󰘩" : "󰖪"
                         color: root.wifiConnected ? colors.primary : colors.alpha(colors.outline, 0.7)
                         font.family: colors.fontSans
                         font.pixelSize: 13
