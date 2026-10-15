@@ -32,13 +32,12 @@ FloatingWindow {
     // nothing and logs "registered but will not be used".
 
     // ── state ──
-    property string podsName: "Max AirPro"   // matched by name: the buds rotate MACs
     property string mac: ""
     property string devName: "No earbuds"
     property bool connected: false
     property bool busy: false
     property bool adapterOn: false
-    property bool powerPending: false   // power-on chained pods connect
+    property bool powerPending: false   // power-on chained connect
     // batteries, L then R: {pct: -1|0..100, charging: bool}.
     // Single-source hardware (one level for the set) shows one ring; labels
     // only make sense with two real sources.
@@ -61,7 +60,7 @@ FloatingWindow {
         powProc.running = true
         devProc.running = true
     }
-    // adapter power state; chains a pending pods connect
+    // adapter power state; chains a pending connect
     Process {
         id: powProc
         command: ["sh", "-c", "timeout 8 bluetoothctl show 2>/dev/null | grep -i 'Powered:'"]
@@ -88,7 +87,7 @@ FloatingWindow {
         onTriggered: {
             if (root.connected || root.busy) return
             if (root.mac !== "") root.actClicked()
-            else { root.setBusy(false); root.statusText = "Pods not around — out of the case?"; statusClear.restart() }
+            else { root.setBusy(false); root.statusText = "Earbuds not around — still in the case?"; statusClear.restart() }
         }
     }
     // footer hero: powers on first when the adapter is off, then connects
@@ -102,7 +101,7 @@ FloatingWindow {
             return
         }
         if (root.mac === "") {
-            root.statusText = "Looking for pods…"
+            root.statusText = "Looking for earbuds…"
             root.probe()
             probeWait.restart()
             return
@@ -110,7 +109,7 @@ FloatingWindow {
         root.actClicked()
     }
 
-    // 1. paired devices -> pick target (connected one, else first paired)
+    // 1. known devices -> pick target (first in the BlueZ cache)
     Process {
         id: devProc
         command: ["sh", "-c", "timeout 8 bluetoothctl devices 2>/dev/null"]
@@ -123,7 +122,6 @@ FloatingWindow {
                     var m = lines[i].match(/^Device\s+([0-9A-Fa-f:]{17})\s+(.+)$/)
                     if (m) {
                         if (!first) { first = m[1]; fname = m[2].trim() }
-                        if (m[2].trim().toLowerCase() === root.podsName.toLowerCase()) { first = m[1]; fname = m[2].trim(); break }
                     }
                 }
                 if (!first) {

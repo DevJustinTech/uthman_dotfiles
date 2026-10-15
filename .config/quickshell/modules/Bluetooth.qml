@@ -8,7 +8,7 @@ import QtQuick.Controls
 // Talks to BlueZ through bluetoothctl only (no daemons, no blueman dep).
 // Pairing uses JustWorks-friendly `pair` + auto-`trust`; devices that demand
 // a PIN/passkey report the failure in the status line instead of hanging —
-// answer it in blueman-manager, which is installed as the fallback.
+// fall back to `bluetoothctl` in a terminal for those (no blueman here).
 FloatingWindow {
     id: root
     property var colors
@@ -34,19 +34,6 @@ FloatingWindow {
     property var devices: []   // {mac, name, paired, connected, trusted, rssi, battery}
     property string statusMsg: ""
     property string busyMac: ""  // device with an in-flight action (spinner state)
-    // pods-only smart connect: nothing else gets auto-touch, hangs get killed
-    // pods-only smart connect: matched by NAME — these buds rotate their MAC,
-    // a hardcoded address goes stale (18:25:3A:8E died, C0:07:20:51 lives)
-    property string podsName: "Max AirPro"
-    property bool podsPending: false   // power-on chained connect
-    function podsEntry() {
-        for (var i = 0; i < root.devices.length; i++) {
-            var nm = String(root.devices[i].name || "").trim().toLowerCase()
-            if (nm === root.podsName.toLowerCase() || nm.indexOf(root.podsName.toLowerCase() + " ") === 0) return root.devices[i]
-        }
-        return null
-    }
-    function podsMac() { var e = root.podsEntry(); return e ? e.mac : "" }
 
     onOpenChanged: { if (open) { refresh(); openAnim.restart() } else { scanStop(); closeAnim.restart() } }
     Timer { id: pollTimer; interval: 5000; running: root.open; repeat: true; onTriggered: root.refresh() }
@@ -67,7 +54,6 @@ FloatingWindow {
             waitForEnd: true
             onStreamFinished: {
                 root.powered = text.toLowerCase().indexOf("yes") !== -1
-                if (root.powered && root.podsPending) { root.podsPending = false; root.connectPods() }
                 if (root.powered && root.pendingAction) {
                     var a = root.pendingAction
                     root.pendingAction = null
@@ -198,65 +184,9 @@ FloatingWindow {
     }
     Timer { id: refreshTimer; interval: 1200; onTriggered: root.refresh() }
 
-    // ---- pods-only smart connect ----
-    function connectPods() {
-        var e = root.podsEntry()
-        if (e && e.connected) { root.statusMsg = "Pods already connected"; return }
-        if (!root.powered) {
-            root.podsPending = true
-            root.statusMsg = "Powering on…"
-            setPower(true)
-            return
-        }
-        // fresh list first so the presence check isn't stale
-        root.statusMsg = "Looking for pods…"
-        devProc.running = true
-        podsRecheck.restart()
-    }
-    Timer {
-        id: podsRecheck
-        interval: 2000; repeat: false
-        onTriggered: {
-            var e = root.podsEntry()
-            if (!e) { root.statusMsg = "Pods not around — out of the case?"; return }
-            if (!e.paired) { root.statusMsg = "Pods aren't paired — pair them first"; return }
-            if (e.connected) { root.statusMsg = "Pods already connected"; return }
-            root.busyMac = e.mac
-            root.statusMsg = e.rssi === 0 ? "Pods quiet — trying anyway…" : "Connecting to pods…"
-            actProc.command = ["sh", "-c", "timeout 20 bluetoothctl connect '" + e.mac.replace(/'/g, "'\\''") + "' 2>&1 | tail -n 3"]
-            actProc.running = true
-            podsWatch.restart()
-        }
-    }
-    // watchdog: 12s, then verify and kill the hang — never stuck connecting
-    Timer {
-        id: podsWatch
-        interval: 12000; repeat: false
-        onTriggered: {
-            var mac = root.podsMac()
-            if (!mac) { root.busyMac = ""; root.statusMsg = "Pods vanished mid-try"; return }
-            podsVerifyProc.command = ["sh", "-c", "timeout 8 bluetoothctl info '" + mac.replace(/'/g, "'\\''") + "' 2>/dev/null | grep -i 'Connected:'"]
-            podsVerifyProc.running = true
-        }
-    }
-    Process {
-        id: podsVerifyProc
-        stdout: StdioCollector {
-            waitForEnd: true
-            onStreamFinished: {
-                // actProc may have already finished on its own; stopping an idle process is harmless
-                actProc.running = false
-                if (text.toLowerCase().indexOf("yes") !== -1) {
-                    root.busyMac = ""
-                    root.statusMsg = "Pods connected"
-                    root.refresh()
-                } else {
-                    root.busyMac = ""
-                    root.statusMsg = "Pods didn't answer — still in the case?"
-                }
-            }
-        }
-    }
+    // Uthman's pods-only smart connect was removed: it matched his "Max AirPro"
+    // earbuds by name, and its hero rendered unconditionally — a phantom device
+    // that never exists here. Pair and connect from the device list like usual.
 
     // glass card
     Rectangle {
@@ -317,53 +247,6 @@ FloatingWindow {
                         Text { text: root.scanning ? "Scanning…" : "Scan for devices"; color: colors.primary; font.family: root.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold }
                     }
                     MouseArea { id: scanMa; anchors.fill: parent; hoverEnabled: true; enabled: root.powered; onClicked: root.scanning ? root.scanStop() : root.scanStart() }
-                }
-            }
-
-            // pods hero: one tap powers + connects, watchdog kills hangs
-            Rectangle {
-                Layout.fillWidth: true
-                height: 52
-                radius: 14
-                color: podsDot.containsMouse ? colors.alpha(colors.primary, 0.18) : colors.alpha(colors.primary, 0.08)
-                border.width: 1
-                border.color: colors.alpha(colors.primary, 0.35)
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 14; anchors.rightMargin: 14
-                    spacing: 10
-                    Rectangle {
-                        width: 9; height: 9; radius: 4.5
-                        Layout.alignment: Qt.AlignVCenter
-                        color: root.podsEntry() && root.podsEntry().connected ? colors.primary
-                             : root.busyMac !== "" && root.busyMac === root.podsMac() ? colors.secondary
-                             : root.podsEntry() ? colors.tertiary : colors.alpha(colors.outline, 0.4)
-                    }
-                    Text {
-                        text: root.podsName
-                        color: colors.foreground
-                        font.family: root.fontUi; font.pixelSize: 13; font.weight: Font.DemiBold
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-                    Text {
-                        text: root.podsEntry() && root.podsEntry().connected ? "Connected"
-                            : root.busyMac !== "" && root.busyMac === root.podsMac() ? "Connecting…" : "Connect"
-                        color: colors.primary
-                        font.family: root.fontUi; font.pixelSize: 11; font.weight: Font.Bold
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-                }
-                MouseArea {
-                    id: podsDot
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: {
-                        var e = root.podsEntry()
-                        if (e && e.connected) root.act(e.mac, "disconnect")
-                        else root.connectPods()
-                    }
                 }
             }
 
