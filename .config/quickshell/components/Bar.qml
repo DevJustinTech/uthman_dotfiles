@@ -37,7 +37,7 @@ PanelWindow {
 
     // WifiPanel (1183 lines, heaviest) — Network pill + `wifi` bind
     WifiPanel { id: wifiPanel; colors: palette }
-    IpcHandler { target: "wifi"; function toggle(): void { wifiPanel.open = !wifiPanel.open } }
+    IpcHandler { target: "wifi"; function toggle(): void { wifiPanel.open = !wifiPanel.open } function radio(): void { wifiPanel.toggleRadio() } }
     function toggleWifi() { wifiPanel.open = !wifiPanel.open }
 
     // SystemMonitor (544 lines) — Memory/Cpu pills + `sysmon` bind
@@ -57,8 +57,12 @@ PanelWindow {
     IpcHandler { target: "clipboard"; function toggle(): void { clipPanel.open = !clipPanel.open } function close(): void { clipPanel.open = false } }
     IpcHandler {
         target: "sticky"
+        // pin() also opens the panel. The pin itself always worked -- the rows
+        // land in the qs_stickies database -- but the only UI for them lives
+        // inside this panel, and pinning by key never opened it. So the note
+        // was saved, a toast fired, and nothing appeared anywhere.
+        function pin(): void { clipPanel.addStickyFromClipboard(); clipPanel.open = true }
         function copy(slot: string): void { clipPanel.copyStickyBySlot(slot) }
-        function pin(): void { clipPanel.addStickyFromClipboard() }
         function clearAll(): void { clipPanel.clearStickies() }
     }
 

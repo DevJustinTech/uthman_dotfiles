@@ -37,6 +37,20 @@ PanelWindow {
     }
     property bool scanSpinning: false   // true while a manual rescan is in flight
     property string searchQuery: ""
+    // Drive the radio with nmcli. Assigning wifiDev.wifiEnabled was a silent
+    // no-op on Quickshell 0.3.1: the button repainted, the notification path
+    // was fine, and the radio never changed. NetworkManager itself is healthy
+    // (`nmcli radio wifi` reports enabled, wlp2s0 connected), so go through the
+    // same tool that works, and keep the Device object only for reading state.
+    Process {
+        id: wifiRadioProc
+        command: ["sh", "-c",
+            "if [ \"$(nmcli -t radio wifi)\" = \"enabled\" ]; then nmcli radio wifi off; " +
+            "else nmcli radio wifi on; fi"]
+    }
+    function toggleRadio() {
+        if (wifiDev) wifiRadioProc.running = true
+    }
     readonly property var nets: {
         if (!wifiDev || !wifiDev.networks) return []
         var l = wifiDev.networks.values.slice()
@@ -255,7 +269,7 @@ PanelWindow {
                         id: wfMouse
                         anchors.fill: parent
                         hoverEnabled: true
-                        onClicked: if (root.wifiDev) root.wifiDev.wifiEnabled = !root.wifiDev.wifiEnabled
+                        onClicked: root.toggleRadio()
                     }
                 }
 
