@@ -1,4 +1,4 @@
-/* zenapp / ffapp chromeless window: no tabs, no address bar, no bookmarks bar.
+/* zenapp chromeless window: no tabs, no address bar, no bookmarks bar.
    Page content only — Chrome --app style. The window is driven entirely by
    keybinds and app entries (zenapp focuses or launches), so no browser UI is
    needed. */

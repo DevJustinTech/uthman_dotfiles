@@ -93,22 +93,9 @@ if pgrep -x zed >/dev/null 2>&1; then
     command -v notify-send >/dev/null 2>&1 && notify-send "Theme updated" "Re-select Matugen in Zed (Ctrl+K Ctrl+T)" 2>/dev/null & true
 fi
 
-# Firefox reacts to userChrome.css only from a real file inside the profile
-# chrome dir (a symlink is silently skipped by its sandboxed UI process).
-# Copy the freshly-generated theme in; it shows after the next restart.
-for _ffbase in "$HOME/.mozilla/firefox" "$HOME/.config/mozilla/firefox"; do
-    [[ -f "$_ffbase/profiles.ini" ]] || continue
-    _profdir=$(ls -d "$_ffbase"/*.default-release 2>/dev/null | head -1)
-    [[ -z "$_profdir" ]] && _profdir=$(ls -d "$_ffbase"/*.default* 2>/dev/null | head -1)
-    [[ -n "$_profdir" ]] && {
-        mkdir -p "$_profdir/chrome"
-        cp -f "$HOME/.config/theme/current/firefox.css" "$_profdir/chrome/userChrome.css"
-        cp -f "$HOME/.config/theme/current/firefox-usercontent.css" "$_profdir/chrome/userContent.css"
-    }
-done &
-
-# Zen gets the same theme: Firefox chrome + Zen layer stacked into one
-# userChrome.css (Zen tabs are `tab[selected]`, not `.tabbrowser-tab`).
+# Zen is the only browser here. firefox.css (the Firefox chrome rules matugen
+# still emits for it) and the Zen layer stack into one userChrome.css — Zen tabs
+# are `tab[selected]`, not `.tabbrowser-tab`.
 # user.js carries the stylesheets pref + transparent-browser pref so no
 # prefs.js surgery is needed (all grep-guarded, append-once).
 for _zprof in "$HOME/.config/zen"/*.Default* "$HOME/.config/zen"/*.default*; do

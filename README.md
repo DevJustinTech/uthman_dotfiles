@@ -452,7 +452,7 @@ What runs the desktop day to day, and where each piece lives:
 │   ├── systemd/user/         # helper services
 ├── .local/bin/             # set-wallpaper, getTheme, record, shot, …
 ├── sddm/elarun-custom/     # optional login theme; NOT installed by default
-├── firefox/user.js         # enables userChrome.css theming
+├── zen/app-userChrome.css  # chromeless window CSS for zenapp web apps
 ├── wallpapers/             # local only, git-ignored, never committed
 ├── assets/                 # vendored blobs + README screenshots (stow-ignored)
 ├── theme-fallback/         # static snow_black seed

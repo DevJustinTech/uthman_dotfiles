@@ -2,13 +2,13 @@
 # zenapp — open a URL in a chromeless per-site Zen window (Chrome --app style).
 # usage: zenapp <name> <url> [title-regex]
 #
-# The Zen counterpart of ffapp. Zen, unlike Chromium, has no --app= flag, so
-# "chromeless" is done with userChrome.css — the same mechanism getTheme uses
-# for the main profile. Each app gets its own profile under
-# ~/.config/zen/apps.<name>, so apps keep separate cookies and run beside the
-# main browser and each other (--no-remote + a per-app profile: a second
-# process on one profile would hit the profile lock, so sharing the main
-# profile is not an option).
+# The Zen counterpart of the chromeless web app windows, done without Chromium.
+# Zen, unlike Chromium, has no --app= flag, so "chromeless" is done with
+# userChrome.css — the same mechanism getTheme uses for the main profile. Each
+# app gets its own profile under ~/.config/zen/apps.<name>, so apps keep
+# separate cookies and run beside the main browser and each other (--no-remote +
+# a per-app profile: a second process on one profile would hit the profile lock,
+# so sharing the main profile is not an option).
 set -euo pipefail
 
 APP=${1:?usage: zenapp <name> <url> [title-regex]}
@@ -19,57 +19,81 @@ PROFDIR="$HOME/.config/zen/apps.$APP"
 THEME="$HOME/.config/theme/current"
 
 # Dotfiles root, from this script's real path. The ~/.local/bin entry is a stow
-# symlink, so BASH_SOURCE alone would resolve to ~/.local/bin and miss firefox/.
+# symlink, so BASH_SOURCE alone would resolve to ~/.local/bin and miss zen/.
 SELF=$(readlink -f "${BASH_SOURCE[0]}")
 DOTFILES_DIR=$(cd "$(dirname "$SELF")/../.." && pwd)
 
-# Address of this app's window, or empty. Windows are matched by pid as well as
-# title: title alone would happily pick up the main browser when, say, WhatsApp
-# Web is open there. A title that no longer matches still falls back to the
-# app's first window, so navigating away focuses instead of duplicating.
+# Every decision is logged. "It opened a second window instead of focusing" is
+# invisible from outside -- the cause is either the running-profile check not
+# seeing the app yet, or the focus being refused -- and both look identical from
+# the desktop. One line per step turns that into a fact. Lives in the runtime
+# dir, so it clears on reboot, and is capped so it cannot grow forever.
+LOG="${XDG_RUNTIME_DIR:-/tmp}/zenapp.log"
+log() { printf '%s %-10s %s\n' "$(date +%H:%M:%S)" "$APP" "$*" >>"$LOG" 2>/dev/null || true; }
+if [ -f "$LOG" ] && [ "$(wc -l <"$LOG" 2>/dev/null || echo 0)" -gt 400 ]; then
+    tail -n 200 "$LOG" >"$LOG.cut" 2>/dev/null && mv -f "$LOG.cut" "$LOG" 2>/dev/null || true
+fi
+
+# Address of this app's window, or empty. $1 is the app's PIDs, comma separated.
+#
+# Windows are matched by pid as well as title: title alone would happily pick up
+# the main browser when, say, WhatsApp Web is open there. A title that no longer
+# matches still falls back to the app's first window, so a page the user
+# navigated away from focuses instead of opening a second window.
 app_window() {
-    command -v hyprctl >/dev/null 2>&1 || return 1
-    command -v jq >/dev/null 2>&1 || return 1
-    local pids
-    pids=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
-    [ -n "$pids" ] || return 1
-    hyprctl clients -j 2>/dev/null | jq -r --arg m "$MATCH" --arg p "$pids" '
+    command -v hyprctl >/dev/null 2>&1 || { log "no hyprctl"; return 1; }
+    command -v jq >/dev/null 2>&1 || { log "no jq"; return 1; }
+    hyprctl clients -j 2>/dev/null | jq -r --arg m "$MATCH" --arg p "$1" '
         ($p | split(",") | map(tonumber)) as $pids
         | [ .[] | select(.pid as $x | $pids | index($x)) ] as $w
         | (( $w | map(select((.title // "") | test($m; "i"))) ) + $w)
         | .[0].address // empty'
 }
 
-# The window argument is the STRING "address:0x…". A bare hex number -- which is
-# what config/quickshell/AGENTS.md documents -- makes hl.focus report
-# "window not found" for a perfectly valid window, and the same mistake is in
-# ThemeEditor.qml and WorkspaceViewer.qml.
-#
-# hyprctl also exits 0 even when the dispatcher refuses the call, so the focus is
-# confirmed rather than assumed: a silent refusal would otherwise look like
-# success and the caller would open a duplicate.
+# Focus addr and confirm it stuck. The confirmation is only ever logged -- it
+# must not decide anything. A window that exists and a focus that got stolen
+# back by the closing launcher overlay look identical from here, and treating
+# that as failure is exactly what opened a duplicate: the window was there, but
+# the check said no, so the caller launched a second one. Retries cover the
+# overlay case.
 focus_window() {
-    local addr=$1 i
-    hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })" >/dev/null 2>&1
-    for i in 1 2 3 4 5; do
+    local addr=$1 i out
+    for i in 1 2 3; do
+        out=$(hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })" 2>&1)
+        log "focus $addr -> ${out:-<no output>}"
         [ "$(hyprctl activewindow -j 2>/dev/null | jq -r '.address // empty')" = "$addr" ] && return 0
-        sleep 0.1
+        sleep 0.15
     done
+    log "focus NOT confirmed; active is $(hyprctl activewindow -j 2>/dev/null | jq -r '.address // "none"')"
     return 1
 }
 
-# Already running on this profile? Focus its window. A second launch must never
-# open a duplicate -- that is the whole point of these entries.
+# Already running on this profile? Focus its window, and never fall through to a
+# launch while a window exists -- that is the whole point of these entries.
+#
+# The window is waited for rather than assumed: a cold profile takes seconds to
+# map one, and a second click inside that gap is indistinguishable from "not
+# running". Treating it as such is what started a second process.
 if pgrep -f -q -- "-profile $PROFDIR" 2>/dev/null; then
-    addr=$(app_window || true)
-    if [ -n "$addr" ] && focus_window "$addr"; then
+    addr=""
+    for _ in $(seq 1 20); do
+        RUNNING=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
+        addr=$(app_window "$RUNNING" || true)
+        [ -n "$addr" ] && break
+        sleep 0.3
+    done
+    log "running (pids ${RUNNING:-none}) -> window ${addr:-none}"
+    if [ -n "$addr" ]; then
+        focus_window "$addr" || true
+        log "done (focused)"
         exit 0
     fi
-    # Running, but nothing could be focused (still starting up, or every window
-    # closed): hand the URL to the live instance instead of starting a second
-    # process on a profile that is already locked.
+    # Up, but genuinely windowless: let the live instance open the window rather
+    # than starting a second process on a profile that is already locked.
+    log "windowless; clients: $(hyprctl clients -j 2>/dev/null | jq -rc '[.[] | {pid, class}]' 2>/dev/null)"
     exec uwsm-app -- zen --profile "$PROFDIR" --new-window "$URL"
 fi
+log "not running -> launching"
 
 # Zen refuses to start on a -profile path that does not exist yet — it opens a
 # "Profile Missing" window instead — so the profile has to be there first.
@@ -79,8 +103,8 @@ mkdir -p "$PROFDIR/chrome"
 # without re-provisioning. Real files, not symlinks: Zen's sandboxed UI process
 # silently skips a symlinked userChrome.css.
 {
-    if [ -f "$DOTFILES_DIR/firefox/app-userChrome.css" ]; then
-        cat "$DOTFILES_DIR/firefox/app-userChrome.css"
+    if [ -f "$DOTFILES_DIR/zen/app-userChrome.css" ]; then
+        cat "$DOTFILES_DIR/zen/app-userChrome.css"
     else
         # Without this the window is an ordinary browser window with tabs.
         printf '%s\n' '#navigator-toolbox { display: none !important; }'

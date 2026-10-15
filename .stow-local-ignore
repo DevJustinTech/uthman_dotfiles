@@ -11,7 +11,9 @@ __pycache__
 
 ^sddm$
 ^assets$
-^firefox$
+# Zen web app window CSS. Stow maps top-level entries onto $HOME one-for-one,
+# so this would land at ~/zen; zenapp reads it from the dotfiles instead.
+^zen$
 # Contains only .local/share/icons/Bibata-Modern-Ice. Stow maps top-level
 # entries onto $HOME one-for-one, so this would land at ~/cursor-theme instead
 # of ~/.local/share/icons. install.sh links it into place.
