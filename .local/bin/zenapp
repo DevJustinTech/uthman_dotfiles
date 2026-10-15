@@ -111,7 +111,11 @@ fi
 # rather than assumed: a cold profile takes seconds to map one.
 if is_running; then
     addr=""
-    for _ in $(seq 1 20); do
+    # Up to ~18s: a cold AppImage start mounts the squashfs image first and does
+    # not map a window quickly. The old 6s ceiling expired mid-startup, and a
+    # starting app that looks windowless gets the URL handed to it -- which is
+    # another way to end up with more windows than were asked for.
+    for _ in $(seq 1 60); do
         RUNNING=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
         addr=$(app_window "$RUNNING" || true)
         [ -n "$addr" ] && break
@@ -135,14 +139,19 @@ touch "$STAMP"
 exec 9>&-
 
 # Zen decides for itself how many windows a cold start opens, and that count is
-# not something this script can infer. A stray second window is exactly the
-# failure being chased here, so it is made to report itself instead.
-(
-    sleep 6
-    _p=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
-    _w=$(hyprctl clients -j 2>/dev/null | jq -rc --arg p "$_p" \
+# not something this script can infer. A cold AppImage start takes longer than it
+# looks, so it is sampled twice: the single 6s sample this replaced reported
+# "0 window(s)" for a launch that was merely still coming up.
+sample_windows() {
+    local pids w
+    pids=$(pgrep -f -- "-profile $PROFDIR" 2>/dev/null | paste -sd, - || true)
+    w=$(hyprctl clients -j 2>/dev/null | jq -rc --arg p "$pids" \
         '($p | split(",") | map(tonumber)) as $i | [.[] | select(.pid as $x | $i | index($x)) | .title]')
-    log "6s later: $(printf '%s' "$_w" | jq -r 'length' 2>/dev/null) window(s) ${_w}"
+    log "$1 after launch: $(printf '%s' "$w" | jq -r 'length' 2>/dev/null) window(s) ${w}"
+}
+(
+    sleep 8; sample_windows 8s
+    sleep 12; sample_windows 20s
 ) &
 
 # Zen refuses to start on a -profile path that does not exist yet — it opens a
@@ -183,5 +192,18 @@ user_pref("zen.welcome-screen.seen", true);
 PREFS
 fi
 
+# Zen restores the profile's previous session on every start, and for an app
+# window that is pure sediment: each launch reopens the last window and its tabs
+# and then adds this URL on top, so the window silently grows a backlog (one
+# profile here had five tabs behind a chromeless window, so nothing looked
+# wrong), and two launches left two films of the same window titled identically
+# -- the "duplicate" being chased. An app window has no session worth keeping, so
+# the store is cleared first.
+rm -rf "$PROFDIR/sessionstore-backups" "$PROFDIR/zen-sessions-backup" \
+       "$PROFDIR/sessionstore.jsonlz4" "$PROFDIR/zen-sessions.jsonlz4" \
+       "$PROFDIR/sessionCheckpoints.json"
+
+# The URL is passed bare rather than as --new-window: "open this" is exactly one
+# window, while --new-window adds a window on top of whatever startup opens.
 exec 9>&-
-exec uwsm-app -- zen --no-remote -profile "$PROFDIR" --new-window "$URL"
+exec uwsm-app -- zen --no-remote -profile "$PROFDIR" "$URL"
