@@ -180,6 +180,13 @@ for _, keys in ipairs({
   "SUPER + E", "SUPER + N", "SUPER + I", "SUPER + K", "SUPER + L",
   "SUPER + ALT + P", "SUPER + ALT + T", "SUPER + ALT + K", "SUPER + CTRL + K", "SUPER + ALT + D",
   "SUPER + ALT + E", "SUPER + ESCAPE", "SUPER + ALT + O", "SUPER + SHIFT + SPACE",
+  -- Stock menu/shell chords revived as fork panels at the end of this
+  -- section, plus the stock notification ghosts that ride under the working
+  -- comma binds below. Same reason as all of the above: one bind per chord,
+  -- and it must be this repo's.
+  "SUPER + CTRL + B", "SUPER + CTRL + D", "SUPER + CTRL + W", "SUPER + CTRL + P",
+  "SUPER + CTRL + ALT + D", "SUPER + CTRL + comma",
+  "SUPER + comma", "SUPER + SHIFT + comma",
 }) do
   hl.unbind(keys)
 end
@@ -226,8 +233,56 @@ o.bind("SUPER + ESCAPE", "Power menu", open("power"))
 o.bind("SUPER + L", "Lock screen", "pidof hyprlock || hyprlock")
 o.bind("SUPER + ALT + SPACE", "Island style", ipc("bar", "toggleIsland"))
 o.bind("SUPER + SHIFT + SPACE", "Bar sides", ipc("bar", "toggle"))
-o.bind("SUPER + COMMA", "Notification center", open("notifications"))
-o.bind("SUPER + SHIFT + COMMA", "Toggle do not disturb", ipc("notifications", "toggleDnd"))
+-- Lower-case "comma" is the xkbcommon name for this key (the stock binds
+-- spell it that way for exactly that reason); these were spelled "COMMA",
+-- which hyprctl listed as a separate entry and is not the name the physical
+-- key resolves to. Re-spelled here, with the stock ghosts dropped in the
+-- unbind list above.
+o.bind("SUPER + comma", "Notification center", open("notifications"))
+o.bind("SUPER + SHIFT + comma", "Toggle do not disturb", ipc("notifications", "toggleDnd"))
+
+-- ── Stock menu chords revived as fork panels ────────────────────────────
+-- The same story as SUPER+CTRL+K above: every omarchy-menu/omarchy-shell
+-- command in the defaults renders through the stock shell this session
+-- replaces, so these chords had been pressing into the void. The stock binds
+-- are dropped in the unbind list above; these point the chord at the fork
+-- panel that does the job.
+o.bind("SUPER + CTRL + B", "Bluetooth panel", open("bluetooth"))
+o.bind("SUPER + CTRL + D", "Display panel", open("monitors"))
+o.bind("SUPER + CTRL + W", "Wi-Fi panel", open("wifi"))
+o.bind("SUPER + CTRL + P", "Power menu", open("power"))
+o.bind("SUPER + CTRL + ALT + D", "Calendar", open("clockwin"))
+o.bind("SUPER + CTRL + comma", "Toggle do not disturb", ipc("notifications", "toggleDnd"))
+
+-- Stock's Capture menu, rebuilt from this repo's own tools as a rofi list
+-- (capture-menu): area/full/pretty/OCR shots, screen recording, colour picker.
+hl.unbind("SUPER + CTRL + C")
+o.bind("SUPER + CTRL + C", "Capture menu", o.launch("capture-menu"))
+
+-- Stock's tmux keybindings list, the herdr-keys treatment; the chord had been
+-- left empty when its stock menu died (the script's --print needs no shell).
+o.bind("SUPER + ALT + K", "Tmux keybindings", o.launch("tmux-keys"))
+
+-- ── Dead stock menu chords, unbound ─────────────────────────────────────
+-- The last chords still pointed at the absent stock shell, with no fork
+-- equivalent to revive them (those got panels above). They do nothing today,
+-- but each is one stray "start the stock shell" away from double-firing next
+-- to this repo's binds, and they keep `hyprctl binds` honest. Clear reminders
+-- (SHIFT+CTRL+R) still works on its own and stays.
+for _, keys in ipairs({
+  "SUPER + CTRL + O",             -- Toggle menu
+  "SUPER + CTRL + H",             -- Hardware menu
+  "SUPER + SHIFT + code:201",     -- Omarchy menu (keycode 201 is F23)
+  "SUPER + SHIFT + CTRL + SPACE", -- Theme menu
+  "SUPER + CTRL + S",             -- Share
+  "SUPER + CTRL + R",             -- Set reminder
+  "SUPER + CTRL + ALT + R",       -- Show reminders
+  "SUPER + CTRL + A",             -- Audio panel
+  "SUPER + ALT + comma",          -- Invoke last notification
+  "SUPER + SHIFT + ALT + comma",  -- Notification history
+}) do
+  hl.unbind(keys)
+end
 
 -- Sticky shelf -- fire a pinned snippet straight to the clipboard from any
 -- app, no panel. Slot 1 is the oldest sticky; add more in the panel.

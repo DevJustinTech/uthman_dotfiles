@@ -1,0 +1,27 @@
+#!/bin/bash
+# capture-menu — the capture actions stock kept in its "Capture menu", as a
+# searchable rofi list. Omarchy's SUPER+CTRL+C menu rendered through the stock
+# shell this session replaces, so the chord did nothing; this rebuilds it from
+# tools this repo owns: shot (area/full/pretty/ocr), record, hyprpicker.
+set -o pipefail
+
+choice=$(
+  printf '%s\n' \
+    'Area screenshot' \
+    'Full-screen screenshot' \
+    'Pretty screenshot' \
+    'OCR from screenshot' \
+    'Screen recording toggle' \
+    'Color picker' \
+    | walker-dmenu --dmenu -p 'Capture'
+) || exit 0
+
+case "$choice" in
+  'Area screenshot')         exec shot ;;
+  'Full-screen screenshot')  exec shot full ;;
+  'Pretty screenshot')       exec shot pretty ;;
+  'OCR from screenshot')     exec shot ocr ;;
+  'Screen recording toggle') exec record ;;
+  'Color picker')            pkill -x hyprpicker 2>/dev/null || hyprpicker -a ;;
+  *) exit 0 ;;
+esac

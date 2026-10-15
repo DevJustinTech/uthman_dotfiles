@@ -1,0 +1,19 @@
+#!/bin/bash
+# tmux-keys — tmux's keybindings as a searchable rofi list.
+#
+# Same story as herdr-keys: Omarchy's SUPER+ALT+K ran
+# omarchy-menu-tmux-keybindings, whose menu renders through the stock shell
+# this session replaces. --print needs no shell, so pipe it into the rofi
+# dmenu shim. Width and height mirror the stock call: 800 wide, 40% of the
+# focused monitor tall.
+set -o pipefail
+
+monitor_height=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused == true) | .height' 2>/dev/null)
+if [[ ! $monitor_height =~ ^[0-9]+$ ]] || ((monitor_height <= 0)); then
+  monitor_height=768
+fi
+menu_height=$((monitor_height * 40 / 100))
+
+omarchy-menu-tmux-keybindings --print \
+  | walker-dmenu --dmenu -p 'Tmux keybindings' --width 800 --height "$menu_height" \
+  >/dev/null
