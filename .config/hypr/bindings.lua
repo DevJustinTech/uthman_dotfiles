@@ -35,18 +35,32 @@ end
 -- opens in the current terminal's working directory, which the bare binary does
 -- not. Anything else wanting a terminal should go through the same shim so it
 -- follows whatever terminal is configured, rather than hardcoding a name.
+--
+-- Omarchy binds this chord to nautilus, and nautilus is installed on this
+-- machine, so both file managers opened on one press. Drop the default first.
+hl.unbind("SUPER + SHIFT + F")
 o.bind("SUPER + SHIFT + F", "File manager", o.launch("thunar"))
--- Firefox is the default xdg handler, so the old `xdg-open <url>` form resolved
--- to it anyway -- it just forced a URL on every launch. Bind firefox directly.
-o.bind("SUPER + SHIFT + B", "Browser", o.launch("firefox"))
-o.bind("SUPER + ALT + SHIFT + B", "Browser (private)", o.launch("firefox --private-window"))
+-- Browser. These two binds named `firefox`, which is not installed and never
+-- will be, so they did nothing -- while Omarchy's defaults on the same chords
+-- opened whatever xdg-settings calls the default browser, which here is
+-- chromium.desktop. A browser key that opens neither browser this repo intends.
+-- Zen is the browser, so it is bound directly and Omarchy's pair is unbound
+-- first, or both would respond. --private-window is Firefox's flag; Zen
+-- inherits the whole command line.
+hl.unbind("SUPER + SHIFT + B")
+hl.unbind("SUPER + ALT + SHIFT + B")
+o.bind("SUPER + SHIFT + B", "Browser", o.launch("zen"))
+o.bind("SUPER + ALT + SHIFT + B", "Browser (private)", o.launch("zen --private-window"))
 
 -- Killed the vendored zoom-in (SUPER CTRL Z): key-repeat turns a slip into
 -- runaway zoom. (Zen launch key removed 10-08 -- too close to the zoom chord.)
 hl.unbind("SUPER + CTRL + Z")
 
 -- Music: the `music` wrapper opens Spotifast and says how to install it
--- instead of dying as a bare "command not found" when it is absent.
+-- instead of dying as a bare "command not found" when it is absent. Omarchy's
+-- default on this chord is Spotify and it fires too -- with spotify absent it
+-- opens its "install the service" terminal rather than failing quietly.
+hl.unbind("SUPER + SHIFT + M")
 o.bind("SUPER + SHIFT + M", "Music", o.launch("music"))
 o.bind("SUPER + SHIFT + N", "Editor", o.launch("zed"))
 o.bind("SUPER + SHIFT + O", "Obsidian", o.launch("obsidian -disable-gpu --enable-wayland-ime"))
@@ -65,6 +79,33 @@ o.bind("SUPER + SHIFT + O", "Obsidian", o.launch("obsidian -disable-gpu --enable
 -- The regexes stay loose on purpose: zenapp matches windows by pid first, so the
 -- pattern only picks among that app's own windows -- a bare "/ X" is enough and
 -- never has to fight Hyprland's Lua escaping for \b.
+--
+-- ── Why these chords kept opening a Chromium window ───────────────────────
+-- Omarchy's defaults bind ALL NINE of these chords to its own web apps
+-- (default/hypr/bindings/applications.lua), which go through
+-- omarchy-launch-webapp: the xdg default browser -- chromium.desktop on this
+-- machine -- with --app=<url>. A second bind on a chord is not an override:
+-- hyprctl lists both ("YouTube" twice) and both run, so one press opened a
+-- Chromium --app window *and* a zenapp window for the same site. Both are
+-- chromeless and both wear the site's name, so it reads as the same app opened
+-- twice -- and no amount of fixing zenapp's own focus logic could have stopped
+-- it, because that second window was never zenapp's.
+--
+-- Omarchy's own strings are used verbatim so every unbind matches the default
+-- exactly. The binds follow, leaving zenapp as the only responder.
+for _, keys in ipairs({
+  "SUPER + SHIFT + A",         -- ChatGPT
+  "SUPER + SHIFT + ALT + A",   -- Grok
+  "SUPER + SHIFT + C",         -- Calendar
+  "SUPER + SHIFT + E",         -- Email
+  "SUPER + SHIFT + Y",         -- YouTube
+  "SUPER + SHIFT + CTRL + G",  -- Google Messages
+  "SUPER + SHIFT + P",         -- Google Photos
+  "SUPER + SHIFT + X",         -- X
+  "SUPER + SHIFT + ALT + X",   -- X Post
+}) do
+  hl.unbind(keys)
+end
 o.bind("SUPER + SHIFT + A", "ChatGPT", "zenapp chatgpt https://chatgpt.com ChatGPT")
 o.bind("SUPER + ALT + SHIFT + A", "Grok", "zenapp grok https://grok.com Grok")
 o.bind("SUPER + SHIFT + C", "Calendar", "zenapp heycal https://app.hey.com/calendar/weeks/ Calendar")
