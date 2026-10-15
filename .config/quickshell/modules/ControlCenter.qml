@@ -198,7 +198,7 @@ FloatingWindow {
         petBubble = isPlaying ? petMusicLines[Math.floor(Math.random()*petMusicLines.length)] : "heh"
     }
     property var topActivities: [
-        {app: "kitty", secs: 5400},
+        {app: "foot", secs: 5400},
         {app: "firefox", secs: 3200},
         {app: "code", secs: 1800},
         {app: "spotifast", secs: 900}

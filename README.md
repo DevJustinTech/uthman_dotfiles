@@ -4,7 +4,7 @@ Omarchy, Hyprland, Quickshell, Matugen. Wallpaper sets the palette, everything e
 
 ![Desktop](assets/screenshots/desktop.png)
 
-Bar island, Zathura and kitty over a wallpaper-pulled palette. Every surface you see here (bar, OSD, toasts, terminals, editors) is recolored from that one image.
+Bar island, Zathura and foot over a wallpaper-pulled palette. Every surface you see here (bar, OSD, toasts, terminals, editors) is recolored from that one image.
 
 ## This fork replaces the Omarchy shell
 
@@ -89,7 +89,7 @@ restarts Quickshell).
 The machine needs Omarchy installed first; this repo is a config layer on top.
 
 ```bash
-sudo pacman -S --needed kitty matugen zsh lsd cava hyprlock hypridle \
+sudo pacman -S --needed foot matugen zsh lsd cava hyprlock hypridle \
      cliphist rofi thunar tumbler thunar-archive-plugin thunar-volman \
      file-roller catfish poppler-glib awww zathura chafa \
      ttf-firacode-nerd ttf-jetbrains-mono-nerd inter-font
@@ -245,7 +245,7 @@ Normally you call `set-wallpaper` instead, since that also swaps the image itsel
 |----------|--------|
 | `waybar` | `~/.config/quickshell/colors.css` (the file the live shell polls) |
 | `hyprland-colors` | `~/.config/theme/colors.lua` + `snow_black/colors.lua` |
-| `hyprlock-standalone`, `kitty-*`, `gtk`, `btop` | matching live files under `theme/current` |
+| `hyprlock-standalone`, `kitty-*`, `foot-*`, `gtk`, `btop` | matching live files under `theme/current` |
 | `cava` | `snow_black/cava_theme` + `~/.config/cava/config` (rewritten directly) |
 | `firefox` | `theme/current/firefox{,-usercontent}.css`, symlinked as `userChrome.css`/`userContent.css` |
 | `rofi`, `neovim`, `swayosd`, `zed`, `zathura` | per-app live outputs |
@@ -345,7 +345,7 @@ Unwired but still on disk: `QuickNotes` (scratch idea capture; nothing instantia
 
 ## Notifications
 
-The shell is its own notification daemon. Toasts carry action buttons, screenshot notifications carry a Save button that files the image into `~/Pictures/Screenshots`, and everything lands in the history drawer. When an app ships no icon, the row falls back to a per-app Phosphor glyph (40+ apps mapped, from Firefox and WhatsApp down to `brightnessctl` and `grim`), so rows never show bare initial letters. `notify-send -a <AppName>` is all a sender needs for a correct icon.
+The shell is its own notification daemon. Toasts carry action buttons, screenshot notifications carry a Save button that files the image into `~/Pictures/Screenshots`, and everything lands in the history drawer. When an app ships no icon, the row falls back to a per-app Phosphor glyph (40+ apps mapped, from Firefox down to `brightnessctl` and `grim`), so rows never show bare initial letters. `notify-send -a <AppName>` is all a sender needs for a correct icon.
 
 ## Screen time
 
@@ -448,7 +448,7 @@ What runs the desktop day to day, and where each piece lives:
 │   │   ├── PLUGINS.md        # module registry: IPC target + bind per module
 │   │   └── AGENTS.md         # contributor rules for this codebase (read before editing)
 │   ├── matugen/              # config.toml + templates (btop, gtk, rofi, nvim, zed, zathura, …)
-│   ├── kitty/kitty.conf      # sources theme/current/kitty.conf
+│   ├── foot/foot.ini         # sources theme/current/foot.ini
 │   ├── systemd/user/         # helper services
 ├── .local/bin/             # set-wallpaper, getTheme, record, shot, …
 ├── sddm/elarun-custom/     # optional login theme; NOT installed by default
@@ -469,7 +469,7 @@ What runs the desktop day to day, and where each piece lives:
 * Look and feel: `.config/hypr/looknfeel.lua`. Border colours are not set there — they come from the wallpaper via `theme.lua`, and the palette is regenerated, not edited
 * Bar and modules: `.config/quickshell/modules/*.qml`, then restart quickshell (never trust hot reload for verdicts)
 * New theme template: add it under `.config/matugen/templates/`, map it in `config.toml`, run `matugen image` once
-* Terminal: `.config/kitty/kitty.conf` for font and behavior. Colors always come from the generated files
+* Terminal: `.config/foot/foot.ini` for font and behavior. Colors always come from the generated files
 
 ## Gotchas
 

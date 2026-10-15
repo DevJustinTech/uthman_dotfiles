@@ -34,7 +34,7 @@ Rules of the house (from AGENTS.md / memory.md):
 | ScreenTime.qml | usage tracker: GitHub heatmap, top apps ranked, week bars, login count | `screentime` | `SUPER ALT T` | samples focused window every 10s → SQLite; gap >4h = new login |
 | FailWatch.qml + FailWatchPanel.qml | **silent-failure watchdog** — failed systemd units + journal OOM/segfault/oops; notify-send alerts, per-row log ids (`journalctl -u`, `--after-cursor`), on-demand `pacman -Qkk` | `failwatch` | Utilities hub (no bind) | daemon `failwatch.service` (scripts/failwatch-daemon.py) → `~/.local/share/failwatch/`; panel only (no bar pill) |
 | Dictionary.qml | **dictionary** — definitions, IPA, audio, examples, synonym/antonym chips, Datamuse related words, session cache + history | `dict` | Utilities hub (no bind) | pure QML (dictionaryapi.dev, no key); Enter to define, chips drill down |
-| Grap.qml | **grep search** — instant content search (home by default, `@path` to scope), file-type icons, Enter opens match in nano (kitty) at line | `grap` | Utilities hub (no bind) | FloatingWindow 600×470 glass; debounced ripgrep, ↑↓ + Enter, Esc |
+| Grap.qml | **grep search** — instant content search (home by default, `@path` to scope), file-type icons, Enter opens match in nano (foot) at line | `grap` | Utilities hub (no bind) | FloatingWindow 600×470 glass; debounced ripgrep, ↑↓ + Enter, Esc |
 | Bar pills (ArchLogo, Memory, Cpu, Network, Temp, Tray, DndIndicator, ScriptIndicator) | status pills | — | — | ScriptIndicator runs scripts/update.sh + idle.sh |
 
 ## Unwired / dormant

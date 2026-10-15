@@ -49,7 +49,7 @@ hl.window_rule({ match = { class = "^(mpv)$" }, float = true, center = true, siz
 -- File-manager picker -- same treatment as mpv.
 hl.window_rule({ match = { class = "^(com.codetesla51.filemanager.picker)$" }, float = true, center = true, size = { 960, 540 } })
 
--- Screensaver -- kitty fullscreen, no decorations.
+-- Screensaver -- foot fullscreen, no decorations.
 hl.window_rule({ match = { class = "org.screensaver" }, float = true, fullscreen = true })
 
 -- Zen -- glass chrome draws its own edges.

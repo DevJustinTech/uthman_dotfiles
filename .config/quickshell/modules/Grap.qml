@@ -279,7 +279,7 @@ FloatingWindow {
 
     function openResult(r) {
         if (!r) return
-        Quickshell.execDetached(["uwsm-app", "--", "kitty", "-e", "nano", "+" + r.line, r.file])
+        Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/xdg-terminal-exec", "nano", "+" + r.line, r.file])
         root.open = false
     }
     function shQuote(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'" }

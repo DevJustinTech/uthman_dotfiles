@@ -46,6 +46,17 @@ output_path = "~/.config/omarchy/current/theme/kitty.conf"
 input_path = "~/.config/matugen/templates/kitty-theme.conf"
 output_path = "~/.config/theme/current/kitty.conf"
 
+# foot is the live terminal (the xdg-terminal-exec shim routes there). Same
+# two-dir pattern as kitty: theme/current is what ~/.config/foot/foot.ini
+# includes.
+[templates.foot-theme]
+input_path = "~/.config/matugen/templates/foot-theme.ini"
+output_path = "~/.config/theme/themes/snow_black/foot.ini"
+
+[templates.foot-current]
+input_path = "~/.config/matugen/templates/foot-theme.ini"
+output_path = "~/.config/theme/current/foot.ini"
+
 
 [templates.pear-desktop-theme]
 input_path = "~/.config/matugen/templates/pear-desktop.css"

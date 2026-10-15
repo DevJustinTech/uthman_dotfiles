@@ -135,10 +135,11 @@ PanelWindow {
             // quickshell plugins live in the launcher now: toggle by target.
             if (entry.qsTarget)
                 Quickshell.execDetached(["quickshell", "-p", Quickshell.env("HOME") + "/.config/quickshell", "ipc", "call", entry.qsTarget, "toggle"])
-            // Terminal apps die instantly with no TTY — run them inside
-            // kitty (same uwsm-app scope as SUPER+RETURN).
+            // Terminal apps die instantly with no TTY — run them through the
+            // xdg-terminal-exec shim (routes to foot), the same path
+            // SUPER+RETURN takes.
             else if (entry.runInTerminal && entry.command && entry.command.length > 0)
-                Quickshell.execDetached(["uwsm-app", "--", "kitty", "-e"].concat(entry.command))
+                Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/xdg-terminal-exec"].concat(entry.command))
             else
                 entry.execute()
         })

@@ -134,7 +134,7 @@ FloatingWindow {
         if (root.openingKey !== "") return
         root.openingKey = key
         openingClear.restart()
-        Quickshell.execDetached(["sh", "-c", "uwsm-app -- kitty -e sh -c " + root.shQuote(cmd + "; echo '--- press any key ---'; read -n1") + " &"])
+        Quickshell.execDetached(["sh", "-c", "$HOME/.local/bin/xdg-terminal-exec sh -c " + root.shQuote(cmd + "; echo '--- press any key ---'; read -n1") + " &"])
     }
     function unitLogCmd(name) { return "journalctl -u " + name + " -b --no-pager | tail -n 100" }
     function cursorCmd(cursor) { return "journalctl --after-cursor=" + root.shQuote(cursor) + " --no-pager" }

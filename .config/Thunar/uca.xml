@@ -2,11 +2,11 @@
 <actions>
 <action>
 	<icon>utilities-terminal</icon>
-	<name>Open Kitty Here</name>
+	<name>Open Terminal Here</name>
 	<submenu></submenu>
 	<unique-id>1780000000000000-1</unique-id>
-	<command>kitty --directory %f</command>
-	<description>Open kitty in this folder</description>
+	<command>sh -c '$HOME/.local/bin/xdg-terminal-exec --dir="$1"' _ %f</command>
+	<description>Open a terminal in this folder</description>
 	<range></range>
 	<patterns>*</patterns>
 	<startup-notify/>
@@ -17,7 +17,7 @@
 	<name>Open in Neovim</name>
 	<submenu></submenu>
 	<unique-id>1780000000000000-2</unique-id>
-	<command>kitty -e nvim %f</command>
+	<command>sh -c '$HOME/.local/bin/xdg-terminal-exec nvim "$1"' _ %f</command>
 	<description>Edit file in Neovim</description>
 	<range></range>
 	<patterns>*</patterns>

@@ -112,7 +112,6 @@ Item {
     // per-app fallback icon (avatar when the app ships no icon)
     function appGlyph(name) {
         var n = String(name || "").toLowerCase()
-        if (n.indexOf("whatsapp") !== -1) return ""
         if (n.indexOf("firefox") !== -1) return ""
         if (n.indexOf("mozilla") !== -1) return ""
         if (n.indexOf("chrome") !== -1) return ""
@@ -121,6 +120,7 @@ Item {
         if (n.indexOf("telegram") !== -1) return ""
         if (n.indexOf("discord") !== -1) return ""
         if (n.indexOf("kitty") !== -1) return ""
+        if (n.indexOf("foot") !== -1) return ""
         if (n.indexOf("terminal") !== -1) return ""
         if (n.indexOf("console") !== -1) return ""
         if (n.indexOf("volume") !== -1) return ""
