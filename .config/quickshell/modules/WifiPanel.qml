@@ -35,6 +35,15 @@ PanelWindow {
         var devs = Networking.devices.values
         return devs.find(d => d.type === DeviceType.Wifi) ?? null
     }
+    // Attached to a network, not merely radio-on. wifiEnabled is true whenever
+    // the radio is up, including with nothing joined, so it cannot answer
+    // "am I connected".
+    readonly property bool wifiConnected: {
+        if (!wifiDev || !wifiDev.networks) return false
+        let ns = wifiDev.networks.values
+        for (let i = 0; i < ns.length; i++) if (ns[i].connected) return true
+        return false
+    }
     property bool scanSpinning: false   // true while a manual rescan is in flight
     property string searchQuery: ""
     // Drive the radio with nmcli. Assigning wifiDev.wifiEnabled was a silent
@@ -238,7 +247,9 @@ PanelWindow {
                     Layout.preferredWidth: 26; Layout.preferredHeight: 26; radius: 13
                     color: colors.alpha(colors.primary, 0.15)
                     border.width: 1; border.color: colors.alpha(colors.primary, 0.3)
-                    Text { anchors.centerIn: parent; text: "󰤯"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
+                    // md-wifi = U+F05A9 (was U+F092F, md-wifi_strength_outline -- same mislabelling
+                    // as the toggle below)
+                    Text { anchors.centerIn: parent; text: "󰤩"; color: colors.primary; font.family: colors.fontSans; font.pixelSize: 12 }
                     Layout.alignment: Qt.AlignVCenter
                 }
                 Text {
@@ -257,11 +268,22 @@ PanelWindow {
                     visible: root.wifiDev !== null
                     width: 26; height: 26; radius: 13
                     color: wfMouse.containsMouse ? colors.alpha(colors.surfaceVariant, 0.4)
-                         : root.wifiDev && root.wifiDev.wifiEnabled ? colors.alpha(colors.primary, 0.15) : "transparent"
+                         : root.wifiConnected ? colors.alpha(colors.primary, 0.15) : "transparent"
                     Text {
                         anchors.centerIn: parent
-                        text: root.wifiDev && root.wifiDev.wifiEnabled ? "󰤯" : "󰖪"
-                        color: root.wifiDev && root.wifiDev.wifiEnabled ? colors.primary : colors.alpha(colors.outline, 0.7)
+                        // GLYPHS VERIFIED BY NAME against FiraCode Nerd Font (the font colors.fontSans
+                        // resolves to). Do not "fix" these by eyeballing codepoints.
+                        //   md-wifi       = U+F05A9  plain connected wifi icon
+                        //   md-wifi_off   = U+F05AA  not connected
+                        // The "on" branch used U+F092F, which is
+                        // md-wifi_strength_outline -- a signal-strength glyph, so it
+                        // rendered as the not-connected sign whether or not anything was
+                        // actually connected.
+                        // Keyed on connection, not wifiEnabled: the radio can be on
+                        // with no network attached, which is the exact case the old
+                        // glyph could not express.
+                        text: root.wifiConnected ? "󰤩" : "󰖪"
+                        color: root.wifiConnected ? colors.primary : colors.alpha(colors.outline, 0.7)
                         font.family: colors.fontSans
                         font.pixelSize: 13
                     }
@@ -1108,7 +1130,7 @@ PanelWindow {
         shownMbps = speedMbps
         stProgress = Math.min(1, root.stDlGot / 5000000)
         root.stPhase = 2
-        root.stUpProc.running = true   // upload phase
+        stUpProc.running = true   // upload phase
     }
 
     Process {

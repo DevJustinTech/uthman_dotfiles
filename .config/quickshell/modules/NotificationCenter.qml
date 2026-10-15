@@ -55,12 +55,25 @@ Item {
         let candidate = (entry.body || "").trim()
         if (candidate && candidate.indexOf("\n") < 0 && candidate.indexOf(" ") < 0
             && candidate.charAt(0) === "/") {
-            let f = new File(candidate)
-            if (f.exists()) {
-                Quickshell.execDetached(["xdg-open", candidate])
-                root.removeAt(entry.nid)
-                return
-            }
+            // Images go to imv, a dedicated Wayland image viewer. xdg-open is
+            // correct but the system default for image/png is mpv, which opens
+            // the picture inside a video player -- transport bar, seek bar and
+            // all, for a still image.
+            //
+            // Existence is tested in the same shell that opens, so the check
+            // and the open cannot disagree. An earlier version used QML's File
+            // type for this and every click died with
+            // "ReferenceError: File is not defined" -- File is not exposed in
+            // this QML context, and the throw happened before the open, so the
+            // click looked like nothing at all.
+            let ext = candidate.split(".").pop().toLowerCase()
+            let images = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif", "jxl", "svg", "jfif"]
+            if (images.indexOf(ext) >= 0)
+                Quickshell.execDetached(["sh", "-c", 'test -f "$1" && exec imv "$1"', "sh", candidate])
+            else
+                Quickshell.execDetached(["sh", "-c", 'test -f "$1" && exec xdg-open "$1"', "sh", candidate])
+            root.removeAt(entry.nid)
+            return
         }
         root.removeAt(entry.nid)
     }
