@@ -48,7 +48,11 @@ o.bind("SUPER + SHIFT + F", "File manager", o.launch("thunar"))
 -- first, or both would respond. --private-window is Firefox's flag; Zen
 -- inherits the whole command line.
 hl.unbind("SUPER + SHIFT + B")
-hl.unbind("SUPER + ALT + SHIFT + B")
+-- Spelled in Omarchy's order, not this file's: hl.unbind matches the chord
+-- literally, so `SUPER + ALT + SHIFT + B` would miss its
+-- `SUPER + SHIFT + ALT + B` and leave both binds on the chord. hyprctl showed
+-- exactly that -- "Browser (private)" twice on modmask 73, key B.
+hl.unbind("SUPER + SHIFT + ALT + B")
 o.bind("SUPER + SHIFT + B", "Browser", o.launch("zen"))
 o.bind("SUPER + ALT + SHIFT + B", "Browser (private)", o.launch("zen --private-window"))
 
@@ -123,8 +127,11 @@ o.bind("SUPER + ALT + SHIFT + X", "X Post", "zenapp x https://x.com/compose/post
 -- these unbinds also reject any Print combination a future Omarchy default
 -- might introduce.
 -- Hyprland's Lua API needs "+" between every modifier (the old .conf syntax
--- allowed space-separated ones like "SUPER SHIFT"). Order of modifiers in a
--- multi-modifier chord is also normalised as SUPER <other> <SHIFT>.
+-- allowed space-separated ones like "SUPER SHIFT"). The stored modmask is
+-- order-independent, so `SUPER + ALT + SHIFT + B` and `SUPER + SHIFT + ALT + B`
+-- both land on modmask 73 + B -- but hl.unbind matches the literal string, so
+-- an unbind has to be spelled exactly as the bind it removes. Copy Omarchy's
+-- spelling when unbinding an Omarchy default, or one of the two survives.
 for _, mods in ipairs({
   "", "SHIFT", "ALT", "SUPER", "SUPER CTRL", "SUPER SHIFT",
   "SUPER ALT SHIFT", "SUPER CTRL SHIFT", "SUPER ALT CTRL SHIFT",
