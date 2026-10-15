@@ -81,6 +81,15 @@ end
 -- Omarchy binds SUPER SHIFT S to the Google Maps webapp; the pretty
 -- screenshot takes that chord instead, so drop the default first.
 hl.unbind("SUPER + SHIFT + S")
+-- Omarchy also binds the audio keys (media.lua) to its own scripts. Those
+-- binds SURVIVE alongside the ones below -- hyprctl lists both 'Mute' and
+-- 'Mute toggle' on XF86AudioMute -- so a keypress ran both mute paths at
+-- once. Two toggles cancel: the sink muted and unmuted within the same
+-- press, which is why the OSD appeared and the audio never changed. The
+-- silent half (omarchy-audio-output-volume) left no trace in the media log,
+-- which is what made it look like the one logged call had failed.
+hl.unbind("XF86AudioMute")
+hl.unbind("XF86AudioMicMute")
 -- Screenshots use letter keys only (see above) -- T is OCR text capture.
 o.bind("SUPER + SHIFT + T", "OCR from screenshot", "shot ocr")
 -- S: mac-style capture of the focused window, rounded over a blurred wallpaper.

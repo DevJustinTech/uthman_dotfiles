@@ -31,6 +31,40 @@ Item {
     // Close plays out before the window hides (visible binds running).
     onPanelOpenChanged: if (panelOpen) openAnim.restart(); else closeAnim.restart()
 
+    // Activate a notification by clicking its body.
+    //
+    // The row used to be acceptedButtons: Qt.NoButton, so the body was purely
+    // decorative -- hover only, no click. Action chips worked because they had
+    // their own MouseArea, but clicking the notification itself did nothing.
+    //
+    // Three tiers, most-correct first:
+    //   1. a "default" action, invoked the way the spec means (that is what a
+    //      body click is supposed to do; note addToArchive deliberately skips
+    //      "default" when building chips, so it has to be found here)
+    //   2. the body is a path to a file that exists -> open it. Screenshot and
+    //      similar notifications put the path in the body, and notify-send is
+    //      given no --action, so tier 1 can never fire for them
+    //   3. otherwise just dismiss it
+    function activateNotification(entry) {
+        let live = root._live[entry.nid]
+        if (live) {
+            let list = live.actions || []
+            for (let i = 0; i < list.length; i++)
+                if (list[i].identifier === "default") { list[i].invoke(); root.removeAt(entry.nid); return }
+        }
+        let candidate = (entry.body || "").trim()
+        if (candidate && candidate.indexOf("\n") < 0 && candidate.indexOf(" ") < 0
+            && candidate.charAt(0) === "/") {
+            let f = new File(candidate)
+            if (f.exists()) {
+                Quickshell.execDetached(["xdg-open", candidate])
+                root.removeAt(entry.nid)
+                return
+            }
+        }
+        root.removeAt(entry.nid)
+    }
+
     function addToArchive(n) {
         let acts = []
         let alist = n.actions || []
@@ -599,7 +633,8 @@ Item {
                                     id: itemMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    acceptedButtons: Qt.NoButton
+                                    acceptedButtons: Qt.LeftButton
+                                    onClicked: root.activateNotification(notifRow.modelData)
                                 }
                             }
                         }
