@@ -69,8 +69,16 @@ for _, mods in ipairs({
 }) do
   hl.unbind(mods .. " + PRINT")
 end
+-- Omarchy binds SUPER SHIFT S to the Google Maps webapp; the pretty
+-- screenshot takes that chord instead, so drop the default first.
+hl.unbind("SUPER + SHIFT + S")
 -- Screenshots use letter keys only (see above) -- T is OCR text capture.
 o.bind("SUPER + SHIFT + T", "OCR from screenshot", "shot ocr")
+-- S: mac-style capture of the focused window, rounded over a blurred wallpaper.
+-- Deliberately NOT on PRINT, unlike upstream: the unbind list above exists
+-- because spurious Print events fired screenshot overlays during unrelated
+-- chords. The same hazard applies to this one.
+o.bind("SUPER + SHIFT + S", "Pretty screenshot", "shot pretty")
 
 -- ── Shell panels ────────────────────────────────────────────────────────
 -- Omarchy puts its menu on SUPER+SPACE and a panel set on SUPER+H/U/B. All of

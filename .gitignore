@@ -144,3 +144,6 @@ plan.md
 .local/share/icons/Matugen-Cursor/
 # cava ships its own shader set; it is a build artifact of the package.
 .config/cava/shaders/
+
+# venv holding Pillow for shot-pretty (system python has no PIL)
+.local/share/shotenv/

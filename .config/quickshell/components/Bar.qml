@@ -110,7 +110,10 @@ PanelWindow {
     MediaOsd { id: mediaOsd; colors: palette }
 
     // bar sides toggle — SUPER SHIFT SPACE leaves middle island
-    property bool barsVisible: true
+    // default: island only, full bar appears on toggle. Matches upstream and
+    // the screenshots in the README; also the better fit for a 1366px panel,
+    // where the full row of pills is cramped.
+    property bool barsVisible: false
     // center style — SUPER ALT SPACE flips trapezoid tab against the Dynamic Island
     property bool dynamicIsland: false
     // island hover swells the NowPlaying glass card; the linger timer keeps it from
