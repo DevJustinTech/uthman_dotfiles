@@ -382,7 +382,7 @@ Silent-failure watchdog: failed systemd units (system + user scope) and high-sig
 systemctl --user enable --now failwatch.service
 ```
 
-The daemon seeds its journal cursor on first run (no backlog spam), dedupes repeat events, and keeps a rolling 7-day history in `~/.local/share/failwatch/events.db`. The bar pill shows live state (`FW ok` / `FW n` / `FW ?`); the panel (launcher → FailWatch, no chord) gives every row its log id — failed units via `journalctl -u`, journal events via `--after-cursor=…`.
+The daemon seeds its journal cursor on first run (no backlog spam), dedupes repeat events, and keeps a rolling 7-day history in `~/.local/share/failwatch/events.db`. The panel (launcher → FailWatch, no chord) gives every row its log id — failed units via `journalctl -u`, journal events via `--after-cursor=…`.
 
 ## Keybinds
 
