@@ -16,6 +16,7 @@ FloatingWindow {
     property bool open: false
 
     property real brightness: 0.62
+    property bool nightlightOn: false
     property real volume: 0.48
     property bool muted: false
     property var githubEvents: [
@@ -322,7 +323,7 @@ FloatingWindow {
     function setVolume(v){ Quickshell.execDetached(["sh","-c","wpctl set-volume @DEFAULT_AUDIO_SINK@ "+v.toFixed(2)+" >/dev/null 2>&1 || pactl set-sink-volume @DEFAULT_SINK@ "+Math.round(v*100)+"% >/dev/null 2>&1 &"]) }
     Process {
         id: volProbe
-        command: ["sh", "-c", "echo \"v=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null);b=$(brightnessctl g 2>/dev/null):$(brightnessctl m 2>/dev/null)\""]
+        command: ["sh", "-c", "n=$(hyprctl hyprsunset temperature 2>/dev/null) || n=''; case \"$n\" in *[!0-9]*) n='' ;; esac; echo \"v=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null);b=$(brightnessctl g 2>/dev/null):$(brightnessctl m 2>/dev/null);n=$n\""]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: {
@@ -333,10 +334,35 @@ FloatingWindow {
                 var bm = t.match(/b=(\d+):(\d+)/)
                 if (bm && parseInt(bm[2]) > 0)
                     root.brightness = Math.max(0, Math.min(1, parseInt(bm[1]) / parseInt(bm[2])))
+                var nm = t.match(/n=(\d+)/)
+                root.nightlightOn = nm ? parseInt(nm[1]) < 6000 : false
             }
         }
     }
     function toggleMute(){ root.muted = !root.muted; Quickshell.execDetached(["sh","-c","wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle >/dev/null 2>&1 &"]) }
+    // Nightlight — same dials as omarchy-toggle-nightlight: on 4000K, off 6500K,
+    // anything below 6000K counts as enabled. Keep in sync if upstream changes.
+    function applyNightlight(target) {
+        if (nightlightProc.running) { nightlightProc.pendingTarget = target; nightlightProc.hasPending = true; return }
+        nightlightProc.command = ["sh", "-c",
+            "pgrep -x hyprsunset >/dev/null || { setsid uwsm-app -- hyprsunset >/dev/null 2>&1 & }; " +
+            "for i in 1 2 3 4 5 6 7 8 9 10; do hyprctl hyprsunset temperature " + target + " >/dev/null 2>&1; sleep 0.2; " +
+            "[ \"$(hyprctl hyprsunset temperature 2>/dev/null | grep -oE '[0-9]+' | head -n1)\" = \"" + target + "\" ] && break; done"]
+        nightlightProc.running = true
+    }
+    function toggleNightlight() {
+        root.nightlightOn = !root.nightlightOn
+        applyNightlight(root.nightlightOn ? 4000 : 6500)
+    }
+    Process {
+        id: nightlightProc
+        property int pendingTarget: 0
+        property bool hasPending: false
+        onExited: {
+            if (hasPending) { hasPending = false; applyNightlight(pendingTarget); return }
+            volProbe.running = true
+        }
+    }
 
     title: "Control Center"
     implicitWidth: 760
@@ -723,6 +749,31 @@ FloatingWindow {
                             Text { text: "BRIGHTNESS"; Layout.alignment: Qt.AlignVCenter; color: colors.alpha(colors.outline,0.65); font.family: colors.fontSans; font.pixelSize: 7; font.weight: Font.Bold; font.letterSpacing: 1.3 }
                             Item { Layout.fillWidth: true }
                             Text { text: Math.round(root.brightness*100)+"%"; Layout.alignment: Qt.AlignVCenter; color: colors.secondary; font.family: colors.fontSans; font.pixelSize: 10; font.weight: Font.ExtraBold }
+                            Rectangle {
+                                width: 26; height: 26; radius: 13
+                                Layout.alignment: Qt.AlignVCenter
+                                color: root.nightlightOn ? colors.alpha(colors.secondary, 0.18) : colors.alpha(colors.surfaceVariant, 0.45)
+                                border.width: 1
+                                border.color: root.nightlightOn ? colors.alpha(colors.secondary, 0.45) : colors.alpha(colors.outline, nlHover.containsMouse ? 0.4 : 0.22)
+                                scale: nlHover.containsMouse ? 1.1 : 1
+                                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "󰔎"
+                                    color: root.nightlightOn ? colors.secondary : colors.alpha(colors.outline, nlHover.containsMouse ? 0.9 : 0.7)
+                                    font.family: colors.fontSans
+                                    font.pixelSize: 12
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                }
+                                MouseArea {
+                                    id: nlHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.toggleNightlight()
+                                }
+                            }
                         }
                         Item {
                             id: briStrip
