@@ -1,0 +1,475 @@
+#!/usr/bin/env python3
+"""slurp-tap — slurp with tap-and-drag support (drop-in slurp replacement).
+
+On this machine libinput treats the touchpad as a plain mouse, so the
+user's habitual "tap, then quick touch + drag" gesture moves the cursor
+but carries NO button press at all — no region picker can ever open a
+selection square with it. And even where tap-to-click does work, slurp
+cancels the instant it sees a press+release without motion — exactly what
+a leading tap delivers a few hundred ms before the drag's second touch.
+
+slurp-tap fixes both halves:
+
+  1. PRESS SYNTHESIS. Its watcher reads the touchpad's raw evdev stream;
+     when it sees the classic tap-then-move gesture it synthesizes the
+     missing button press on a private uinput pointer ("slurp-tap-drag"):
+     press the moment the tap-followed touch moves past --drag-slop,
+     release when it lifts. Ordinary pointing (no preceding tap) never
+     presses; physical clicks and multi-finger touches take over from the
+     synth press instead of stacking on it.
+
+  2. A STACK of pre-mapped slurp overlays, so a leading tap's click can
+     never kill the pick:
+     * the TOPMOST instance is the only one that dims (the ones below it
+       are fully transparent pre-mapped backups): dim and selection must
+       live on the same instance or the wash covers the selection
+       interior and bleeds into the captured image. The stack looks like
+       exactly one slurp, and a drag always clears the region inside the
+       box,
+     * where taps DO click (learned from slurp itself, see below), the
+       instant the watcher sees the leading tap the doomed top instance
+       is hard-killed: slurp's graceful cancel can linger waiting for
+       buffer release, and a fast re-touch landing on that dying overlay
+       would have its press swallowed. Once per gesture, so a tap burst
+       can't drain the stack. Where taps carry no click at all, nothing
+       is ever killed — the drag simply lands on the untouched top,
+     * each tap-killed instance is replenished on top — plain, keeping
+       the "topmost = dimming instance" rule — which also survives
+       double-taps and tap bursts,
+     * a genuine cancel — Esc, right-click, a physical click without
+       drag, or no touchpad tap at all — kills every instance and exits
+       1, exactly like slurp,
+     * the whole thing dies together on SIGTERM/SIGINT/timeout, so
+       `timeout 25 slurp-tap` can never leave a stuck overlay behind.
+
+If the touchpad isn't readable or /dev/uinput is not, slurp-tap degrades
+to plain slurp behavior (a tap cancels everything).
+
+Output: one slurp geometry line ("x,y WxH") on stdout; exit 0.
+Cancel/timeout: exit 1, "selection cancelled" on stderr.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import glob
+import os
+import select
+import signal
+import struct
+import subprocess
+import sys
+import threading
+import time
+
+# -- evdev bits ---------------------------------------------------------------
+EVENT = struct.Struct("qqHHi")       # struct input_event (x86_64, 24 bytes)
+EV_SYN, EV_KEY, EV_ABS = 0x00, 0x01, 0x03
+ABS_X, ABS_Y = 0x00, 0x01
+BTN_LEFT = 0x110
+BTN_RIGHT = 0x111
+BTN_MIDDLE = 0x112
+BTN_TOUCH = 0x14A
+BTN_TOOL_DOUBLETAP = 0x14D
+BTN_TOOL_TRIPLETAP = 0x14E
+BTN_TOOL_QUADTAP = 0x14F
+MULTI_TOOLS = (BTN_TOOL_DOUBLETAP, BTN_TOOL_TRIPLETAP, BTN_TOOL_QUADTAP)
+EV_REL = 0x02
+REL_X, REL_Y = 0x00, 0x01
+
+
+def _IOC(direction, typ, nr, size):
+    return (direction << 30) | (size << 16) | (ord(typ) << 8) | nr
+
+
+def _IOW(typ, nr, size):
+    return _IOC(1, typ, nr, size)
+
+
+EVIOCGNAME = lambda n: _IOC(2, "E", 0x06, n)
+
+# uinput ioctls (linux/uinput.h)
+UI_SET_EVBIT = _IOW("U", 100, 4)
+UI_SET_KEYBIT = _IOW("U", 101, 4)
+UI_SET_RELBIT = _IOW("U", 102, 4)
+UI_DEV_CREATE = _IOC(0, "U", 1, 0)
+UI_DEV_DESTROY = _IOC(0, "U", 2, 0)
+UINPUT_SETUP = struct.Struct("HHHH80sI")   # struct uinput_setup
+UI_DEV_SETUP = _IOW("U", 3, UINPUT_SETUP.size)
+
+DEFAULT_COUNT = 3          # pre-mapped instances kept stacked
+DEFAULT_CAP = 32           # runaway guard: max slurps one pick may spawn
+DEFAULT_TIMEOUT = 20.0     # matches shot's old `timeout 20 slurp` cap
+DEFAULT_TAP_WINDOW = 0.5   # rc=1 within this of a tap => the tap did it
+DEFAULT_TAP_DUR = 0.30     # touch shorter than this can be a tap
+DEFAULT_TAP_MOVE = 400     # raw axis units of wobble still "a tap"
+DEFAULT_DRAG_SLOP = 150    # raw units a tap-followed touch must move to
+                           # count as the drag half of tap-and-drag
+DEFAULT_GESTURE = 1.2      # a moving touch within this of a tap = the drag
+                           # half of tap-and-drag (synth press fires)
+
+
+def make_synth_pointer():
+    """A uinput pointer that exists only to deliver the button press that
+    tap-and-drag would have delivered. Declares buttons + relative axes so
+    input_id tags it ID_INPUT_MOUSE=1 (a REL-only or key-only device gets
+    ignored by libinput/Hyprland — same lesson as edge-motion's VPointer).
+    Only BTN_LEFT press/release is ever written to it; the drag *motion*
+    comes from the real touchpad via libinput as usual."""
+    fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+    fcntl.ioctl(fd, UI_SET_EVBIT, EV_REL)
+    fcntl.ioctl(fd, UI_SET_RELBIT, REL_X)
+    fcntl.ioctl(fd, UI_SET_RELBIT, REL_Y)
+    fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+    for b in (BTN_LEFT, BTN_MIDDLE, BTN_RIGHT):
+        fcntl.ioctl(fd, UI_SET_KEYBIT, b)
+    fcntl.ioctl(fd, UI_DEV_SETUP,
+                UINPUT_SETUP.pack(0x03, 0x1209, 0x0003, 0x0001,
+                                  b"slurp-tap-drag"[:79], 0))
+    fcntl.ioctl(fd, UI_DEV_CREATE)
+    time.sleep(0.05)      # let udev/libinput pick it up
+    return fd
+
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", file=sys.stderr, flush=True)
+
+
+def debug(msg):
+    if os.environ.get("SLURP_TAP_DEBUG"):
+        log(msg)
+
+
+# -- touchpad discovery -------------------------------------------------------
+def _read_name(fd):
+    buf = bytearray(256)
+    fcntl.ioctl(fd, EVIOCGNAME(len(buf)), buf)
+    return buf.split(b"\0", 1)[0].decode("utf-8", "replace")
+
+
+def find_touchpad(device_arg):
+    """Path of the first event node whose name contains 'touchpad'."""
+    if device_arg:
+        return device_arg
+    for path in sorted(glob.glob("/dev/input/event*")):
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        except OSError:
+            continue
+        try:
+            name = _read_name(fd)
+        except OSError:
+            os.close(fd)
+            continue
+        os.close(fd)
+        if "touchpad" in name.lower():
+            return path
+    return None
+
+
+# -- tap watcher --------------------------------------------------------------
+class TapWatcher(threading.Thread):
+    """Watches the touchpad's raw stream during a pick and does two jobs:
+
+    1. Records the time of the last single-finger tap. The main loop uses
+       it to tell "a tap just killed our top slurp" (keep the stack alive,
+       the user's drag touch is coming) from a real cancel (Esc /
+       right-click / click without drag: nothing recent on the pad).
+
+    2. Emulates tap-and-drag for pickers: on this machine libinput treats
+       the touchpad as a plain mouse, so a finger-drag carries no button
+       press at all — the cursor moves, but no picker ever sees a press
+       and no selection square can open. When the watcher sees the classic
+       tap-then-move gesture it synthesizes the missing press/release on a
+       private uinput pointer: press the moment the moving touch has
+       travelled past drag_slop (only if a tap preceded it within
+       gesture_window, so ordinary pointing never presses), release on
+       lift. Physical clicks (BTN_LEFT) and multi-finger touches always
+       take over: the synth press is released, never stacked on top of
+       the real one.
+    """
+
+    def __init__(self, dev, tap_dur, tap_move, drag_slop, gesture_window):
+        super().__init__(daemon=True)
+        self.dev = dev
+        self.tap_dur = tap_dur
+        self.tap_move = tap_move
+        self.drag_slop = drag_slop
+        self.gesture_window = gesture_window
+        self.last_tap = 0.0
+        self.drag_active = False
+        try:
+            self.synth = make_synth_pointer()
+        except OSError:
+            debug("no /dev/uinput access: tap-and-drag press synthesis "
+                  "disabled (physical click-drag and Esc still work)")
+            self.synth = None
+
+    def recent(self, window):
+        return self.last_tap and (time.monotonic() - self.last_tap) <= window
+
+    def _button(self, held):
+        if self.synth is None:
+            return
+        ns = time.monotonic_ns()
+        stamp = (ns // 10**9, (ns // 1000) % 10**6)
+        os.write(self.synth,
+                 EVENT.pack(*stamp, EV_KEY, BTN_LEFT, 1 if held else 0)
+                 + EVENT.pack(*stamp, EV_SYN, 0, 0))
+        debug(f"synth {'press' if held else 'release'} (tap-and-drag)")
+
+    def _end_drag(self):
+        if self.drag_active:
+            self._button(False)
+            self.drag_active = False
+
+    def run(self):
+        try:
+            fd = os.open(self.dev, os.O_RDONLY | os.O_NONBLOCK)
+        except OSError:
+            return
+        down = False
+        t0 = 0.0
+        moved = 0
+        multi = False
+        left = False
+        was_drag = False
+        px = py = None
+        try:
+            while True:
+                r, _, _ = select.select([fd], [], [], 0.25)
+                if not r:
+                    continue
+                try:
+                    data = os.read(fd, EVENT.size * 64)
+                except BlockingIOError:
+                    continue
+                except OSError:
+                    return
+                if not data:                # EOF (test harness FIFO)
+                    return
+                for off in range(0, len(data) - EVENT.size + 1, EVENT.size):
+                    _s, _u, typ, code, val = EVENT.unpack_from(data, off)
+                    if typ == EV_KEY:
+                        if code == BTN_TOUCH:
+                            if val:
+                                down, t0 = True, time.monotonic()
+                                moved, multi, left = 0, False, False
+                                was_drag = False
+                                px = py = None
+                            elif down:
+                                was_drag = self.drag_active or was_drag
+                                self._end_drag()
+                                down = False
+                                if (time.monotonic() - t0 <= self.tap_dur
+                                        and moved <= self.tap_move
+                                        and not multi and not left
+                                        and not was_drag):
+                                    self.last_tap = time.monotonic()
+                                    debug("tap seen on touchpad")
+                        elif code in MULTI_TOOLS:
+                            if val:
+                                multi = True
+                                self._end_drag()   # right-click etc. takes over
+                        elif code == BTN_LEFT:
+                            if val:
+                                left = True
+                                self._end_drag()   # physical click takes over
+                    elif typ == EV_ABS and down:
+                        if code == ABS_X:
+                            if px is not None:
+                                moved += abs(val - px)
+                            px = val
+                        elif code == ABS_Y:
+                            if py is not None:
+                                moved += abs(val - py)
+                            py = val
+                        # tap-then-move: the drag half of tap-and-drag. Only
+                        # fires right after a tap, so ordinary pointing (no
+                        # preceding tap) never presses anything.
+                        if (not self.drag_active and not multi and not left
+                                and moved > self.drag_slop
+                                and self.recent(self.gesture_window)):
+                            self._button(True)
+                            self.drag_active = True
+                            was_drag = True
+        finally:
+            os.close(fd)
+            if self.synth is not None:
+                try:
+                    fcntl.ioctl(self.synth, UI_DEV_DESTROY)
+                except OSError:
+                    pass
+                os.close(self.synth)
+
+
+# -- slurp stack management ---------------------------------------------------
+def spawn_slurp(transparent):
+    args = ["slurp"]
+    if transparent:
+        # Beneath the bottom instance this must contribute no dim of its
+        # own: the bottom (plain) slurp is the one and only backdrop.
+        args += ["-b", "#00000000"]
+    p = subprocess.Popen(args, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True)
+    debug(f"spawned slurp pid={p.pid} transparent={transparent}")
+    return p
+
+
+def reap_all(procs):
+    for p in procs:
+        if p.poll() is None:
+            try:
+                p.terminate()
+            except OSError:
+                pass
+    end = time.monotonic() + 0.3
+    for p in procs:
+        if p.poll() is None:
+            try:
+                p.wait(timeout=max(0.01, end - time.monotonic()))
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+    for p in procs:
+        if p.poll() is None:
+            try:
+                p.kill()
+            except OSError:
+                pass
+        try:
+            p.communicate(timeout=1)
+        except Exception:
+            pass
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="slurp with tap-and-drag support (stacked overlays)")
+    ap.add_argument("--count", type=int, default=DEFAULT_COUNT,
+                    help="stacked slurp instances to keep (default 3)")
+    ap.add_argument("--cap", type=int, default=DEFAULT_CAP,
+                    help="max slurps one pick may ever spawn (runaway "
+                         "guard, default 32)")
+    ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT,
+                    help="overall deadline in seconds (default 20)")
+    ap.add_argument("--tap-window", type=float, default=DEFAULT_TAP_WINDOW,
+                    help="rc=1 within this of a tap means the tap did it")
+    ap.add_argument("--tap-dur", type=float, default=DEFAULT_TAP_DUR,
+                    help="max touch duration to count as a tap (0.30s)")
+    ap.add_argument("--tap-move", type=int, default=DEFAULT_TAP_MOVE,
+                    help="max raw axis wobble to count as a tap (400)")
+    ap.add_argument("--drag-slop", type=int, default=DEFAULT_DRAG_SLOP,
+                    help="raw units a tap-followed touch must move before "
+                         "the synth drag press fires (150)")
+    ap.add_argument("--gesture-window", type=float,
+                    default=DEFAULT_GESTURE,
+                    help="how long after a tap a moving touch counts as "
+                         "its drag half (1.2s)")
+    ap.add_argument("--device", default="",
+                    help="touchpad event device (default: auto-detect)")
+    a = ap.parse_args()
+
+    def on_signal(_signum, _frame):
+        raise SystemExit(1)
+
+    signal.signal(signal.SIGTERM, on_signal)
+    signal.signal(signal.SIGINT, on_signal)
+
+    dev = find_touchpad(a.device)
+    watcher = None
+    if dev:
+        watcher = TapWatcher(dev, a.tap_dur, a.tap_move,
+                             a.drag_slop, a.gesture_window)
+        watcher.start()
+    else:
+        log("touchpad not readable; tap-and-drag support degraded "
+            "(a tap will cancel like plain slurp)")
+
+    procs = []
+    spawned = 0
+    try:
+        # Transparent backups first, the PLAIN one last: newer slurp
+        # surfaces map on top, so the topmost instance — the one that
+        # always catches the next press — is the one that dims. Dim and
+        # selection must live on the same instance or the wash would
+        # cover the selection interior and bleed into the captured image
+        # (grim -g includes overlays). Invariant for the whole pick:
+        # topmost = the single dimming instance; everything below is a
+        # transparent, pre-mapped backup that can catch a fast re-touch.
+        for i in range(max(1, a.count)):
+            procs.append(spawn_slurp(transparent=(i + 1 < a.count)))
+            spawned += 1
+            time.sleep(0.18 if i + 1 < a.count else 0.05)
+
+        deadline = time.monotonic() + a.timeout
+        seen_tap = 0.0
+        last_eager = 0.0
+        learned_click = False
+        while True:
+            # Where the machine's tap-to-click actually delivers a click
+            # (learned below from a slurp that cancels itself right after a
+            # tap), that click cancels the top instance and its dying
+            # overlay would swallow the drag touch that follows — so kill
+            # the doomed top at once, once per gesture (a tap burst must
+            # not drain the stack). Where taps carry no click at all —
+            # this machine — killing would only flash the screen bright
+            # for nothing: the drag simply lands on the untouched top.
+            if watcher and watcher.last_tap > seen_tap:
+                seen_tap = watcher.last_tap
+                now = time.monotonic()
+                if (learned_click and now - last_eager > 1.0
+                        and procs and procs[-1].poll() is None):
+                    last_eager = now
+                    debug(f"tap: hard-killing top slurp pid={procs[-1].pid}")
+                    try:
+                        procs[-1].kill()
+                    except OSError:
+                        pass
+            for p in list(procs):
+                rc = p.poll()
+                if rc is None:
+                    continue
+                # Handled exactly once: a dead instance must leave the list
+                # or the next pass would treat its death again (spawning
+                # replenishments until the cap, then calling it a cancel).
+                procs.remove(p)
+                out, _ = p.communicate()
+                debug(f"death pid={p.pid} rc={rc} out={out.strip()!r}")
+                if rc == 0 and out.strip():
+                    # Selection completed: drop the leftover stack.
+                    reap_all(procs)
+                    procs.clear()
+                    print(out.strip(), flush=True)
+                    return 0
+                # Every other death ends the pick unless a tap caused it.
+                if watcher and watcher.recent(a.tap_window):
+                    if rc == 1 and not learned_click:
+                        # slurp cancelled itself right after a tap: taps
+                        # here DO click. Switch the eager-kill on from
+                        # now on so fast re-touches stop landing on dying
+                        # overlays.
+                        learned_click = True
+                        debug("click-world: slurp cancels on taps")
+                    if spawned < a.cap:
+                        # Plain: the replenishment becomes the new top and
+                        # must keep the "topmost = dimming instance" rule.
+                        procs.append(spawn_slurp(transparent=False))
+                        spawned += 1
+                    continue
+                reap_all(procs)
+                procs.clear()
+                log("selection cancelled")
+                return 1
+            if all(p.poll() is not None for p in procs):
+                log("selection cancelled")
+                return 1
+            if time.monotonic() >= deadline:
+                log("selection cancelled (timeout)")
+                return 1
+            time.sleep(0.008)
+    finally:
+        reap_all(procs)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
