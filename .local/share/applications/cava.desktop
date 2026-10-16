@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=CAVA
+GenericName=Audio visualizer
+Comment=Console-based audio visualizer for the terminal
+Exec=cava
+Icon=cava
+Terminal=true
+Categories=AudioVideo;Audio;X-Visualizer;
+Keywords=audio;visualizer;spectrum;music;tui;

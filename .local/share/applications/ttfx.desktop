@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=TTFX
+GenericName=ASCII text effects
+Comment=Draw ASCII text effects in the terminal
+Exec=ttfx
+Icon=utilities-terminal
+Terminal=true
+Categories=Utility;TextTools;
+Keywords=ascii;art;text;banner;effects;tui;
+StartupWMClass=ttfx

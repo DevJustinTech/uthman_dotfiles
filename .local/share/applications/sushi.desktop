@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Sushi
+GenericName=Nautilus previewer
+Comment=Quick previewer for Nautilus (space to preview files)
+Exec=sushi
+Icon=eye
+Categories=Utility;FileTools;
+Keywords=preview;nautilus;quicklook;files;

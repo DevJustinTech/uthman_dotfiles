@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Omazed
+GenericName=Omarchy maze game
+Comment=Maze puzzle game from the Omarchy suite
+Exec=omazed
+Icon=omazed
+Terminal=false
+Categories=Game;ArcadeGame;
+Keywords=maze;game;puzzle;omarchy;
+StartupWMClass=omazed

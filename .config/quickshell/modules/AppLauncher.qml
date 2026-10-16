@@ -40,6 +40,14 @@ PanelWindow {
 
     // denylist — system junk the user never launches; edit this array to hide more
     readonly property var denylist: ["rofi","kvantum","qv4l2","qt5ct","qt6ct","v4l2 test","logseq","printer","assistant","ava","btop","htop","xterm","uxterm","kvantummanager"]
+    // Hidden when the file says so (NoDisplay/Hidden=true) — the spec's own
+    // "do not list me" flag, and Quickshell only exposes it via e.noDisplay.
+    // A missing Icon= used to hide the row too, but that silently dropped
+    // apps whose .desktop ships without an icon (cava, sushi, omazed, ttfx,
+    // tobi-try) — they vanished from the menu with no trace. The delegate
+    // already falls back to a letter tile and a folder-icon swap on error
+    // (appIcon below), so an unresolvable or absent icon renders fine and
+    // there is nothing to filter out here.
     // usage ranking is fully automatic: every launch bumps count + timestamp,
     // and the score blends both (log-scaled count + recency bonus). No manual
     // starring — the system learns purely from what you actually open.
@@ -48,7 +56,6 @@ PanelWindow {
 
     readonly property var storeApps: DesktopEntries.applications.values.filter(e => {
         if (e.noDisplay) return false
-        if (!e.icon) return false  // no icon = hidden per user request
         var lowName = (e.name||"").toLowerCase()
         var lowId = (e.id||"").toLowerCase()
         for (var i=0;i<denylist.length;i++) if (lowName.includes(denylist[i]) || lowId.includes(denylist[i])) return false

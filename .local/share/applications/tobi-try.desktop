@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Tobi Try
+GenericName=Omarchy try-and-see game
+Comment=Tobi try-and-see game from the Omarchy suite (binary is `try`)
+Exec=try
+Icon=utilities-terminal
+Terminal=true
+Categories=Game;
+Keywords=tobi;try;game;omarchy;tui;
