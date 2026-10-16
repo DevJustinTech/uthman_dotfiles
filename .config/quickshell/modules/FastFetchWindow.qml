@@ -100,7 +100,7 @@ FloatingWindow {
                     }
                 }
                 Text {
-                    text: "uthman@" + (root.host !== "" ? root.host : "arch")
+                    text: (Quickshell.env("USER") || "justin") + "@" + (root.host !== "" ? root.host : "arch")
                     color: colors.foreground
                     font.family: colors.fontSans
                     font.pixelSize: 15
