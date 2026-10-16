@@ -22,6 +22,7 @@ Item {
     property var freeSpots: []
     property bool canTransition: true
     property bool pendingPick: false
+    property bool powered: true
 
     property int fatigue: 0
     property bool isSleeping: false
@@ -81,7 +82,7 @@ Item {
         id: fatigueTimer
         interval: 1000
         repeat: true
-        running: !root.isSleeping
+        running: !root.isSleeping && root.powered
         onTriggered: {
             if (root.isDragging) { if (root.fatigue < 300) root.fatigue += 2; return }
             if (root.actionKind === "idle" || root.actionKind === "walk" || root.actionKind === "walkToMe" || root.actionKind === "sitAnywhere") {
@@ -96,7 +97,7 @@ Item {
         id: wantsTimer
         interval: 1300
         repeat: true
-        running: !root.isSleeping
+        running: !root.isSleeping && root.powered
         onTriggered: updateWants()
     }
     function updateWants() {
@@ -484,6 +485,7 @@ Item {
 
     onActionsChanged: {
         if (!actions || Object.keys(actions).length === 0) return
+        if (!root.powered) return // stay dark while switched off
         if (!actions[currentAction] || currentFrames.length === 0) {
             var first = actions["Stand"] ? "Stand" : availableNames()[0]
             if (first) applyAction(first)

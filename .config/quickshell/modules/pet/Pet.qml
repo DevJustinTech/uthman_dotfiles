@@ -27,21 +27,43 @@ PanelWindow {
     mask: Region { item: petWrapper }
 
     Groq { id: groq; model: "allam-2-7b" }
-    SystemInfo { id: sysInfo }
+    SystemInfo { id: sysInfo; active: root.powered }
     // real system summary for Groq — makes Hornet actually aware
     property string sysSummary: "CPU "+sysInfo.cpuPct+"% MEM "+sysInfo.memPct+"% BAT "+sysInfo.batPct+(sysInfo.batCharging?"⚡":"%")+" T"+sysInfo.tempC+"C up "+sysInfo.uptime+" "+sysInfo.clock+" apps "+sysInfo.toplevelCount+" focused:"+sysInfo.focusedApp+" spots:"+sysInfo.freeSpots.length+" at "+petX+","+petY+" screen:"+(petY+54)+" spot:"+currentSpot+" dragging:"+isDragging+" falling:"+isFalling+" "+sysInfo.shellInfo
 
+    // ── power — the real on/off switch. Off stops everything: the state
+    // machine, cursor/system polls, sprite ticking; the window parks
+    // invisible (surface gone) but the component stays, so the IPC target
+    // and the keybind keep working. Remembered in localStorage ('powered'):
+    // a switched-off pet stays off across shell restarts.
+    property bool powered: true
+    onPoweredChanged: {
+        root.visible = powered
+        if (powered) {
+            stateMachine.resetFatigue()
+            if (Hyprland.activeToplevel) stateMachine.resume()
+            frameTimer.restart()
+        } else {
+            stateMachine.pause()
+            hideTimer.stop(); reappearTimer.stop(); stayPutTimer.stop()
+            bubbleHideTimer.stop(); frameTimer.stop()
+            root.bubbleText = ""
+        }
+        saveState()
+        console.log("[Pet] powered " + powered + " visible=" + root.visible)
+    }
+
     IpcHandler {
         target: "pet"
-        function toggle(): void { stateMachine.resetFatigue(); root.visible = !root.visible; saveState(); console.log("[Pet] ipc toggle visible="+root.visible) }
-        function show(): void { stateMachine.resetFatigue(); root.visible = true; saveState(); console.log("[Pet] ipc show"); if (Hyprland.activeToplevel) stateMachine.resume() }
-        function hide(): void { stateMachine.resetFatigue(); root.visible = false; saveState(); console.log("[Pet] ipc hide") }
+        function toggle(): void { root.powered = !root.powered; console.log("[Pet] ipc toggle powered=" + root.powered) }
+        function show(): void { root.powered = true; stateMachine.resetFatigue(); if (Hyprland.activeToplevel) stateMachine.resume(); console.log("[Pet] ipc show powered="+root.powered) }
+        function hide(): void { root.powered = false; console.log("[Pet] ipc hide powered="+root.powered) }
         function pet(): void { console.log("[Pet] ipc pet"); stateMachine.resetFatigue(); stateMachine.trigger("PetAction") }
         function walkToMe(): void { console.log("[Pet] ipc walkToMe cursor="+root.cursorX+","+root.cursorY+" win="+JSON.stringify(root.activeWinAt)+"/"+JSON.stringify(root.activeWinSize)); stateMachine.resetFatigue(); stateMachine.trigger("walkToMe") }
         function sleep(): void { console.log("[Pet] ipc sleep"); stateMachine.trigger("sleep") }
         function sit(): void { console.log("[Pet] ipc sit"); stateMachine.resetFatigue(); stateMachine.trigger("sitAnywhere") }
         function hideMe(): void { console.log("[Pet] ipc hideMe"); stateMachine.resetFatigue(); stateMachine.trigger("hide") }
-        function status(): string { return JSON.stringify({x:root.petX,y:root.petY,screenX:root.petX,screenY:root.petY+54,facingRight:root.facingRight,visible:root.visible,action:root.currentAction,kind:stateMachine.actionKind,activity:root.userActivity,fatigue:stateMachine.fatigue,isSleeping:stateMachine.isSleeping,isDragging:root.isDragging,isFalling:root.isFalling,spot:root.currentSpot,wants:stateMachine.wantsSummary,cursor:[root.cursorX,root.cursorY],sys:sysSummary,spots:sysInfo.freeSpots}) }
+        function status(): string { return JSON.stringify({x:root.petX,y:root.petY,screenX:root.petX,screenY:root.petY+54,facingRight:root.facingRight,visible:root.visible,powered:root.powered,action:root.currentAction,kind:stateMachine.actionKind,activity:root.userActivity,fatigue:stateMachine.fatigue,isSleeping:stateMachine.isSleeping,isDragging:root.isDragging,isFalling:root.isFalling,spot:root.currentSpot,wants:stateMachine.wantsSummary,cursor:[root.cursorX,root.cursorY],sys:sysSummary,spots:sysInfo.freeSpots}) }
         function perches(): string { return JSON.stringify(sysInfo.freeSpots) }
         function explain(): string { var s="Hornet lives in quickshell PanelWindow Overlay mask click-through, StateMachine fatigue "+stateMachine.fatigue+" groq "+groq.model+" free "+sysInfo.freeSpots.length+" spots"; if (groq.ready) groq.chat([{role:"system",content:"Explain Hornet pet how quickshell works: "+sysInfo.shellInfo+" System "+sysSummary},{role:"user",content:"Explain in 1 short sentence how you work"}], 40, 0.7, function(t){ if(t) { root.bubbleText=t.slice(0,40); bubbleHideTimer.restart() } }); return s }
         function up(): void { stateMachine.resetFatigue(); stateMachine.pause(); var y=12; xAnim.duration=600; yAnim.duration=600; root.petY=clampY(y); if (actions["GrabCeiling"]) { root.currentAction="GrabCeiling"; root.currentFrames=actions["GrabCeiling"]; root.frameInterval=600; frameTimer.interval=600; frameTimer.restart() } root.bubbleText="up!"; bubbleHideTimer.restart(); saveState(); stayPutTimer.restart(); console.log("[Pet] up -> y="+y+" stay 6s") }
@@ -93,6 +115,7 @@ PanelWindow {
                 tx.executeSql('INSERT OR REPLACE INTO state VALUES(?,?)', ['petY', String(root.petY)])
                 tx.executeSql('INSERT OR REPLACE INTO state VALUES(?,?)', ['facingRight', root.facingRight ? '1':'0'])
                 tx.executeSql('INSERT OR REPLACE INTO state VALUES(?,?)', ['visible', root.visible ? '1':'0'])
+                tx.executeSql('INSERT OR REPLACE INTO state VALUES(?,?)', ['powered', root.powered ? '1':'0'])
                 tx.executeSql('INSERT OR REPLACE INTO state VALUES(?,?)', ['currentAction', root.currentAction])
             })
         } catch(e) { console.warn("[Pet] saveState failed " + e) }
@@ -115,9 +138,16 @@ PanelWindow {
                 }
             }
             if (vals.facingRight !== undefined) root.facingRight = vals.facingRight === '1'
-            // persist always there — always visible on start, ignore saved hidden
-            root.visible = true
-            console.log("[Pet] restored petX=" + root.petX + " petY=" + root.petY + " facing=" + root.facingRight + " (forced visible)")
+            // powered-off is remembered (the on/off switch); otherwise the
+            // pet is always there — always visible on start even if it was
+            // mid-hide when the shell went down.
+            if (vals.powered === '0') {
+                root.powered = false
+                console.log("[Pet] restored petX=" + root.petX + " petY=" + root.petY + " facing=" + root.facingRight + " (POWERED OFF)")
+            } else {
+                root.visible = true
+                console.log("[Pet] restored petX=" + root.petX + " petY=" + root.petY + " facing=" + root.facingRight + " (forced visible)")
+            }
         } catch(e) { console.warn("[Pet] loadState failed " + e) }
     }
     property bool hasSavedY: false
@@ -213,7 +243,7 @@ PanelWindow {
         activeWinAt = at; activeWinSize = sz
     }
 
-    Timer { id: activityTimer; interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: updateActivity() }
+    Timer { id: activityTimer; interval: 1000; running: root.powered; repeat: true; triggeredOnStart: true; onTriggered: updateActivity() }
     Connections { target: Hyprland; function onActiveToplevelChanged(){ updateActivity() } }
     // also watch raw Hyprland events for instant update (activewindow, etc.)
     Connections { target: Hyprland; function onRawEvent(event){ if (event.name === "activewindow" || event.name === "activewindowv2" || event.name === "openwindow" || event.name === "closewindow") updateActivity() } }
@@ -254,7 +284,7 @@ PanelWindow {
         }
     }
     Timer { id: leanBack; interval: 320; repeat: false; onTriggered: petWrapper.scale = 1.0 }
-    Timer { id: proximityTimer; interval: 220; running: true; repeat: true; onTriggered: checkProximity() }
+    Timer { id: proximityTimer; interval: 220; running: root.powered; repeat: true; onTriggered: checkProximity() }
 
     // cursor polling via hyprctl (faster for proximity)
     Process {
@@ -268,7 +298,7 @@ PanelWindow {
             }
         }
     }
-    Timer { interval: 900; running: true; repeat: true; triggeredOnStart: true; onTriggered: cursorProc.running = true }
+    Timer { interval: 900; running: root.powered; repeat: true; triggeredOnStart: true; onTriggered: cursorProc.running = true }
 
     // idle cursor check — if cursor hasn't moved 90s consider idle too
     property int lastCursorX: 0
@@ -284,6 +314,7 @@ PanelWindow {
     // ── state machine ──────────────────────────────────────────────
     StateMachine {
         id: stateMachine
+        powered: root.powered
         actions: root.actions
         userActivity: root.userActivity
         groq: groq
@@ -548,7 +579,7 @@ PanelWindow {
         // keep sysSummary fresh so Groq knows where it is
         // screenPos already bound
     }
-    Timer { id: spotTimer; interval: 800; running: true; repeat: true; onTriggered: updateSpot() }
+    Timer { id: spotTimer; interval: 800; running: root.powered; repeat: true; onTriggered: updateSpot() }
 
     // ── drag handling (free 2D) ────────────────────────────────────
     property point dragPressGlobal: Qt.point(0,0)

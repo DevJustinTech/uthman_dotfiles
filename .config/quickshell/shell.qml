@@ -15,8 +15,10 @@ ShellRoot {
     // double-click for tricks) that walks the screen on its own schedule.
     // Resident on purpose — a desktop companion lives from login, and Pet.qml
     // restores its position from LocalStorage and forces itself visible.
-    // Drive it over IPC: quickshell ipc call pet toggle|pet|walkToMe|sit|
-    // sleep|hideMe|up|down|left|right|center|move <x> <y>|status|trigger <action>
+    // Drive it over IPC: quickshell ipc call pet toggle (a real on/off — off
+    // stops its timers and polls, and it stays off across restarts) or
+    // pet|walkToMe|sit|sleep|hideMe|up|down|left|right|center|move <x> <y>|
+    // status|trigger <action> for tricks.
     Pet {}
 
     // Always resident: fast-open surfaces (launcher/power), hover card,

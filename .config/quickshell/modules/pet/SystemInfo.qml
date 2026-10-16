@@ -9,6 +9,10 @@ import QtQuick
 // exposes freeSpots & surfaces: {x,y,width,surface,name} in Pet window-local coords (0,54 screen -> 0 window)
 Item {
     id: root
+
+    // powered by the pet: off = no polling processes at all
+    property bool active: true
+
     property int cpuPct: 0
     property int memPct: 0
     property int tempC: 0
@@ -39,7 +43,7 @@ Item {
     onBatDevChanged: updateBat()
     function updateBat(){ if(batDev){ root.batPct=Math.round(batDev.percentage*100); root.batCharging=batDev.state===UPowerDeviceState.Charging } }
     Component.onCompleted: updateBat()
-    Timer { interval: 4000; running:true; repeat:true; triggeredOnStart:true; onTriggered: { cpuProc.running=true; memProc.running=true; tempProc.running=true; upProc.running=true; updateBat(); refreshSpots() } }
+    Timer { interval: 4000; running: root.active; repeat:true; triggeredOnStart:true; onTriggered: { cpuProc.running=true; memProc.running=true; tempProc.running=true; upProc.running=true; updateBat(); refreshSpots() } }
 
     // hyprctl clients -> real visible window geometry (more reliable than Hyprland.toplevels for tiled)
     Process {
@@ -61,7 +65,7 @@ Item {
             } catch(e) { }
         }}
     }
-    Timer { interval: 5500; running:true; repeat:true; triggeredOnStart:true; onTriggered: clientsProc.running = true }
+    Timer { interval: 5500; running: root.active; repeat:true; triggeredOnStart:true; onTriggered: clientsProc.running = true }
 
     function refreshSpots() {
         var spots=[]; var surfs=[]

@@ -241,9 +241,10 @@ o.bind("SUPER + SHIFT + SPACE", "Bar sides", ipc("bar", "toggle"))
 o.bind("SUPER + comma", "Notification center", open("notifications"))
 o.bind("SUPER + SHIFT + comma", "Toggle do not disturb", ipc("notifications", "toggleDnd"))
 -- Hornet — the free-roaming desktop pet. It lives in the shell from login
--- (wired in shell.qml), so this chord only shows/hides it. The full command
--- set: quickshell ipc call pet status|pet|walkToMe|sit|sleep|hideMe|trigger
-o.bind("SUPER + SHIFT + H", "Hornet pet (show/hide)", ipc("pet", "toggle"))
+-- (wired in shell.qml); this chord is its real on/off switch — off stops
+-- its timers/polls and persists across restarts. Full command set:
+-- quickshell ipc call pet status|pet|walkToMe|sit|sleep|hideMe|trigger
+o.bind("SUPER + SHIFT + H", "Hornet pet (on/off)", ipc("pet", "toggle"))
 
 -- ── Stock menu chords revived as fork panels ────────────────────────────
 -- The same story as SUPER+CTRL+K above: every omarchy-menu/omarchy-shell
