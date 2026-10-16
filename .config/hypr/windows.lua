@@ -42,6 +42,7 @@ shell_window("Clipboard", 540, 560)
 shell_window("Screen Time", 660, 560)
 shell_window("Grap", 560, 440)
 shell_window("Clock", 360, 408)
+shell_window("System", 440, 230)
 
 -- ── Applications ────────────────────────────────────────────────────────
 

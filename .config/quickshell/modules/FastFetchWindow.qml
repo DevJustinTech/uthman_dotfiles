@@ -12,9 +12,9 @@ FloatingWindow {
     property bool open: false
 
     title: "System"
-    implicitWidth: 500
-    implicitHeight: 296
-    minimumSize: Qt.size(470, 280)
+    implicitWidth: 440
+    implicitHeight: 230
+    minimumSize: Qt.size(400, 220)
     maximumSize: Qt.size(560, 340)
     color: "transparent"
     visible: root.open || closeAnim.running
@@ -135,6 +135,11 @@ FloatingWindow {
 
                 Item {
                     Layout.preferredWidth: 148
+                    // the art PNG is 491x508 -- without a cap it feeds its
+                    // source size into the window's implicit size and pins
+                    // the whole card at maximumSize on open
+                    Layout.maximumWidth: 160
+                    Layout.maximumHeight: 170
                     Layout.fillHeight: true
                     // soft halo behind the art
                     Rectangle {
@@ -184,7 +189,7 @@ FloatingWindow {
                             spacing: 8
                             Text { text: modelData.i; color: root.accents[index % 3]; font.family: colors.fontSans; font.pixelSize: 12 }
                             Text { text: modelData.l; color: colors.alpha(colors.outline, 0.8); font.family: colors.fontSans; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 1.2; Layout.preferredWidth: 62 }
-                            Text { text: modelData.v; color: colors.foreground; font.family: colors.fontSans; font.pixelSize: 11; font.weight: Font.Medium; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { text: modelData.v; color: colors.foreground; font.family: colors.fontSans; font.pixelSize: 11; font.weight: Font.Medium; elide: Text.ElideRight; Layout.maximumWidth: 220; Layout.fillWidth: true }
                         }
                     }
 
