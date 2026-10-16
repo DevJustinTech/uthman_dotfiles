@@ -3,11 +3,21 @@ import Quickshell.Io
 import QtQuick
 import "components"
 import "modules"
+import "modules/pet"
 
 ShellRoot {
     Bar { id: mainBar }
 
     NowPlayingCard { colors: barPalette; hovered: mainBar.musicHover }
+
+    // Hornet — the free-roaming desktop pet. A click-through overlay window
+    // (only the sprite takes input: drag it, click to pet, right-click /
+    // double-click for tricks) that walks the screen on its own schedule.
+    // Resident on purpose — a desktop companion lives from login, and Pet.qml
+    // restores its position from LocalStorage and forces itself visible.
+    // Drive it over IPC: quickshell ipc call pet toggle|pet|walkToMe|sit|
+    // sleep|hideMe|up|down|left|right|center|move <x> <y>|status|trigger <action>
+    Pet {}
 
     // Always resident: fast-open surfaces (launcher/power), hover card,
     // PassPrompt (stateful ask/st/result IPC polled by PkgManager — never lazy-load),
@@ -70,6 +80,14 @@ ShellRoot {
             if (ccOpen && ccLoader.status === Loader.Loading) return
             ccOpen = !ccOpen
         }
+        // poke the Hornet in the pet card — opens the panel so the reaction
+        // is visible, then fires petReact(); the loader is prewarmed, petPoke
+        // only covers the cold-start race
+        function pet(): void {
+            ccOpen = true
+            if (ccLoader.item) ccLoader.item.petReact()
+            else petPoke.restart()
+        }
     }
     Loader {
         id: ccLoader
@@ -85,6 +103,16 @@ ShellRoot {
     Connections {
         target: ccLoader.item
         function onOpenChanged() { if (ccLoader.item && !ccLoader.item.open) ccOpen = false }
+    }
+    Timer {
+        id: petPoke
+        interval: 150; repeat: true
+        property int tries: 0
+        onTriggered: {
+            petPoke.tries += 1
+            if (ccLoader.item) { ccLoader.item.petReact(); petPoke.tries = 0; petPoke.stop() }
+            else if (petPoke.tries > 40) { petPoke.tries = 0; petPoke.stop() }
+        }
     }
 
     // Monitors — small live monitor panel (scale/DPI, rotate, status)
