@@ -365,10 +365,10 @@ FloatingWindow {
     }
 
     title: "Control Center"
-    implicitWidth: 700
-    implicitHeight: 540
-    minimumSize: Qt.size(640, 480)
-    maximumSize: Qt.size(820, 640)
+    implicitWidth: 640
+    implicitHeight: 496
+    minimumSize: Qt.size(600, 440)
+    maximumSize: Qt.size(760, 600)
     color: "transparent"
     visible: root.open || closeAnim.running
 
@@ -491,7 +491,7 @@ FloatingWindow {
             // ── HERO — Now Playing (tall left) | Weather ↑ Pomodoro ↓ (stacked right) ──
             RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 144
+                Layout.preferredHeight: 156
                 spacing: 8
                 // Now Playing — tall left, stretches
                 Rectangle {
