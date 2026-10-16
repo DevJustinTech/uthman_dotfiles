@@ -4,7 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 
-// uthmanHabit — graph + 7-day list, Hyprland FloatingWindow, no hover clutter
+// Screen Time — graph + 7-day list, Hyprland FloatingWindow, no hover clutter
 FloatingWindow {
     id: root
     property var colors
@@ -12,10 +12,10 @@ FloatingWindow {
     // system sans (fontconfig default) — FiraCode everywhere read like a
     // terminal, and the mock this ports was set in a grotesk
     property string fontUi: "JetBrainsMono Nerd Font Mono"
-    // Was "uthmanHabit" -- this module was a habit tracker before it was
-    // repurposed into a screen-time panel, and the window title was never
-    // updated. It showed up under the old name in the window list and any
-    // title-matched window rule, which is actively misleading.
+    // This module was a habit tracker before it was repurposed into a
+    // screen-time panel, and the window title was never updated -- it showed
+    // up under the old name in the window list and any title-matched window
+    // rule, which is actively misleading.
     title: "Screen Time"
     implicitWidth: 700
     implicitHeight: 620

@@ -29,7 +29,7 @@ Rectangle {
     property int sessionIndex: sessionNames.length > 0 ? sessionModel.lastIndex : 0
     property string failMsg: ""
     property bool loggingIn: false
-    property string loginUser: userModel.lastUser !== "" ? userModel.lastUser : "uthman"
+    property string loginUser: userModel.lastUser !== "" ? userModel.lastUser : "justin"
     property color field: Qt.lighter(pal.background, 1.35)
     property color edge: Qt.lighter(pal.background, 2.1)
     property color dim: Qt.rgba(pal.text.r, pal.text.g, pal.text.b, 0.55)

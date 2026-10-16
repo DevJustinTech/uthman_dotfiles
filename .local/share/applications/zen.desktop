@@ -2,10 +2,10 @@
 Name=Zen Browser
 Comment=Minimal, privacy-focused web browser
 # Resolve zen from PATH rather than hardcoding an install path. The Desktop
-# Entry spec has no %h field code, and the old absolute path pointed at
-# /home/uthman/.local/opt/zen/zen, which exists on exactly one machine -- so
-# the launcher was a dead entry everywhere else. Drop a `zen` on PATH (a
-# symlink into an AppImage bundle is fine) and this works anywhere.
+# Entry spec has no %h field code, and the old absolute path pointed into one
+# machine's home directory -- so the launcher was a dead entry everywhere
+# else. Drop a `zen` on PATH (a symlink into an AppImage bundle is fine) and
+# this works anywhere.
 Exec=zen %U
 Icon=app.zen_browser.zen
 Type=Application

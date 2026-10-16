@@ -188,7 +188,7 @@ output_path = "~/.config/zathura/zathurarc"
 # These four were dropped rather than left to fail:
 #
 #   sddm      -> /usr/share/sddm/themes/elarun-custom/Palette.qml
-#   obsidian  -> ~/uthman_notes/.obsidian/snippets/matugen.css
+#   obsidian  -> <notes vault>/.obsidian/snippets/matugen.css
 #   cavasik   -> ~/.config/cavasik/colors.rgb
 #   hyprlock-omarchy -> ~/.config/omarchy/current/theme/hyprlock.conf
 #

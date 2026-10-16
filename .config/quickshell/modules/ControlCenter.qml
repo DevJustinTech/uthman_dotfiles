@@ -20,9 +20,9 @@ FloatingWindow {
     property real volume: 0.48
     property bool muted: false
     property var githubEvents: [
-        { type: "PushEvent", repo: "uthman/dotfiles", msg: "feat: add package manager", time: "2h ago" },
-        { type: "PullRequestEvent", repo: "uthman/dotfiles", msg: "opened PR #12", time: "5h ago" },
-        { type: "PushEvent", repo: "uthman/habit", msg: "fix: heatmap off-by-one", time: "1d ago" }
+        { type: "PushEvent", repo: "DevJustinTech/uthman_dotfiles", msg: "feat: add package manager", time: "2h ago" },
+        { type: "PullRequestEvent", repo: "DevJustinTech/uthman_dotfiles", msg: "opened PR #12", time: "5h ago" },
+        { type: "PushEvent", repo: "DevJustinTech/yolo-chess-detector", msg: "fix: heatmap off-by-one", time: "1d ago" }
     ]
     property var githubHeatCells: []
     property string weatherTemp: "25°"
@@ -422,7 +422,7 @@ FloatingWindow {
         }
     }
     // github — real events via gh cli
-    property string ghUser: "uthman"
+    property string ghUser: "DevJustinTech"
     Process {
         id: ghUserProc
         command: ["sh","-c","gh api user --jq .login 2>/dev/null | tr -d '\\n'"]

@@ -97,7 +97,7 @@ sudo pacman -S --needed foot matugen zsh lsd cava hyprlock hypridle \
 # if you are replacing the Omarchy shell (see above), also:
 sudo pacman -S lxqt-policykit
 
-git clone https://github.com/codetesla51/uthman_dotfiles.git ~/dotfiles
+git clone https://github.com/DevJustinTech/uthman_dotfiles.git ~/dotfiles
 cd ~/dotfiles && chmod +x install.sh && ./install.sh
 ```
 

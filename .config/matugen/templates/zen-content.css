@@ -16,7 +16,7 @@ html {
 @-moz-document url("about:newtab"), url("about:home"), url("about:blank") {
   body {
     background-color: {{ colors.background.default.hex }} !important;
-    background-image: url("file:///home/uthman/.config/zen/newtab-logo.png") !important;
+    background-image: url("file:///home/justin/.config/zen/newtab-logo.png") !important;
     background-position: center 32% !important;
     background-size: 300px !important;
     background-repeat: no-repeat !important;
