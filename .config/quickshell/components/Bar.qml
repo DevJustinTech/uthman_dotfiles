@@ -437,6 +437,7 @@ PanelWindow {
                     colors: bar.colors
                     historyCount: ntfy.historyCount
                     panelOpen: ntfy.panelOpen
+                    dnd: ntfy.dnd
                     onToggleRequested: ntfy.togglePanel()
                 }
             }

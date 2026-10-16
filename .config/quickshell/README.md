@@ -22,7 +22,7 @@ modules/
   Temp.qml                   CPU temp, reuses scripts/temperature.sh
   ScriptIndicator.qml        generic JSON script runner (idle/update indicators)
   Tray.qml                   SNI system tray
-  BellButton.qml             opens/closes the notification drawer, count badge
+  BellButton.qml             opens/closes the notification drawer; count badge, DND slash state
   NotificationToast.qml      glass toast popups (critical never expires, actions supported)
   NotificationCenter.qml     daemon + drawer panel + history archive
 

@@ -2,13 +2,15 @@ import Quickshell
 import QtQuick
 
 // Bell button — right edge of the center island. A quiet dot marks unread
-// notifications; the fixed footprint keeps the bar from shifting with counts.
+// notifications; DND slashes the bell and tints it error — same language as
+// the drawer's DND chip. The fixed footprint keeps the bar from shifting.
 Item {
     id: root
 
     property var colors
     property int historyCount: 0
     property bool panelOpen: false
+    property bool dnd: false
     signal toggleRequested()
 
     readonly property bool hovered: bellMouse.containsMouse
@@ -26,8 +28,9 @@ Item {
         Text {
             id: label
             anchors.centerIn: parent
-            text: ""
-            color: root.panelOpen ? colors.primary
+            text: root.dnd ? "" : ""
+            color: root.dnd ? colors.error
+                 : root.panelOpen ? colors.primary
                  : root.historyCount > 0 ? colors.foreground
                  : colors.alpha(colors.outline, 0.9)
             font.family: "FiraCode Nerd Font"

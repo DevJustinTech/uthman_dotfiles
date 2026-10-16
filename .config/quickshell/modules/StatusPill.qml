@@ -143,7 +143,7 @@ Item {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            // -- DND: 󰂛 moon when silenced --
+            // -- DND: 󰂛 bell-off when silenced --
             Item {
                 visible: root.dnd
                 implicitWidth: dndLabel.implicitWidth
