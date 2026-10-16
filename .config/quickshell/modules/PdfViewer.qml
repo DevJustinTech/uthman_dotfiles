@@ -29,10 +29,10 @@ FloatingWindow {
     property string contentQuery: ""
 
     title: "PDF Library"
-    implicitWidth: 960
-    implicitHeight: 640
-    minimumSize: Qt.size(760, 520)
-    maximumSize: Qt.size(1200, 800)
+    implicitWidth: 860
+    implicitHeight: 560
+    minimumSize: Qt.size(700, 480)
+    maximumSize: Qt.size(1100, 660)
     color: "transparent"
     visible: root.open || closeAnim.running
 

@@ -18,8 +18,8 @@ FloatingWindow {
 
     title: "QuickNotes"
     implicitWidth: 440
-    implicitHeight: 580
-    minimumSize: Qt.size(400, 520)
+    implicitHeight: 540
+    minimumSize: Qt.size(400, 480)
     maximumSize: Qt.size(460, 600)
     color: "transparent"
     visible: root.open || closeAnim.running

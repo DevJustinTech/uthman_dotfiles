@@ -28,9 +28,9 @@ FloatingWindow {
     // depending on whether a rule is in play. The 644 cap is the screen, not a
     // preference: this display is 768 tall and the bar is 54, so anything
     // taller ends up with its top edge behind the bar's centre island.
-    implicitWidth: 580
-    implicitHeight: 620
-    minimumSize: Qt.size(500, 480)
+    implicitWidth: 540
+    implicitHeight: 560
+    minimumSize: Qt.size(480, 460)
     maximumSize: Qt.size(640, 644)
     color: "transparent"
     visible: root.open || closeAnim.running

@@ -21,9 +21,9 @@ FloatingWindow {
 
     title: "Earbuds"
     implicitWidth: 380
-    implicitHeight: 360
-    minimumSize: Qt.size(380, 360)
-    maximumSize: Qt.size(380, 360)
+    implicitHeight: 400
+    minimumSize: Qt.size(380, 400)
+    maximumSize: Qt.size(380, 400)
     color: "transparent"
     visible: root.open || closeAnim.running
 

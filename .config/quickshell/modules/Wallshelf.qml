@@ -89,9 +89,9 @@ FloatingWindow {
     title: "Wallshelf"
     // Height matches windows.lua's rule; the arithmetic is in the note on
     // shell_window there. 644 clears the 54px bar on this 768-tall screen.
-    implicitWidth: 980
-    implicitHeight: 620
-    minimumSize: Qt.size(980, 560)
+    implicitWidth: 860
+    implicitHeight: 560
+    minimumSize: Qt.size(780, 500)
     maximumSize: Qt.size(1100, 644)
     color: "transparent"
     visible: root.open || closeAnim.running

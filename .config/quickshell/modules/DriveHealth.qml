@@ -75,8 +75,8 @@ FloatingWindow {
     // The live rates still show in the speed-test row inside the panel.
     title: "Hardware Health"
     IpcHandler { target: "dbg"; function go(): void { root.runSpeed() } }
-    implicitWidth: 600
-    implicitHeight: 640
+    implicitWidth: 580
+    implicitHeight: 560
     minimumSize: Qt.size(580, 480)
     maximumSize: Qt.size(760, 644)   // 644 = tallest that still clears the 54px bar
     color: "transparent"

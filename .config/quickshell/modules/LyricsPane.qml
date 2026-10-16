@@ -63,8 +63,8 @@ PanelWindow {
     property int offY: 590
     anchors { left: root.freeMove; top: root.freeMove; bottom: !root.freeMove }
     margins { left: root.offX; top: root.offY; bottom: 64 }
-    implicitWidth: 660
-    implicitHeight: 560
+    implicitWidth: 600
+    implicitHeight: 520
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     visible: root.open

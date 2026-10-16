@@ -23,9 +23,9 @@ FloatingWindow {
     // Height matches windows.lua's rule. 644 is the most that clears the 54px
     // bar on this 768-tall screen, so it is the ceiling whether the rule is in
     // play or not.
-    implicitWidth: 460
-    implicitHeight: 620
-    minimumSize: Qt.size(440, 560)
+    implicitWidth: 440
+    implicitHeight: 560
+    minimumSize: Qt.size(420, 500)
     maximumSize: Qt.size(480, 644)
     color: "transparent"
     visible: root.open || closeAnim.running

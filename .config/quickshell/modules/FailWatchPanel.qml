@@ -44,10 +44,10 @@ FloatingWindow {
     }
 
     title: "FailWatch"
-    implicitWidth: 660
-    implicitHeight: 620
+    implicitWidth: 620
+    implicitHeight: 560
     minimumSize: Qt.size(560, 480)
-    maximumSize: Qt.size(760, 680)
+    maximumSize: Qt.size(760, 640)
     color: "transparent"
     visible: root.open || closeAnim.running
 

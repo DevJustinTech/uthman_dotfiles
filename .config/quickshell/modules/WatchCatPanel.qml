@@ -25,8 +25,8 @@ FloatingWindow {
     property real unattKb: 0
 
     title: "WatchCat"
-    implicitWidth: 700
-    implicitHeight: 380
+    implicitWidth: 820
+    implicitHeight: 400
     minimumSize: Qt.size(560, 320)
     maximumSize: Qt.size(900, 500)
     color: "transparent"

@@ -19,9 +19,9 @@ FloatingWindow {
 
     title: "Bluetooth"
     implicitWidth: 440
-    implicitHeight: 560
-    minimumSize: Qt.size(440, 560)
-    maximumSize: Qt.size(440, 560)
+    implicitHeight: 520
+    minimumSize: Qt.size(440, 520)
+    maximumSize: Qt.size(440, 520)
     color: "transparent"
     visible: root.open || closeAnim.running
 

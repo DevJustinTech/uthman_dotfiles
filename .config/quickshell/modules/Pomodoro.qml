@@ -30,9 +30,9 @@ FloatingWindow {
     readonly property string statePath: Quickshell.env("HOME") + "/.local/state/quickshell/pomodoro.json"
 
     title: "Pomodoro"
-    implicitWidth: 400
-    implicitHeight: 540
-    minimumSize: Qt.size(360, 480)
+    implicitWidth: 380
+    implicitHeight: 500
+    minimumSize: Qt.size(360, 450)
     maximumSize: Qt.size(460, 620)
     color: "transparent"
     visible: root.open || closeAnim.running

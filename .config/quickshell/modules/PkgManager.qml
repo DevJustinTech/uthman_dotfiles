@@ -171,10 +171,10 @@ FloatingWindow {
     }
 
     title: "Package Manager"
-    implicitWidth: 980
-    implicitHeight: 640
-    minimumSize: Qt.size(860, 520)
-    maximumSize: Qt.size(1200, 800)
+    implicitWidth: 840
+    implicitHeight: 560
+    minimumSize: Qt.size(760, 480)
+    maximumSize: Qt.size(1100, 660)
     color: "transparent"
     visible: root.open || closeAnim.running
 

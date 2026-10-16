@@ -23,9 +23,9 @@ FloatingWindow {
     property var cache: ({})
 
     title: "Dictionary"
-    implicitWidth: 560
-    implicitHeight: 500
-    minimumSize: Qt.size(480, 400)
+    implicitWidth: 520
+    implicitHeight: 460
+    minimumSize: Qt.size(460, 380)
     maximumSize: Qt.size(700, 620)
     color: "transparent"
     visible: root.open || closeAnim.running

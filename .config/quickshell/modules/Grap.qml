@@ -70,9 +70,9 @@ FloatingWindow {
     readonly property int preCap: 28     // leading snippet chars kept before the hit
 
     title: "Grap"
-    implicitWidth: 600
-    implicitHeight: 470
-    minimumSize: Qt.size(560, 420)
+    implicitWidth: 560
+    implicitHeight: 440
+    minimumSize: Qt.size(540, 400)
     maximumSize: Qt.size(640, 520)
     color: "transparent"
     visible: root.open || closeAnim.running

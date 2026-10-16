@@ -54,9 +54,9 @@ FloatingWindow {
     property int notifBase: -1
 
     title: "GitHubDash"
-    implicitWidth: 740
-    implicitHeight: 540
-    minimumSize: Qt.size(700, 500)
+    implicitWidth: 700
+    implicitHeight: 500
+    minimumSize: Qt.size(640, 460)
     maximumSize: Qt.size(760, 560)
     color: "transparent"
     visible: root.open || closeAnim.running

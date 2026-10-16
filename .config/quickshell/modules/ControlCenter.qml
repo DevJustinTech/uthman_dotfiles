@@ -365,9 +365,9 @@ FloatingWindow {
     }
 
     title: "Control Center"
-    implicitWidth: 760
-    implicitHeight: 580
-    minimumSize: Qt.size(700, 560)
+    implicitWidth: 700
+    implicitHeight: 540
+    minimumSize: Qt.size(640, 480)
     maximumSize: Qt.size(820, 640)
     color: "transparent"
     visible: root.open || closeAnim.running

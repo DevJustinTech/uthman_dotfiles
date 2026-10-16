@@ -80,10 +80,10 @@ FloatingWindow {
         return list
     }
     title: "System Monitor"
-    implicitWidth: 860
-    implicitHeight: 580
-    minimumSize: Qt.size(700, 480)
-    maximumSize: Qt.size(1000, 700)
+    implicitWidth: 840
+    implicitHeight: 560
+    minimumSize: Qt.size(640, 440)
+    maximumSize: Qt.size(1000, 660)
     color: "transparent"
     visible: root.open || closeAnim.running
 

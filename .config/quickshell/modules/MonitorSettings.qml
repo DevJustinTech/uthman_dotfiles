@@ -34,13 +34,13 @@ FloatingWindow {
     readonly property var mon: (selected >= 0 && selected < monitors.length) ? monitors[selected] : null
 
     title: "Monitors"
-    implicitWidth: 420
+    implicitWidth: 440
     implicitHeight: col.implicitHeight + 48
     // pinned like the old module: without a fixed size the fillWidth segs
     // inside the fill-parent column form an implicit-size loop and the
     // window blows up to a tile. Hyprland rules pin the same 460x620.
-    minimumSize: Qt.size(460, 620)
-    maximumSize: Qt.size(460, 620)
+    minimumSize: Qt.size(440, 560)
+    maximumSize: Qt.size(440, 560)
     color: "transparent"
     visible: root.open || closeAnim.running
 
