@@ -374,6 +374,16 @@ python3 ~/.config/quickshell/scripts/watchcat-dash.py <out.html> 1024
 
 The daemon samples in 12s chunks, flags "hot" processes (over 500 KB/s for 10s+), and warns at 500 MB and 1 GB via `notify-send`. History prunes to 7 days. Sudo is scoped to exactly one command in `/etc/sudoers.d/watchcat` (passwordless `nethogs`, nothing else).
 
+## FailWatch
+
+Silent-failure watchdog: failed systemd units (system + user scope) and high-signal journal events (OOM kills, segfaults, kernel oops, failed starts). Notify-only — alerts land in the notification center; the panel adds an on-demand `pacman -Qkk` package-integrity check.
+
+```bash
+systemctl --user enable --now failwatch.service
+```
+
+The daemon seeds its journal cursor on first run (no backlog spam), dedupes repeat events, and keeps a rolling 7-day history in `~/.local/share/failwatch/events.db`. The bar pill shows live state (`FW ok` / `FW n` / `FW ?`); the panel (launcher → FailWatch, no chord) gives every row its log id — failed units via `journalctl -u`, journal events via `--after-cursor=…`.
+
 ## Keybinds
 
 `SUPER+K` opens the searchable cheatsheet. The same list is executable from there. Essentials:

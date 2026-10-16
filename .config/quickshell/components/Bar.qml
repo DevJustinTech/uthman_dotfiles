@@ -109,7 +109,7 @@ PanelWindow {
     IpcHandler { target: "watchcat"; function toggle(): void { wcPanel.open = !wcPanel.open } }
     function toggleWatchCat() { wcPanel.open = !wcPanel.open }
 
-    // FailWatchPanel (320 lines) — `failwatch` bind
+    // FailWatchPanel (441 lines) — FailWatch pill + `failwatch` bind
     FailWatchPanel { id: fwPanel; colors: palette }
     IpcHandler { target: "failwatch"; function toggle(): void { fwPanel.open = !fwPanel.open } }
     MediaOsd { id: mediaOsd; colors: palette }
@@ -533,6 +533,10 @@ PanelWindow {
             WatchCat {
                 colors: bar.colors
                 onOpenRequested: toggleWatchCat()
+            }
+            FailWatch {
+                colors: bar.colors
+                onOpenRequested: fwPanel.open = !fwPanel.open
             }
             Battery { colors: bar.colors; onOpenRequested: batPanel.open = !batPanel.open }
             HoverHandler {
