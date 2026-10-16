@@ -9,15 +9,17 @@
 -- duplicated rules per window -- one regex covers them both instead.
 local QS = "^(quickshell|org.quickshell)$"
 
--- Centre a shell window at a fixed size.
+-- Centre a shell window at a fixed size, or pin it with an x/y instead.
 --
 -- Keep every height at 644 or under. This screen is 1366x768 and the bar is 54
 -- tall, so a centred window any taller puts its top edge behind the bar -- and
 -- because the opaque part of the bar is the island in its middle, what
 -- disappears is the middle of the panel rather than a corner. Four were over:
 -- ThemeEditor 740, Clipboard 730, Wallshelf 700, Screen Time 660.
-local function shell_window(title, width, height)
-  hl.window_rule({ match = { class = QS, title = title }, float = true, center = true, size = { width, height } })
+local function shell_window(title, width, height, x, y)
+  local rule = { match = { class = QS, title = title }, float = true, size = { width, height } }
+  if x then rule.move = { x, y } else rule.center = true end
+  hl.window_rule(rule)
 end
 
 shell_window("System Monitor", 840, 560)
@@ -30,7 +32,10 @@ hl.window_rule({ match = { class = QS, title = "^Hardware Health$" }, float = tr
 shell_window("Dictionary", 520, 460)
 shell_window("Package Manager", 840, 560)
 shell_window("WatchCat", 820, 400)
-shell_window("Control Center", 700, 540)
+-- Control Center opens bottom-left instead of centred -- it gets opened often
+-- while other windows are in use, so it stays out of the way. 218 = 768 - 540
+-- - 10, putting a gaps_out-sized margin on the bottom and left edges.
+shell_window("Control Center", 700, 540, 10, 218)
 shell_window("PDF Library", 860, 560)
 shell_window("Wallshelf", 860, 560)
 shell_window("Pomodoro", 380, 500)
