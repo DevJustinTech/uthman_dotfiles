@@ -108,8 +108,11 @@ python3 - <<'PY'
 from fontTools.ttLib import TTFont
 from pathlib import Path
 cmap = TTFont('/usr/share/fonts/TTF/FiraCodeNerdFont-Regular.ttf').getBestCmap()
-bad = [f"{p} U+{cp:04X}" for p in Path('.').rglob('*.qml')
-       for cp in sorted({ord(c) for c in p.read_text() if 0xE000 <= ord(c) <= 0xF8FF})
+def pua(c):  # all three private-use planes; Nerd Font MDI/FA glyphs live in plane 15
+    o = ord(c)
+    return 0xE000 <= o <= 0xF8FF or 0xF0000 <= o <= 0xFFFFD or 0x100000 <= o <= 0x10FFFD
+bad = [f"{p} U+{cp:05X}" for p in Path('.').rglob('*.qml')
+       for cp in sorted({ord(c) for c in p.read_text() if pua(c)})
        if cp not in cmap]
 print(bad or 'clean')
 PY
