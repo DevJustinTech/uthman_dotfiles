@@ -113,8 +113,22 @@ FloatingWindow {
         }
         return 1
     }
-    // drives the bounce; silent unless the panel is open and music is playing
-    Timer { id: segTick; interval: 50; running: root.open && root.isPlaying; repeat: true; onTriggered: root.segPhase += 0.3 }
+    // drives the bounce and refreshes the position bindings; silent unless the panel
+    // is open and music is playing. MPRIS players (Spotifast included) don't push
+    // Position updates mid-track, and quickshell deliberately leaves `position`
+    // signals inert until asked — reading it is always live, but no notify arrives,
+    // so npPos/npCur sat frozen until a pause forced a refresh. Re-emitting here,
+    // while the waveform is on screen, is quickshell's documented way to monitor it.
+    Timer {
+        id: segTick
+        interval: 50
+        running: root.open && root.isPlaying
+        repeat: true
+        onTriggered: {
+            root.segPhase += 0.3
+            if (root.hasPlayer) root.player.positionChanged()
+        }
+    }
     // visualizer — live cava feed, embedded here (moved from SUPER ALT V window)
     readonly property int vizBars: 24
     property var vizLevels: []

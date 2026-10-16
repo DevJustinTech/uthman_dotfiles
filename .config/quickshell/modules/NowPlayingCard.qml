@@ -66,13 +66,16 @@ PanelWindow {
     readonly property real length: root.hasPlayer ? (player.length || 0) : 0
     readonly property real progress: root.length > 0 ? Math.min(1, root.position / root.length) : 0
 
-    // position only moves while open; the island already owns the always-on state
+    // position only moves while open; the island already owns the always-on state.
+    // emit the *player's* notify, not ours — a QML property's own signal doesn't
+    // re-evaluate its binding, so root.positionChanged() left the bar frozen
+    // mid-track; player.positionChanged() makes the `position` binding re-read live.
     Timer {
         interval: 500
         running: root.open
         repeat: true
         triggeredOnStart: true
-        onTriggered: root.positionChanged()
+        onTriggered: if (root.hasPlayer) root.player.positionChanged()
     }
 
     anchors { top: true }
