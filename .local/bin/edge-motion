@@ -1,0 +1,496 @@
+#!/usr/bin/env python3
+"""edge-motion — Synaptics EdgeMotion-style drag continuation for libinput.
+
+Windows' Synaptics touchpad driver shipped "EdgeMotion": while a drag is in
+progress (text selection, file drag, screenshot region) and your finger runs
+out of pad, keeping it pressed against the pad's edge makes the pointer keep
+gliding in that direction until you pull back or release.
+
+libinput never implemented it, so Wayland desktops lost it. This daemon
+brings it back without touching the compositor:
+
+  * it watches the touchpad's raw evdev events,
+  * while a drag is active -- physical button held, or a tap-and-drag
+    (tap, then touch-and-move) in progress -- and the finger is pinned in
+    an edge zone of the pad, it injects smooth relative pointer motion
+    through a virtual uinput pointer called "edge-motion",
+  * gliding stops the moment the finger leaves the zone or the drag ends,
+    and the speed ramps up the longer you hold against the edge.
+
+One-time root setup for device access:  sudo ~/.local/bin/edge-motion-install
+Tuning: `edge-motion --help`; append flags to ExecStart in edge-motion.service.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import glob
+import os
+import select
+import signal
+import struct
+import sys
+import time
+
+# -- evdev / uinput constants -------------------------------------------------
+EV_SYN, EV_KEY, EV_REL, EV_ABS = 0x00, 0x01, 0x02, 0x03
+SYN_REPORT, SYN_DROPPED = 0, 3
+REL_X, REL_Y = 0x00, 0x01
+ABS_X, ABS_Y = 0x00, 0x01
+BTN_LEFT = 0x110
+BTN_RIGHT = 0x111
+BTN_MIDDLE = 0x112
+BTN_TOUCH = 0x14A
+BTN_TOOL_DOUBLETAP = 0x14D
+BTN_TOOL_TRIPLETAP = 0x14E
+BTN_TOOL_QUADTAP = 0x14F
+MULTI_TOOLS = (BTN_TOOL_DOUBLETAP, BTN_TOOL_TRIPLETAP, BTN_TOOL_QUADTAP)
+
+EVENT = struct.Struct("qqHHi")       # struct input_event (x86_64, 24 bytes)
+ABSINFO = struct.Struct("iiiiii")    # struct input_absinfo
+UINPUT_SETUP = struct.Struct("HHHH80sI")
+
+def _IOC(direction, typ, nr, size):
+    return (direction << 30) | (size << 16) | (ord(typ) << 8) | nr
+
+def _IO(typ, nr):
+    return _IOC(0, typ, nr, 0)
+
+def _IOW(typ, nr, size):
+    return _IOC(1, typ, nr, size)
+
+def _IOR(typ, nr, size):
+    return _IOC(2, typ, nr, size)
+
+EVIOCGNAME    = lambda n: _IOR("E", 0x06, n)
+EVIOCGABS     = lambda ax: _IOR("E", 0x40 + ax, ABSINFO.size)
+UI_SET_EVBIT  = _IOW("U", 100, 4)
+UI_SET_KEYBIT = _IOW("U", 101, 4)
+UI_SET_RELBIT = _IOW("U", 102, 4)
+UI_DEV_SETUP  = _IOW("U", 3, UINPUT_SETUP.size)
+UI_DEV_CREATE = _IO("U", 1)
+UI_DEV_DESTROY = _IO("U", 2)
+
+VERBOSE = False
+STOP = False
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", file=sys.stderr, flush=True)
+
+def vlog(msg):
+    if VERBOSE:
+        log(msg)
+
+def monotime():
+    ns = time.monotonic_ns()
+    return ns // 1_000_000_000, (ns // 1_000) % 1_000_000
+
+
+def read_name(fd):
+    buf = bytearray(256)
+    fcntl.ioctl(fd, EVIOCGNAME(len(buf)), buf)
+    return buf.split(b"\0", 1)[0].decode("utf-8", "replace")
+
+def read_absinfo(fd, axis):
+    buf = bytearray(ABSINFO.size)
+    fcntl.ioctl(fd, EVIOCGABS(axis), buf)
+    _value, minimum, maximum, _fuzz, _flat, _res = ABSINFO.unpack(buf)
+    return minimum, maximum
+
+def flags_have_ranges(a):
+    return None not in (a.x_min, a.x_max, a.y_min, a.y_max)
+
+def resolve_device(a):
+    """Open the touchpad. Returns (fd, path, name, {'x': (min, max), ...})."""
+    if a.device:
+        fd = os.open(a.device, os.O_RDONLY | os.O_NONBLOCK)
+        name = ""
+        try:
+            name = read_name(fd)
+        except OSError:
+            pass  # not an evdev device (the test harness uses a FIFO)
+        if flags_have_ranges(a):
+            info = {"x": (a.x_min, a.x_max), "y": (a.y_min, a.y_max)}
+        else:
+            try:
+                info = {"x": read_absinfo(fd, ABS_X), "y": read_absinfo(fd, ABS_Y)}
+            except OSError:
+                os.close(fd)
+                raise OSError(
+                    f"cannot read axis ranges from {a.device}; "
+                    "pass --x-min/--x-max/--y-min/--y-max") from None
+        log(f"watching {a.device}" + (f" ({name})" if name else ""))
+        return fd, a.device, name, info
+
+    denied = None
+    for path in sorted(glob.glob("/dev/input/event*")):
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        except PermissionError:
+            denied = path
+            continue
+        except OSError:
+            continue
+        try:
+            name = read_name(fd)
+        except OSError:
+            os.close(fd)
+            continue
+        if a.name_match.lower() in name.lower():
+            try:
+                info = {"x": read_absinfo(fd, ABS_X), "y": read_absinfo(fd, ABS_Y)}
+            except OSError:
+                os.close(fd)
+                continue
+            log(f"watching {path} ({name})")
+            return fd, path, name, info
+        os.close(fd)
+    if denied:
+        raise PermissionError(
+            f"input devices are not readable yet (e.g. {denied}) - "
+            "run: sudo ~/.local/bin/edge-motion-install")
+    raise OSError(f"no input device matching {a.name_match!r}")
+
+
+class VPointer:
+    """Relative pointer created via /dev/uinput. Created lazily, retried."""
+
+    def __init__(self, dry=False, name="edge-motion"):
+        self.dry = dry
+        self.name = name
+        self.fd = None
+        self.next_try = 0.0
+        if not dry:
+            self._create()
+
+    def _create(self):
+        try:
+            fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+        except OSError as e:
+            log(f"uinput unavailable ({e.strerror}); retrying in 5s")
+            self.next_try = time.monotonic() + 5.0
+            return
+        try:
+            fcntl.ioctl(fd, UI_SET_EVBIT, EV_REL)
+            fcntl.ioctl(fd, UI_SET_RELBIT, REL_X)
+            fcntl.ioctl(fd, UI_SET_RELBIT, REL_Y)
+            # Declare mouse buttons even though we never emit them: systemd's
+            # input_id only tags a REL-axis device ID_INPUT_MOUSE when it also
+            # has BTN_LEFT/MIDDLE/RIGHT, and libinput/Hyprland silently ignore
+            # pointer motion from devices that aren't classified as mice.
+            fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+            for btn in (BTN_LEFT, BTN_MIDDLE, BTN_RIGHT):
+                fcntl.ioctl(fd, UI_SET_KEYBIT, btn)
+            setup = UINPUT_SETUP.pack(0x03, 0x1209, 0x0001, 0x0001,
+                                      self.name.encode()[:79], 0)
+            fcntl.ioctl(fd, UI_DEV_SETUP, setup)
+            fcntl.ioctl(fd, UI_DEV_CREATE, 0)
+        except OSError as e:
+            log(f"uinput setup failed ({e}); retrying in 5s")
+            os.close(fd)
+            self.next_try = time.monotonic() + 5.0
+            return
+        self.fd = fd
+        time.sleep(0.25)  # let udev/the compositor pick the device up
+        log(f'virtual pointer "{self.name}" ready')
+
+    def emit(self, dx, dy):
+        if self.dry:
+            if dx or dy:
+                log(f"dry tick x={dx} y={dy}")
+            return
+        if self.fd is None:
+            if time.monotonic() < self.next_try:
+                return
+            self._create()
+            if self.fd is None:
+                return
+        sec, usec = monotime()
+        parts = []
+        if dx:
+            parts.append(EVENT.pack(sec, usec, EV_REL, REL_X, dx))
+        if dy:
+            parts.append(EVENT.pack(sec, usec, EV_REL, REL_Y, dy))
+        parts.append(EVENT.pack(sec, usec, EV_SYN, SYN_REPORT, 0))
+        try:
+            os.write(self.fd, b"".join(parts))
+        except BlockingIOError:
+            pass
+        except OSError as e:
+            log(f"uinput write failed ({e}); recreating")
+            self.close()
+            self.next_try = 0.0
+
+    def close(self):
+        if self.fd is not None:
+            try:
+                fcntl.ioctl(self.fd, UI_DEV_DESTROY, 0)
+            except OSError:
+                pass
+            try:
+                os.close(self.fd)
+            except OSError:
+                pass
+            self.fd = None
+
+
+class EdgeMotion:
+    def __init__(self, a, vp, info):
+        self.vp = vp
+        self.dwell = a.dwell / 1000.0
+        self.tap_max = a.tap_max / 1000.0
+        self.tap_gap = a.tap_gap / 1000.0
+        self.tick_int = max(4, a.tick) / 1000.0
+        self.ramp = max(100, a.ramp) / 1000.0
+        self.min_speed = a.min_speed
+        self.max_speed = a.max_speed
+        self.flip_x = -1 if a.flip_x else 1
+        self.flip_y = -1 if a.flip_y else 1
+        self.xmin, self.xmax = info["x"]
+        self.ymin, self.ymax = info["y"]
+        zone = max(0.005, min(0.5, a.zone_frac))
+        self.xzone = max(20, int((self.xmax - self.xmin) * zone))
+        self.yzone = max(20, int((self.ymax - self.ymin) * zone))
+        self.slop_x = max(8, int((self.xmax - self.xmin) * 0.02))
+        self.slop_y = max(8, int((self.ymax - self.ymin) * 0.02))
+        # state
+        self.pos = [None, None]
+        self.touch = False
+        self.btn_left = False
+        self.tools = {}
+        self.multi = False
+        self.tap_start = None
+        self.tap_start_pos = [None, None]
+        self.tap_moved = False
+        self.last_tap_end = None
+        self.tap_drag = False
+        self.zone_since = None
+        self.gliding = False
+        self.acc = [0.0, 0.0]
+        self.last_emit = 0.0
+        if VERBOSE:
+            log(f"ranges x=[{self.xmin},{self.xmax}] zone={self.xzone}  "
+                f"y=[{self.ymin},{self.ymax}] zone={self.yzone}")
+
+    def busy(self):
+        return self.touch and (self.btn_left or self.tap_drag)
+
+    def event(self, typ, code, value, now):
+        if typ == EV_ABS:
+            if code == ABS_X:
+                self.pos[0] = value
+            elif code == ABS_Y:
+                self.pos[1] = value
+            if self.tap_start is not None and not self.tap_moved:
+                for axis, slop in ((0, self.slop_x), (1, self.slop_y)):
+                    if self.pos[axis] is None:
+                        continue
+                    if self.tap_start_pos[axis] is None:
+                        # first position report after touch-down: adopt it
+                        self.tap_start_pos[axis] = self.pos[axis]
+                    elif abs(self.pos[axis] - self.tap_start_pos[axis]) > slop:
+                        self.tap_moved = True
+        elif typ == EV_KEY:
+            if code == BTN_TOUCH:
+                if value:
+                    self.touch = True
+                    self.tap_start = now
+                    self.tap_start_pos = [None, None]  # first report after down adopts
+                    self.tap_moved = False
+                    if (self.last_tap_end is not None
+                            and now - self.last_tap_end <= self.tap_gap):
+                        self.tap_drag = True
+                        vlog("tap-and-drag started")
+                    self.last_tap_end = None
+                else:
+                    self.touch = False
+                    ok = (self.tap_start is not None
+                          and now - self.tap_start <= self.tap_max
+                          and not self.tap_moved)
+                    self.last_tap_end = now if ok else None
+                    self.tap_start = None
+                    self.tap_drag = False
+                    self.zone_since = None
+                    self._stop_glide("touch lifted")
+            elif code == BTN_LEFT:
+                if value:
+                    self.btn_left = True
+                else:
+                    self.btn_left = False
+                    self.zone_since = None
+                    self._stop_glide("button released")
+            elif code in MULTI_TOOLS:
+                self.tools[code] = bool(value)
+                self.multi = any(self.tools.get(t) for t in MULTI_TOOLS)
+        elif typ == EV_SYN and code == SYN_DROPPED:
+            self.touch = False
+            self.btn_left = False
+            self.tap_drag = False
+            self.zone_since = None
+            self.tools.clear()
+            self.multi = False
+            self._stop_glide("syn dropped")
+
+    def _stop_glide(self, why):
+        if self.gliding:
+            vlog(f"glide stop ({why})")
+        self.gliding = False
+        self.acc = [0.0, 0.0]
+
+    def _zones(self):
+        zx = zy = 0
+        if self.pos[0] is not None:
+            if self.pos[0] <= self.xmin + self.xzone:
+                zx = -1
+            elif self.pos[0] >= self.xmax - self.xzone:
+                zx = 1
+        if self.pos[1] is not None:
+            if self.pos[1] <= self.ymin + self.yzone:
+                zy = -1
+            elif self.pos[1] >= self.ymax - self.yzone:
+                zy = 1
+        return zx, zy
+
+    def tick(self, now):
+        if not (self.busy() and not self.multi):
+            self.zone_since = None
+            self._stop_glide("not dragging")
+            return
+        zx, zy = self._zones()
+        if zx == 0 and zy == 0:
+            self.zone_since = None
+            self._stop_glide("left edge zone")
+            return
+        if self.zone_since is None:
+            self.zone_since = now
+            return
+        held = now - self.zone_since
+        if held < self.dwell:
+            return
+        if not self.gliding:
+            self.gliding = True
+            self.last_emit = now
+            direction = ("+x" if zx > 0 else "-x" if zx < 0 else "") \
+                      + ("+y" if zy > 0 else "-y" if zy < 0 else "")
+            vlog(f"glide start dir={direction}")
+        if now - self.last_emit < self.tick_int:
+            return
+        dt = min(now - self.last_emit, 0.05)
+        self.last_emit = now
+        frac = min(1.0, max(0.0, (held - self.dwell) / self.ramp))
+        speed = self.min_speed + (self.max_speed - self.min_speed) * frac
+        self.acc[0] += zx * self.flip_x * speed * dt
+        self.acc[1] += zy * self.flip_y * speed * dt
+        dx = int(self.acc[0])
+        dy = int(self.acc[1])
+        if dx or dy:
+            self.acc[0] -= dx
+            self.acc[1] -= dy
+            self.vp.emit(dx, dy)
+
+
+def watch(fd, em):
+    buf = b""
+    while not STOP:
+        timeout = 0.012 if em.busy() else 0.25
+        ready, _, _ = select.select([fd], [], [], timeout)
+        now = time.monotonic()
+        if fd in ready:
+            chunk = os.read(fd, EVENT.size * 256)
+            if not chunk:
+                raise OSError("end of device")
+            buf += chunk
+            while len(buf) >= EVENT.size:
+                _sec, _usec, typ, code, value = EVENT.unpack(buf[:EVENT.size])
+                buf = buf[EVENT.size:]
+                em.event(typ, code, value, now)
+        em.tick(now)
+
+
+def parse_args(argv):
+    ap = argparse.ArgumentParser(
+        prog="edge-motion",
+        description="Synaptics EdgeMotion-style drag continuation for libinput.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument("--device", help="touchpad event device (default: auto-detect)")
+    ap.add_argument("--name-match", default="synaptics",
+                    help="substring matched against device names")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="parse events and log what would happen; inject nothing")
+    ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--print-abs", action="store_true",
+                    help="print the device's axis ranges and exit")
+    ap.add_argument("--x-min", type=int)
+    ap.add_argument("--x-max", type=int)
+    ap.add_argument("--y-min", type=int)
+    ap.add_argument("--y-max", type=int)
+    ap.add_argument("--flip-x", action="store_true", help="invert horizontal glide")
+    ap.add_argument("--flip-y", action="store_true", help="invert vertical glide")
+    ap.add_argument("--zone-frac", type=float, default=0.07,
+                    help="edge zone width, fraction of each axis range")
+    ap.add_argument("--dwell", type=int, default=140, metavar="MS",
+                    help="pinned time before gliding starts")
+    ap.add_argument("--tap-max", type=int, default=300, metavar="MS")
+    ap.add_argument("--tap-gap", type=int, default=300, metavar="MS")
+    ap.add_argument("--min-speed", type=float, default=380.0, metavar="PX_S")
+    ap.add_argument("--max-speed", type=float, default=1500.0, metavar="PX_S")
+    ap.add_argument("--ramp", type=int, default=1400, metavar="MS")
+    ap.add_argument("--tick", type=int, default=12, metavar="MS")
+    return ap.parse_args(argv)
+
+
+def _on_signal(_signum, _frame):
+    global STOP
+    STOP = True
+
+
+def main(argv=None):
+    global VERBOSE
+    a = parse_args(argv)
+    VERBOSE = a.verbose
+    signal.signal(signal.SIGTERM, _on_signal)
+    signal.signal(signal.SIGINT, _on_signal)
+
+    if a.print_abs:
+        try:
+            fd, path, name, info = resolve_device(a)
+        except OSError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        print(f"{path}: {name or '(no name)'}")
+        print(f"  ABS_X {info['x'][0]}..{info['x'][1]}")
+        print(f"  ABS_Y {info['y'][0]}..{info['y'][1]}")
+        os.close(fd)
+        return 0
+
+    vp = VPointer(dry=a.dry_run)
+    last_err = None
+    while not STOP:
+        try:
+            fd, path, name, info = resolve_device(a)
+        except OSError as e:
+            msg = str(e)
+            if msg != last_err:
+                log(f"waiting for touchpad: {msg}")
+                last_err = msg
+            time.sleep(10)
+            continue
+        last_err = None
+        em = EdgeMotion(a, vp, info)
+        try:
+            watch(fd, em)
+        except OSError as e:
+            log(f"device lost ({e}); reconnecting")
+        finally:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if not STOP:
+            time.sleep(3)
+    vp.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

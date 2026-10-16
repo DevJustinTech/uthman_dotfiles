@@ -1,0 +1,27 @@
+[Unit]
+Description=EdgeMotion-style touchpad drag continuation (Synaptics-style edge drag)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/dotfiles/.local/bin/edge-motion --verbose
+Restart=on-failure
+RestartSec=5
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# One-time root setup for device access (touchpad + /dev/uinput):
+#     sudo ~/.local/bin/edge-motion-install
+#
+# Tuning — append to ExecStart (see edge-motion --help):
+#     --zone-frac 0.07    edge zone width, fraction of each axis range
+#     --dwell 140         ms pinned before gliding starts
+#     --min-speed 380     px/s at glide start
+#     --max-speed 1500    px/s after ramp-up
+#     --ramp 1400         ms to reach the max speed
+#     --flip-x / --flip-y invert glide on an axis (if it feels backwards)
+#
+# Debug: journalctl --user -u edge-motion -f
+
+[Install]
+WantedBy=graphical-session.target

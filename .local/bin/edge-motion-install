@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# edge-motion-install — one-time root setup for the edge-motion daemon.
+#
+# Grants the active session user read access to the touchpad and write
+# access to /dev/uinput (udev "uaccess" ACLs — no group changes, no
+# re-login), makes sure the uinput module loads at every boot, and reloads
+# udev. Safe to re-run. Run it with:
+#
+#     sudo ~/.local/bin/edge-motion-install
+set -euo pipefail
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Needs root. Run:  sudo ~/.local/bin/edge-motion-install" >&2
+    exit 1
+fi
+
+SELF="$(readlink -f "$0")"
+REPO="$(cd "$(dirname "$SELF")/../.." && pwd)"
+RULE_SRC="$REPO/etc/udev/rules.d/66-edge-motion.rules"
+RULE_DST=/etc/udev/rules.d/66-edge-motion.rules
+TARGET_USER="${SUDO_USER:-$(stat -c %U "$REPO")}"
+
+echo "edge-motion setup (session user: $TARGET_USER)"
+
+# 1. uinput: loaded now, and at every boot
+modprobe uinput
+echo uinput > /etc/modules-load.d/uinput.conf
+
+# 2. udev rules: uaccess ACLs for the active session user
+#    (66- is deliberate: it must run after 60-input-id.rules — which re-derives
+#    ID_INPUT_TOUCHPAD via the input_id builtin on every event — and before
+#    71-seat.rules / 73-seat-late.rules, which attach the seat tag and run the
+#    uaccess builtin that applies the ACL. A 99- rule is processed too late,
+#    and a rule numbered below 60- never sees ID_INPUT_TOUCHPAD.)
+install -m 0644 "$RULE_SRC" "$RULE_DST"
+rm -f /etc/udev/rules.d/99-edge-motion.rules \
+      /etc/udev/rules.d/60-edge-motion.rules  # stale names from earlier attempts
+udevadm control --reload-rules
+udevadm trigger --action=change --sysname-match=uinput
+udevadm trigger --action=change --subsystem-match=input --property-match=ID_INPUT_TOUCHPAD=1
+udevadm settle --timeout=10 || true
+
+# 3. verify, as the target user (udev applies ACLs asynchronously — retry)
+check_user() { runuser -u "$TARGET_USER" -- test "$1" "$2"; }
+touchpad="$(grep -ils 'Synaptics TouchPad' /sys/class/input/event*/device/name 2>/dev/null \
+            | grep -o 'event[0-9]*' | head -n1 || true)"
+uinput_ok=0
+touchpad_ok=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if check_user -w /dev/uinput; then uinput_ok=1; fi
+    if [ -n "$touchpad" ]; then
+        if check_user -r "/dev/input/$touchpad"; then touchpad_ok=1; fi
+    else
+        touchpad_ok=1
+    fi
+    if [ "$uinput_ok" = 1 ] && [ "$touchpad_ok" = 1 ]; then
+        break
+    fi
+    sleep 0.5
+done
+
+if [ "$uinput_ok" = 1 ]; then
+    echo "  /dev/uinput: writable by $TARGET_USER"
+else
+    echo "!! /dev/uinput not writable by $TARGET_USER" >&2
+fi
+if [ -n "$touchpad" ]; then
+    if [ "$touchpad_ok" = 1 ]; then
+        echo "  /dev/input/$touchpad: readable by $TARGET_USER"
+    else
+        echo "!! /dev/input/$touchpad not readable by $TARGET_USER" >&2
+    fi
+else
+    echo "  (no Synaptics touchpad found — skipping device check)"
+fi
+
+if [ "$uinput_ok" = 1 ] && [ "$touchpad_ok" = 1 ]; then
+    echo "Done. Start the daemon with:"
+    echo "    systemctl --user enable --now edge-motion.service"
+else
+    echo "ACLs did not land; diagnostics:" >&2
+    for dev in /dev/uinput ${touchpad:+/dev/input/$touchpad}; do
+        echo "  $dev:" >&2
+        udevadm info "$dev" 2>/dev/null | grep -E 'TAGS|ID_SEAT' | sed 's/^/    /' >&2 || true
+        getfacl -p "$dev" 2>/dev/null | grep -E '^user:' | sed 's/^/    /' >&2 || true
+    done
+    echo "Check /etc/udev/rules.d and reboot if this persists." >&2
+    exit 1
+fi

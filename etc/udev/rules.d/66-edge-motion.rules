@@ -1,0 +1,20 @@
+# edge-motion — Synaptics EdgeMotion-style drag continuation for touchpads.
+#
+# Grants the active session user read access to the touchpad and write
+# access to /dev/uinput, so ~/.local/bin/edge-motion can read the pad and
+# inject relative pointer motion as a plain user service (no root daemon).
+#
+# Numbered 66 on purpose. udev re-derives device properties from scratch on
+# every event, and only tags applied during the current run are visible to
+# later TAG== matches. So TAG+="uaccess" must be applied:
+#   - after 60-input-id.rules, which (re)imports ID_INPUT_TOUCHPAD via the
+#     input_id builtin — a 60- rule sorts before it and never sees that
+#     property, and
+#   - before 71-seat.rules (attaches the seat tag) and 73-seat-late.rules
+#     (RUN{builtin}+="uaccess", which applies the ACL — skipped for rules
+#     numbered above 73).
+#
+# Install with:  sudo ~/.local/bin/edge-motion-install   (safe to re-run)
+
+SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
+SUBSYSTEM=="misc", KERNEL=="uinput", OPTIONS+="static_node=uinput", TAG+="uaccess"
