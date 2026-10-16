@@ -30,7 +30,7 @@ hl.window_rule({ match = { class = QS, title = "^Hardware Health$" }, float = tr
 shell_window("Dictionary", 520, 460)
 shell_window("Package Manager", 840, 560)
 shell_window("WatchCat", 820, 400)
-shell_window("Control Center", 640, 496)
+shell_window("Control Center", 700, 540)
 shell_window("PDF Library", 860, 560)
 shell_window("Wallshelf", 860, 560)
 shell_window("Pomodoro", 380, 500)
