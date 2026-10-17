@@ -2,21 +2,21 @@
 """slurp-tap — slurp with tap-and-drag support (drop-in slurp replacement).
 
 On this machine libinput treats the touchpad as a plain mouse, so the
-user's habitual "tap, then quick touch + drag" gesture moves the cursor
-but carries NO button press at all — no region picker can ever open a
-selection square with it. And even where tap-to-click does work, slurp
-cancels the instant it sees a press+release without motion — exactly what
-a leading tap delivers a few hundred ms before the drag's second touch.
+user's habitual "double-tap, then quick touch + drag" gesture moves the
+cursor but carries NO button press at all — no region picker can ever
+open a selection square with it. And even where tap-to-click does work,
+slurp cancels the instant it sees a press+release without motion — exactly
+what the leading taps deliver a few hundred ms before the drag's touch.
 
 slurp-tap fixes both halves:
 
   1. PRESS SYNTHESIS. Its watcher reads the touchpad's raw evdev stream;
-     when it sees the classic tap-then-move gesture it synthesizes the
-     missing button press on a private uinput pointer ("slurp-tap-drag"):
-     press the moment the tap-followed touch moves past --drag-slop,
-     release when it lifts. Ordinary pointing (no preceding tap) never
-     presses; physical clicks and multi-finger touches take over from the
-     synth press instead of stacking on it.
+     when it sees the deliberate double-tap-then-move gesture it
+     synthesizes the missing button press on a private uinput pointer
+     ("slurp-tap-drag"): press the moment the double-tap-followed touch
+     moves past --drag-slop, release when it lifts. Ordinary pointing
+     (one tap or none) never presses; physical clicks and multi-finger
+     touches take over from the synth press instead of stacking on it.
 
   2. A STACK of pre-mapped slurp overlays, so a leading tap's click can
      never kill the pick:
@@ -105,8 +105,10 @@ DEFAULT_TAP_DUR = 0.30     # touch shorter than this can be a tap
 DEFAULT_TAP_MOVE = 400     # raw axis units of wobble still "a tap"
 DEFAULT_DRAG_SLOP = 150    # raw units a tap-followed touch must move to
                            # count as the drag half of tap-and-drag
-DEFAULT_GESTURE = 1.2      # a moving touch within this of a tap = the drag
-                           # half of tap-and-drag (synth press fires)
+DEFAULT_DOUBLE = 0.30      # max gap between the two taps of the double-tap
+                           # that arms tap-and-drag (deliberate gesture)
+DEFAULT_GESTURE = 1.2      # a moving touch within this of the double-tap =
+                           # the drag half of tap-and-drag (synth press)
 
 
 def make_synth_pointer():
@@ -179,24 +181,27 @@ class TapWatcher(threading.Thread):
     2. Emulates tap-and-drag for pickers: on this machine libinput treats
        the touchpad as a plain mouse, so a finger-drag carries no button
        press at all — the cursor moves, but no picker ever sees a press
-       and no selection square can open. When the watcher sees the classic
-       tap-then-move gesture it synthesizes the missing press/release on a
-       private uinput pointer: press the moment the moving touch has
-       travelled past drag_slop (only if a tap preceded it within
-       gesture_window, so ordinary pointing never presses), release on
-       lift. Physical clicks (BTN_LEFT) and multi-finger touches always
-       take over: the synth press is released, never stacked on top of
-       the real one.
+       and no selection square can open. When the watcher sees the
+       deliberate double-tap-then-move gesture it synthesizes the missing
+       press/release on a private uinput pointer: press the moment the
+       moving touch has travelled past drag_slop (only if a double-tap
+       preceded it within gesture_window, so a single tap or ordinary
+       pointing never presses), release on lift. Physical clicks
+       (BTN_LEFT) and multi-finger touches always take over: the synth
+       press is released, never stacked on top of the real one.
     """
 
-    def __init__(self, dev, tap_dur, tap_move, drag_slop, gesture_window):
+    def __init__(self, dev, tap_dur, tap_move, drag_slop, gesture_window,
+                 double_gap):
         super().__init__(daemon=True)
         self.dev = dev
         self.tap_dur = tap_dur
         self.tap_move = tap_move
         self.drag_slop = drag_slop
         self.gesture_window = gesture_window
+        self.double_gap = double_gap
         self.last_tap = 0.0
+        self.last_tap2 = 0.0
         self.drag_active = False
         try:
             self.synth = make_synth_pointer()
@@ -207,6 +212,14 @@ class TapWatcher(threading.Thread):
 
     def recent(self, window):
         return self.last_tap and (time.monotonic() - self.last_tap) <= window
+
+    def armed(self):
+        """Deliberate-gesture check: a drag only starts after a double-tap
+        (two taps within --double-gap of each other), recent enough within
+        gesture_window. A single tap never arms — that was the confusing
+        part of tap-then-drag."""
+        return (self.last_tap2
+                and (time.monotonic() - self.last_tap2) <= self.gesture_window)
 
     def _button(self, held):
         if self.synth is None:
@@ -265,8 +278,19 @@ class TapWatcher(threading.Thread):
                                         and moved <= self.tap_move
                                         and not multi and not left
                                         and not was_drag):
-                                    self.last_tap = time.monotonic()
-                                    debug("tap seen on touchpad")
+                                    now = time.monotonic()
+                                    prev = self.last_tap
+                                    self.last_tap = now
+                                    if (prev and now - prev
+                                            <= self.double_gap):
+                                        self.last_tap2 = now
+                                        debug("double-tap seen on touchpad")
+                                    else:
+                                        if not (self.last_tap2 and now
+                                                - self.last_tap2
+                                                <= self.double_gap):
+                                            self.last_tap2 = 0.0
+                                        debug("tap seen on touchpad")
                         elif code in MULTI_TOOLS:
                             if val:
                                 multi = True
@@ -284,12 +308,13 @@ class TapWatcher(threading.Thread):
                             if py is not None:
                                 moved += abs(val - py)
                             py = val
-                        # tap-then-move: the drag half of tap-and-drag. Only
-                        # fires right after a tap, so ordinary pointing (no
-                        # preceding tap) never presses anything.
+                        # double-tap-then-move: the drag half of
+                        # tap-and-drag. Only fires right after a double-
+                        # tap, so a single tap or ordinary pointing never
+                        # presses anything.
                         if (not self.drag_active and not multi and not left
                                 and moved > self.drag_slop
-                                and self.recent(self.gesture_window)):
+                                and self.armed()):
                             self._button(True)
                             self.drag_active = True
                             was_drag = True
@@ -361,10 +386,13 @@ def main():
     ap.add_argument("--drag-slop", type=int, default=DEFAULT_DRAG_SLOP,
                     help="raw units a tap-followed touch must move before "
                          "the synth drag press fires (150)")
+    ap.add_argument("--double-gap", type=float, default=DEFAULT_DOUBLE,
+                    help="max gap between the two taps of the double-tap "
+                         "that arms a drag (0.30s)")
     ap.add_argument("--gesture-window", type=float,
                     default=DEFAULT_GESTURE,
-                    help="how long after a tap a moving touch counts as "
-                         "its drag half (1.2s)")
+                    help="how long after the double-tap a moving touch "
+                         "counts as its drag half (1.2s)")
     ap.add_argument("--device", default="",
                     help="touchpad event device (default: auto-detect)")
     a = ap.parse_args()
@@ -379,7 +407,7 @@ def main():
     watcher = None
     if dev:
         watcher = TapWatcher(dev, a.tap_dur, a.tap_move,
-                             a.drag_slop, a.gesture_window)
+                             a.drag_slop, a.gesture_window, a.double_gap)
         watcher.start()
     else:
         log("touchpad not readable; tap-and-drag support degraded "

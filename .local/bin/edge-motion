@@ -11,9 +11,9 @@ brings it back without touching the compositor:
 
   * it watches the touchpad's raw evdev events,
   * while a drag is active -- physical button held, or a tap-and-drag
-    (tap, then touch-and-move) in progress -- and the finger is pinned in
-    an edge zone of the pad, it injects smooth relative pointer motion
-    through a virtual uinput pointer called "edge-motion",
+    (double-tap, then touch-and-move) in progress -- and the finger is
+    pinned in an edge zone of the pad, it injects smooth relative pointer
+    motion through a virtual uinput pointer called "edge-motion",
   * gliding stops the moment the finger leaves the zone or the drag ends,
     and the speed ramps up the longer you hold against the edge.
 
@@ -269,6 +269,7 @@ class EdgeMotion:
         self.tap_start_pos = [None, None]
         self.tap_moved = False
         self.last_tap_end = None
+        self.double_end = None
         self.last_drag_end = None
         self.tap_drag = False
         self.zone_since = None
@@ -306,21 +307,38 @@ class EdgeMotion:
                     self.tap_start = now
                     self.tap_start_pos = [None, None]  # first report after down adopts
                     self.tap_moved = False
-                    if ((self.last_tap_end is not None
-                            and now - self.last_tap_end <= self.tap_gap)
+                    if ((self.double_end is not None
+                            and now - self.double_end <= self.tap_gap)
                             or (self.last_drag_end is not None
                                 and now - self.last_drag_end
                                 <= self.lock_gap)):
                         self.tap_drag = True
                         vlog("tap-and-drag started")
-                    self.last_tap_end = None
+                    self.double_end = None
                     self.last_drag_end = None
                 else:
                     self.touch = False
                     ok = (self.tap_start is not None
                           and now - self.tap_start <= self.tap_max
                           and not self.tap_moved)
-                    self.last_tap_end = now if ok else None
+                    if ok:
+                        # double-tap arming: the drag starts only after TWO
+                        # quick taps (a single tap is just a click and never
+                        # arms anything).  A third quick tap refreshes the
+                        # double-tap instead of breaking the chain.
+                        prev = self.last_tap_end
+                        self.last_tap_end = now
+                        if (prev is not None
+                                and now - prev <= self.tap_gap):
+                            self.double_end = now
+                            vlog("double-tap seen")
+                        elif not (self.double_end is not None
+                                  and now - self.double_end
+                                  <= self.tap_gap):
+                            self.double_end = None
+                    else:
+                        self.last_tap_end = None
+                        self.double_end = None
                     if self.tap_drag:
                         # drag lock: lift-to-reposition mid-drag; a quick
                         # re-touch continues the drag (glides included)
@@ -362,10 +380,11 @@ class EdgeMotion:
                  self.pos[0], self.pos[1], self.gliding,
                  "-" if self.zone_since is None
                  else f"{time.monotonic() - self.zone_since:.2f}"))
-        vlog("state: tap_start={} last_tap_end={} last_drag_end={} "
-             "tap_moved={}".format(
+        vlog("state: tap_start={} last_tap_end={} double_end={} "
+             "last_drag_end={} tap_moved={}".format(
                  *(self._age(t) for t in
-                   (self.tap_start, self.last_tap_end, self.last_drag_end)),
+                   (self.tap_start, self.last_tap_end, self.double_end,
+                    self.last_drag_end)),
                  self.tap_moved))
         vlog(f"state: zones x<={self.xmin + self.xzone} or "
              f"x>={self.xmax - self.xzone}  y<={self.ymin + self.yzone} or "
@@ -484,8 +503,12 @@ def parse_args(argv):
                     help="override --zone-frac for the vertical axis")
     ap.add_argument("--dwell", type=int, default=140, metavar="MS",
                     help="pinned time before gliding starts")
-    ap.add_argument("--tap-max", type=int, default=300, metavar="MS")
-    ap.add_argument("--tap-gap", type=int, default=300, metavar="MS")
+    ap.add_argument("--tap-max", type=int, default=300, metavar="MS",
+                    help="max touch duration to count as a tap")
+    ap.add_argument("--tap-gap", type=int, default=300, metavar="MS",
+                    help="double-tap window: two taps this close together "
+                         "arm tap-and-drag; a touch this soon after the "
+                         "double-tap is its drag (a single tap never arms)")
     ap.add_argument("--lock-gap", type=int, default=300, metavar="MS",
                     help="drag lock: after lifting mid-drag, a re-touch "
                          "within this many ms continues the drag (users "
