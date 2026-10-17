@@ -54,7 +54,13 @@ shell_window("System", 440, 230)
 -- Zathura -- glass float. The third opacity value is the fullscreen one, which
 -- is what keeps the glass when it covers the screen (deco fullscreen_opacity
 -- would otherwise win).
-hl.window_rule({ match = { class = "^(org.pwmt.zathura)$" }, float = true, center = true, size = { 1100, 750 }, border_size = 0 })
+-- Size matters here: the old 1100x750 filled all but 166x18 of a 1366x768
+-- screen, so "float" was cosmetic -- there was nothing to float over. Sized to
+-- the house panel width (840) with room to spare under the 54px bar. Zathura
+-- itself never asks for a size; adjust-open=width in zathurarc scales the page
+-- to whatever window Hyprland hands it, so a smaller float just means a
+-- smaller page, never a cramped one.
+hl.window_rule({ match = { class = "^(org.pwmt.zathura)$" }, float = true, center = true, size = { 840, 620 }, border_size = 0 })
 hl.window_rule({ match = { class = "^(org.pwmt.zathura)$" }, opacity = "0.78 0.70 0.78" })
 
 -- mpv -- centred floating popup.
