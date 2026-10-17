@@ -84,6 +84,100 @@ restarts Quickshell).
 > (`~/.local/bin/askpass`, wired in `hypr/envs.lua`) still works for anything
 > that honours it.
 
+## Upgrades over the base
+
+The base is Uthman's dotfiles as inherited (his commits run through
+2026-10-10, before this setup ran on omarchy). The fork starts at the omarchy
+port on 2026-10-14, and everything below has been added or rebuilt since.
+
+### Omarchy port
+
+* Full port to omarchy's Hyprland 0.56 Lua config: this repo's shell replaces
+  `omarchy-shell` (see above), the matugen palette is emitted as Lua and pulled
+  in with `require("theme.colors")`, and every Hyprland dispatch was rewritten
+  for the Lua API.
+* `omarchy-shadow-check` guards the shadowed `autostart.lua` and runs from the
+  post-update hook, so `omarchy update` cannot silently drift.
+* foot is the terminal (matugen palette, zsh startup); kitty stays at a
+  matching 9pt for anything that still names it.
+* Lock and suspend: omarchy-shell's lock IPC is answered with hyprlock, and
+  sleep-lock restarts are kept out of the sleep transition. hypridle runs
+  screensaver at 10, lock at 13, screen off at 14 minutes.
+* SDDM's elarun-custom theme ported to Qt6; the last uthman-era references
+  purged.
+
+### Touchpad gestures
+
+The flagship addition: drags no longer stop at the pad's edge.
+
+* **edge-motion** (`~/.local/bin/edge-motion`, systemd user service, udev rule,
+  one-line installer `edge-motion-install`): during an armed drag, holding the
+  pad's edge zone glides the cursor past the physical limit. Drag lock
+  continues a glide after a mid-drag lift, multi-finger touches suppress it,
+  and the zones are tuned from real recorded gestures. `kill -USR1` on the
+  service dumps its full state to the journal.
+* **slurp-tap**: screenshot regions are picked with double-tap-then-drag. A
+  stack of slurp instances keeps the dim alive across leading taps, both
+  gesture tools share identical tap tests and windows, tap-to-click is
+  silenced for the duration of a pick, and the backdrop is a light 25% black.
+* **shot**: `SUPER+SHIFT+D` drag area, `SUPER+SHIFT+S` pretty,
+  `SUPER+SHIFT+T` OCR.
+* libinput's own tap-and-drag is switched off in `input.lua`: it synthesized a
+  drag press that never reached evdev, making it invisible to the whole
+  gesture stack.
+
+### Hornet, the desktop pet
+
+A free-roaming quickshell pet with a local state machine. The Groq integration
+is wired but disabled (offline mode; the key file is gitignored), and
+`SUPER+SHIFT+H` really powers it off and keeps it off.
+
+### Fit to this machine
+
+The screen is 1366x768, and the base assumed something bigger.
+
+* Default window sizes trimmed (Control Center 700x540 anchored bottom-left,
+  FastFetch 440x230), the zathura float sized to fit, and ThemeEditor,
+  Wallshelf, Screen Time and the Clipboard panel moved under the bar.
+
+### Shell fixes
+
+* Bar: hover-reveal sides, a live spectrum in place of the CPU-hungry wave, a
+  network pill with three states and verified glyphs, the bell reflecting DND,
+  and live MPRIS position in the seek graph and island.
+* Bluetooth: the forever-scan leak fixed, the smart-connect hook stripped.
+* Drive health reads real NVMe SMART, stops calling zram0 "the drive", and
+  keeps a stable window title so its rule fires.
+* Launcher: iconless apps no longer hidden, dead entries dropped, no 50-item
+  cap, and Utilities opens its own view.
+* Web apps open in chromeless Zen windows, focus instead of duplicating, and
+  no longer inherit the previous session.
+* Clipboard refuses image data before it reaches the pins table; toasts and
+  notification bodies are clickable.
+* Control Center gains a nightlight toggle; FastFetch shows the real session
+  user; the glyph audit reaches zero tofu across 479 glyphs.
+
+### Keybindings and apps
+
+* Dead stock chords swept, the power button and the Herdr chord revived,
+  `SUPER+C` returned to Universal copy, and the cheat sheet re-synced to the
+  live binding list.
+* `SUPER+SHIFT+M` points at Spotifast, themed from matugen.
+* The wifi and mute double-toggles fixed; `SUPER+RETURN` opens one terminal,
+  not two.
+
+### Wallshelf
+
+Download progress fixed, page skipping fixed, unclickable selection fixed, no
+more serving the same wallpapers forever, opens on Random, and sorts latest
+with explicit category filters.
+
+### Theming and docs
+
+* `-gtk-outline-radius` dropped (removed in GTK 3.24), the branding monogram
+  centered, the screentime backend installed, WatchCat given its missing
+  service unit, and this README rewritten for the port.
+
 ## Fresh machine
 
 The machine needs Omarchy installed first; this repo is a config layer on top.
