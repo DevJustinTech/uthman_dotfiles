@@ -33,6 +33,7 @@ FloatingWindow {
 
     // ---------- data ----------
     property string host: ""
+    property string os: ""
     property string uptime: ""
     property string kernel: ""
     property string packages: ""
@@ -41,14 +42,15 @@ FloatingWindow {
 
     Process {
         id: infoProc
-        command: ["sh","-c","echo \"$(cat /etc/hostname 2>/dev/null)|$(uptime -p 2>/dev/null | sed 's/up //')|$(uname -r)|$(pacman -Q 2>/dev/null | wc -l | xargs)|$(lscpu 2>/dev/null | grep 'Model name' | cut -d: -f2 | sed 's/Intel(R)//;s/CPU//;s/@.*//;s/  */ /g' | xargs)|$(lspci 2>/dev/null | grep -i 'vga\\|3d' | head -n1 | cut -d: -f3 | xargs)\""]
+        command: ["sh","-c","echo \"$(cat /etc/hostname 2>/dev/null)|$(uptime -p 2>/dev/null | sed 's/up //')|$(uname -r)|$(pacman -Q 2>/dev/null | wc -l | xargs)|$(lscpu 2>/dev/null | grep 'Model name' | cut -d: -f2 | sed 's/Intel(R)//;s/CPU//;s/@.*//;s/  */ /g' | xargs)|$(lspci 2>/dev/null | grep -i 'vga\\|3d' | head -n1 | cut -d: -f3 | xargs)|$(. /etc/os-release 2>/dev/null; echo \"$PRETTY_NAME $(uname -m)\")\""]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: {
                 var p = text.trim().split("|")
-                if (p.length >= 6) {
+                if (p.length >= 7) {
                     root.host = p[0]; root.uptime = p[1]; root.kernel = p[2]
                     root.packages = p[3]; root.cpuName = p[4]; root.gpuName = p[5]
+                    root.os = p[6]
                 }
             }
         }
@@ -176,7 +178,7 @@ FloatingWindow {
 
                     Repeater {
                         model: [
-                            { i: root.glyphs.arch,   l: "OS",       v: "Arch Linux x86_64" },
+                            { i: root.glyphs.arch,   l: "OS",       v: root.os === "" ? "Arch Linux x86_64" : root.os },
                             { i: root.glyphs.kernel, l: "KERNEL",   v: root.kernel },
                             { i: root.glyphs.pkg,    l: "PACKAGES", v: root.packages === "" ? "—" : root.packages + "  ·  pacman" },
                             { i: root.glyphs.cpu,    l: "CPU",      v: root.cpuName === "" ? "—" : root.cpuName },
