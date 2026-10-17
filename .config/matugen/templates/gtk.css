@@ -74,7 +74,6 @@
 /* ── Base ────────────────────────────────────────────────── */
 * {
     outline: none;
-    -gtk-outline-radius: 8px;
     -gtk-icon-palette: success @secondary, warning @tertiary, error @error;
 }
 
