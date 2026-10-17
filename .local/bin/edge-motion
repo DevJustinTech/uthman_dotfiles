@@ -266,6 +266,7 @@ class EdgeMotion:
         self.tap_drag = False
         self.zone_since = None
         self.gliding = False
+        self._multi_log = 0.0
         self.acc = [0.0, 0.0]
         self.last_emit = 0.0
         if VERBOSE:
@@ -331,6 +332,18 @@ class EdgeMotion:
             self.multi = False
             self._stop_glide("syn dropped")
 
+    def dump(self):
+        vlog("state: touch={} btn_left={} tap_drag={} multi={} tools={{{}}} "
+             "pos=({}, {}) gliding={} zone_since={}s ago".format(
+                 self.touch, self.btn_left, self.tap_drag, self.multi,
+                 ",".join(f"{k:#x}={int(v)}" for k, v in self.tools.items()),
+                 self.pos[0], self.pos[1], self.gliding,
+                 "-" if self.zone_since is None
+                 else f"{time.monotonic() - self.zone_since:.2f}"))
+        vlog(f"state: zones x<={self.xmin + self.xzone} or "
+             f"x>={self.xmax - self.xzone}  y<={self.ymin + self.yzone} or "
+             f"y>={self.ymax - self.yzone}")
+
     def _stop_glide(self, why):
         if self.gliding:
             vlog(f"glide stop ({why})")
@@ -353,6 +366,9 @@ class EdgeMotion:
 
     def tick(self, now):
         if not (self.busy() and not self.multi):
+            if self.busy() and self.multi and now - self._multi_log > 1.0:
+                self._multi_log = now
+                vlog("suppressed: multi-finger active (glide off)")
             self.zone_since = None
             self._stop_glide("not dragging")
             return
@@ -390,6 +406,7 @@ class EdgeMotion:
 
 
 def watch(fd, em):
+    global DUMP
     buf = b""
     while not STOP:
         timeout = 0.012 if em.busy() else 0.25
@@ -404,6 +421,9 @@ def watch(fd, em):
                 _sec, _usec, typ, code, value = EVENT.unpack(buf[:EVENT.size])
                 buf = buf[EVENT.size:]
                 em.event(typ, code, value, now)
+        if DUMP:
+            DUMP = False
+            em.dump()
         em.tick(now)
 
 
@@ -444,12 +464,21 @@ def _on_signal(_signum, _frame):
     STOP = True
 
 
+DUMP = False
+
+
+def _on_usr1(_signum, _frame):
+    global DUMP
+    DUMP = True
+
+
 def main(argv=None):
     global VERBOSE
     a = parse_args(argv)
     VERBOSE = a.verbose
     signal.signal(signal.SIGTERM, _on_signal)
     signal.signal(signal.SIGINT, _on_signal)
+    signal.signal(signal.SIGUSR1, _on_usr1)
 
     if a.print_abs:
         try:
