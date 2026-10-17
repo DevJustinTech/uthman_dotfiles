@@ -29,7 +29,10 @@ FloatingWindow {
     property bool catPeople: false
     property bool purSketchy: false
     property bool purNsfw: false
-    property string sorting: "toplist"
+    // Random by default: Wallhaven reshuffles per request, and its pool here is
+    // ~463k against toplist's ~1697 slow-moving entries. Toplist meant the same
+    // first page over and over. Still switchable in the panel; that choice sticks.
+    property string sorting: "random"
     property var tags: []              // active search tags (AND-matched with free query)
     property int page: 1
     property int lastPage: 1
@@ -39,7 +42,10 @@ FloatingWindow {
     // when the grid was last actually refilled — the panel stays warm, so this
     // is what decides whether reopening shows something new or the same rows
     property double lastSearchAt: 0
-    readonly property int staleMs: 600000   // reopen older than this gets a refetch
+    // Five minutes: with random sorting a refetch is genuinely new content, but
+    // each one clears the grid back to the top, so it should not fire on every
+    // rapid close/reopen. Tunable here.
+    readonly property int staleMs: 300000   // reopen older than this gets a refetch
     // swap the rows out only once fresh ones have actually landed, so a refetch
     // never blanks the grid and a failed one keeps what was already on screen
     property bool replaceOnAppend: false
