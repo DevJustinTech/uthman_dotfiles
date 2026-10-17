@@ -321,6 +321,10 @@ class EdgeMotion:
                     ok = (self.tap_start is not None
                           and now - self.tap_start <= self.tap_max
                           and self.tap_travel <= self.tap_move)
+                    dur = int((now - self.tap_start) * 1000) \
+                        if self.tap_start is not None else -1
+                    vlog(f"touch up dur={dur}ms travel={self.tap_travel}"
+                         + ("" if ok else " (not a tap)"))
                     if ok:
                         # double-tap arming: the drag starts only after TWO
                         # quick taps (a single tap is just a click and never
