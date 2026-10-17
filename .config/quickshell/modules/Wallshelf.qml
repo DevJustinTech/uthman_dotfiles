@@ -17,9 +17,8 @@ FloatingWindow {
     property string linkDir: Quickshell.env("HOME") + "/dotfiles/wallpapers"
     property string resOverride: ""
     property string detectedRes: "1920x1080"
-    property int fallbackMin: 3
-    property bool useFallback: true
     readonly property string cfgPath: Quickshell.env("HOME") + "/.config/quickshell/wallshelf.json"
+    property bool cfgReady: false       // config has been read back, so it is safe to write
     readonly property string resolution: resOverride !== "" ? resOverride : detectedRes
 
     // ── ui state ──
@@ -37,6 +36,13 @@ FloatingWindow {
     property bool loading: false
     // page was already bumped by loadMore() but its results have not landed yet
     property bool moreInFlight: false
+    // when the grid was last actually refilled — the panel stays warm, so this
+    // is what decides whether reopening shows something new or the same rows
+    property double lastSearchAt: 0
+    readonly property int staleMs: 600000   // reopen older than this gets a refetch
+    // swap the rows out only once fresh ones have actually landed, so a refetch
+    // never blanks the grid and a failed one keeps what was already on screen
+    property bool replaceOnAppend: false
     property string errorMsg: ""
     ListModel { id: resultModel }
     function wAt(i){
@@ -99,7 +105,10 @@ FloatingWindow {
     visible: root.open || closeAnim.running
     IpcHandler { target: "wallshelf"; function toggle(): void { root.open = !root.open } }
 
-    onOpenChanged: { if(open){ Qt.callLater(function(){ card.forceActiveFocus() }); if(resultModel.count === 0) search(true); root.resolveCurrent(); if(root.tab === "downloaded") root.refreshLocalMaybe(); openAnim.restart() } else closeAnim.restart() }
+    // The Loader above never unloads (shelfWarm latches), so the ListModel — and
+    // therefore the exact thumbnails you last saw — survives closing the panel.
+    // Refetch on reopen once the rows are old, or the store just shows a replay.
+    onOpenChanged: { if(open){ Qt.callLater(function(){ card.forceActiveFocus() }); if(Date.now() - root.lastSearchAt > root.staleMs) search(true); root.resolveCurrent(); if(root.tab === "downloaded") root.refreshLocalMaybe(); openAnim.restart() } else closeAnim.restart() }
     onPreviewIdxChanged: if(root.previewIdx !== -1 && root.tab === "browse") root.fetchPvTags()
 
     // ── config ──
@@ -127,13 +136,35 @@ FloatingWindow {
                 if(d.cacheDir && d.cacheDir.startsWith(Quickshell.env("HOME"))) root.cacheDir = d.cacheDir
                 if(d.linkDir && d.linkDir.startsWith(Quickshell.env("HOME"))) root.linkDir = d.linkDir
                 if(d.resOverride) root.resOverride = d.resOverride
-                if(typeof d.fallbackMin === "number") root.fallbackMin = d.fallbackMin
                 if(d.resolution && !root.resOverride) root.detectedRes = d.resolution
+                // Browse prefs. Without these the sort and every filter snapped back
+                // to their defaults on each restart, so the store kept showing the
+                // same handful of wallpapers no matter what you picked last night.
+                // sorting is whitelisted because it is concatenated into a request URL.
+                if(["toplist","latest","random","views"].indexOf(d.sorting) !== -1) root.sorting = d.sorting
+                if(typeof d.catGeneral === "boolean") root.catGeneral = d.catGeneral
+                if(typeof d.catAnime === "boolean") root.catAnime = d.catAnime
+                if(typeof d.catPeople === "boolean") root.catPeople = d.catPeople
+                if(typeof d.purSketchy === "boolean") root.purSketchy = d.purSketchy
+                if(typeof d.purNsfw === "boolean") root.purNsfw = d.purNsfw
             } catch(e) {}
+            // Only allow saves once the file has been read back. detectResolution()
+            // runs from Component.onCompleted and writes immediately, which would
+            // have rewritten the config from defaults before these properties were
+            // ever populated — silently discarding your sort and filter choices.
+            root.cfgReady = true
         }
+        onLoadFailed: root.cfgReady = true
     }
     function cfgSave(){
-        saveProc.command = ["sh","-c","mkdir -p '"+Quickshell.env("HOME")+"/.config/quickshell' '"+root.cacheDir+"' && echo '"+Qt.btoa(JSON.stringify({cacheDir: root.cacheDir, linkDir: root.linkDir, resOverride: root.resOverride, fallbackMin: root.fallbackMin, resolution: root.resolution}))+"' | base64 -d > '"+root.cfgPath+"'"]
+        if(!root.cfgReady) return
+        // base64 round-trip keeps the JSON out of the shell's quoting entirely
+        var cfg = {cacheDir: root.cacheDir, linkDir: root.linkDir,
+                   resOverride: root.resOverride, resolution: root.resolution,
+                   sorting: root.sorting, catGeneral: root.catGeneral,
+                   catAnime: root.catAnime, catPeople: root.catPeople,
+                   purSketchy: root.purSketchy, purNsfw: root.purNsfw}
+        saveProc.command = ["sh","-c","mkdir -p '"+Quickshell.env("HOME")+"/.config/quickshell' '"+root.cacheDir+"' && echo '"+Qt.btoa(JSON.stringify(cfg))+"' | base64 -d > '"+root.cfgPath+"'"]
         saveProc.running = true
     }
     Process { id: saveProc }
@@ -246,31 +277,34 @@ FloatingWindow {
     }
 
     // ── search ──
-    function apiUrl(pg, fallback){
+    // Wallhaven's resolutions= is an EXACT match, and nothing is published at
+    // exactly 1366x768 — measured total=0 for that query, so every search came
+    // back empty and bounced through a second "fallback" request. atleast= is
+    // what "for my screen" actually means; one request, real results.
+    function apiUrl(pg){
         var terms = root.tags.slice()
         if(root.query.trim() !== "") terms.push(root.query.trim())
         var u = "https://wallhaven.cc/api/v1/search?q=" + encodeURIComponent(terms.join(" "))
         u += "&categories=" + root.catParam + "&purity=" + root.purParam
         u += "&sorting=" + root.sortParam + "&order=desc&page=" + pg
-        if(!fallback) u += "&resolutions=" + root.resolution
-        else u += "&atleast=" + root.resolution
+        u += "&atleast=" + root.resolution
         if(root.apiKey !== "") u += "&apikey=" + root.apiKey
         return u
     }
     function search(reset){
         if(root.loading){ if(reset) root.resetQueued = true; root.searchQueued = true; return }
-        if(reset){ root.page = 1; resultModel.clear(); root.selected = {}; root.selCount = 0; root.previewIdx = -1; root.useFallback = true }
+        if(reset){ root.page = 1; root.replaceOnAppend = true; root.selected = {}; root.selCount = 0; root.previewIdx = -1 }
         root.moreInFlight = false
         var now = Date.now()
         var wait = Math.max(0, 1500 - (now - root.lastCall)) + root.backoffMs
-        root.pendingUrl = apiUrl(root.page, false)
+        root.pendingUrl = apiUrl(root.page)
         // loading must cover the wait too: leaving it false let onContentYChanged
         // re-enter loadMore() on every scroll tick and skip pages outright
         if(wait > 0){ root.loading = true; rateTimer.interval = wait; rateTimer.restart() }
         else doFetch(root.pendingUrl)
     }
     Timer { id: rateTimer; onTriggered: root.doFetch(root.pendingUrl) }
-    Timer { id: searchDebounce; interval: 350; onTriggered: { var r = root.debounceReset; root.debounceReset = false; root.search(r) } }
+    Timer { id: searchDebounce; interval: 350; onTriggered: { var r = root.debounceReset; root.debounceReset = false; root.search(r); root.cfgSave() } }
     function debouncedSearch(reset){ if(reset) root.debounceReset = true; searchDebounce.restart() }
     function doFetch(url){
         if(respCache[url] && (Date.now() - respCache[url].at < 60000)){
@@ -329,6 +363,7 @@ FloatingWindow {
         }
         root.backoffMs = 0
         root.moreInFlight = false
+        root.lastSearchAt = Date.now()
         // every distinct url was cached forever — drop the stale ones and cap the rest
         var cachedAt = Date.now()
         for(var ck in respCache){ if(cachedAt - respCache[ck].at >= 60000) delete respCache[ck] }
@@ -342,13 +377,8 @@ FloatingWindow {
                     res: w.resolution || "", cat: w.category || "", purity: w.purity || "",
                     views: (w.views || 0), favs: (w.favorites || 0)}
         })
-        if(root.useFallback && root.page === 1 && rows.length < root.fallbackMin){
-            root.useFallback = false
-            root.pendingUrl = apiUrl(1, true)
-            root.doFetch(root.pendingUrl)
-            return
-        }
-        root.useFallback = false
+        // page 1 of a fresh query replaces what is on screen; loadMore() appends
+        if(root.page === 1 && root.replaceOnAppend){ resultModel.clear(); root.replaceOnAppend = false }
         for(var k=0;k<rows.length;k++){
             var r = rows[k]
             resultModel.append({wid: r.id, wpage: r.page, wfull: r.full, wthumb: r.thumb, wres: r.res, wcat: r.cat, wpurity: r.purity, wviews: r.views, wfavs: r.favs})
@@ -359,7 +389,7 @@ FloatingWindow {
         if(root.loading || root.page >= root.lastPage) return
         root.page += 1
         root.moreInFlight = true
-        root.pendingUrl = apiUrl(root.page, false)
+        root.pendingUrl = apiUrl(root.page)
         var now = Date.now()
         var wait = Math.max(0, 1500 - (now - root.lastCall)) + root.backoffMs
         if(wait > 0){ root.loading = true; rateTimer.interval = wait; rateTimer.restart() }
