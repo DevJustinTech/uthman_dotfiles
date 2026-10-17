@@ -240,6 +240,7 @@ class EdgeMotion:
         self.dwell = a.dwell / 1000.0
         self.tap_max = a.tap_max / 1000.0
         self.tap_gap = a.tap_gap / 1000.0
+        self.gesture = getattr(a, "gesture", 1200) / 1000.0
         self.lock_gap = getattr(a, "lock_gap", 300) / 1000.0
         self.tick_int = max(4, a.tick) / 1000.0
         self.ramp = max(100, a.ramp) / 1000.0
@@ -308,7 +309,7 @@ class EdgeMotion:
                     self.tap_start_pos = [None, None]  # first report after down adopts
                     self.tap_moved = False
                     if ((self.double_end is not None
-                            and now - self.double_end <= self.tap_gap)
+                            and now - self.double_end <= self.gesture)
                             or (self.last_drag_end is not None
                                 and now - self.last_drag_end
                                 <= self.lock_gap)):
@@ -506,9 +507,14 @@ def parse_args(argv):
     ap.add_argument("--tap-max", type=int, default=300, metavar="MS",
                     help="max touch duration to count as a tap")
     ap.add_argument("--tap-gap", type=int, default=300, metavar="MS",
-                    help="double-tap window: two taps this close together "
-                         "arm tap-and-drag; a touch this soon after the "
-                         "double-tap is its drag (a single tap never arms)")
+                    help="double-tap window: the gap between the two taps "
+                         "that arm tap-and-drag (a single tap never arms)")
+    ap.add_argument("--gesture-window", type=int, default=1200,
+                    metavar="MS",
+                    help="how long after the double-tap a touch still "
+                         "counts as its drag half -- keep in step with "
+                         "slurp-tap's --gesture-window (the pick opens "
+                         "within it, so gliding must too)")
     ap.add_argument("--lock-gap", type=int, default=300, metavar="MS",
                     help="drag lock: after lifting mid-drag, a re-touch "
                          "within this many ms continues the drag (users "

@@ -27,8 +27,11 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin
 #     --lock-gap 300       drag lock: a re-touch this soon after lifting
 #                          mid-drag continues the drag (lift to reposition
 #                          before pushing a pad edge, glides included)
-#     --tap-gap 300        ms after a tap's lift in which a re-touch counts
-#                          as tap-and-drag
+#     --tap-gap 300        double-tap window: the gap between the two taps
+#     --gesture-window 1200 how long after the double-tap a touch still
+#                          counts as its drag half -- must stay in step
+#                          with slurp-tap's --gesture-window, or the pick
+#                          opens while gliding has already disarmed
 #     --min-speed 380      px/s at glide start
 #     --max-speed 1500     px/s after ramp-up
 #     --ramp 1400          ms to reach the max speed
