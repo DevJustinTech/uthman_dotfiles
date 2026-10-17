@@ -105,8 +105,11 @@ DEFAULT_TAP_DUR = 0.30     # touch shorter than this can be a tap
 DEFAULT_TAP_MOVE = 400     # raw axis units of wobble still "a tap"
 DEFAULT_DRAG_SLOP = 150    # raw units a tap-followed touch must move to
                            # count as the drag half of tap-and-drag
-DEFAULT_DOUBLE = 0.30      # max gap between the two taps of the double-tap
+DEFAULT_DOUBLE = 0.50      # max gap between the two taps of the double-tap
                            # that arms tap-and-drag (deliberate gesture)
+DEFAULT_LOCK = 1.0         # drag lock: a re-touch within this of the press
+                           # lifting continues the drag (no new double-tap;
+                           # edge-motion's --lock-gap keeps the same value)
 DEFAULT_GESTURE = 1.2      # a moving touch within this of the double-tap =
                            # the drag half of tap-and-drag (synth press)
 
@@ -186,13 +189,15 @@ class TapWatcher(threading.Thread):
        press/release on a private uinput pointer: press the moment the
        moving touch has travelled past drag_slop (only if a double-tap
        preceded it within gesture_window, so a single tap or ordinary
-       pointing never presses), release on lift. Physical clicks
-       (BTN_LEFT) and multi-finger touches always take over: the synth
-       press is released, never stacked on top of the real one.
+       pointing never presses), release on lift.  A re-touch within
+       lock_gap of that lift continues the drag (drag lock -- users lift
+       to reposition mid-selection), no new double-tap needed.  Physical
+       clicks (BTN_LEFT) and multi-finger touches always take over: the
+       synth press is released, never stacked on top of the real one.
     """
 
     def __init__(self, dev, tap_dur, tap_move, drag_slop, gesture_window,
-                 double_gap):
+                 double_gap, lock_gap):
         super().__init__(daemon=True)
         self.dev = dev
         self.tap_dur = tap_dur
@@ -200,8 +205,10 @@ class TapWatcher(threading.Thread):
         self.drag_slop = drag_slop
         self.gesture_window = gesture_window
         self.double_gap = double_gap
+        self.lock_gap = lock_gap
         self.last_tap = 0.0
         self.last_tap2 = 0.0
+        self.last_drag_up = 0.0
         self.drag_active = False
         try:
             self.synth = make_synth_pointer()
@@ -235,6 +242,16 @@ class TapWatcher(threading.Thread):
         if self.drag_active:
             self._button(False)
             self.drag_active = False
+            self.last_drag_up = time.monotonic()
+
+    def lock_recent(self):
+        """Drag lock: a re-touch within lock_gap of the synth press lifting
+        continues the drag (users lift to reposition mid-selection and
+        expect the next touch to keep going).  edge-motion's --lock-gap
+        keeps the same value, so the pick and the glide continue together.
+        """
+        return (self.last_drag_up
+                and (time.monotonic() - self.last_drag_up) <= self.lock_gap)
 
     def run(self):
         try:
@@ -309,12 +326,14 @@ class TapWatcher(threading.Thread):
                                 moved += abs(val - py)
                             py = val
                         # double-tap-then-move: the drag half of
-                        # tap-and-drag. Only fires right after a double-
-                        # tap, so a single tap or ordinary pointing never
-                        # presses anything.
+                        # tap-and-drag.  Only fires right after a
+                        # double-tap (or a quick re-touch after a lift --
+                        # the drag lock), so a single tap or ordinary
+                        # pointing never presses anything.
                         if (not self.drag_active and not multi and not left
                                 and moved > self.drag_slop
-                                and self.armed()):
+                                and (self.armed()
+                                     or self.lock_recent())):
                             self._button(True)
                             self.drag_active = True
                             was_drag = True
@@ -388,7 +407,12 @@ def main():
                          "the synth drag press fires (150)")
     ap.add_argument("--double-gap", type=float, default=DEFAULT_DOUBLE,
                     help="max gap between the two taps of the double-tap "
-                         "that arms a drag (0.30s)")
+                         "that arms a drag (0.50s; keep in step with "
+                         "edge-motion's --tap-gap)")
+    ap.add_argument("--lock-gap", type=float, default=DEFAULT_LOCK,
+                    help="drag lock: a re-touch within this of the press "
+                         "lifting continues the drag, no new double-tap "
+                         "(1.0s; keep in step with edge-motion)")
     ap.add_argument("--gesture-window", type=float,
                     default=DEFAULT_GESTURE,
                     help="how long after the double-tap a moving touch "
@@ -407,7 +431,8 @@ def main():
     watcher = None
     if dev:
         watcher = TapWatcher(dev, a.tap_dur, a.tap_move,
-                             a.drag_slop, a.gesture_window, a.double_gap)
+                             a.drag_slop, a.gesture_window, a.double_gap,
+                             a.lock_gap)
         watcher.start()
     else:
         log("touchpad not readable; tap-and-drag support degraded "

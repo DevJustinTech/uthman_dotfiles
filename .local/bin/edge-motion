@@ -240,8 +240,9 @@ class EdgeMotion:
         self.dwell = a.dwell / 1000.0
         self.tap_max = a.tap_max / 1000.0
         self.tap_gap = a.tap_gap / 1000.0
+        self.tap_move = getattr(a, "tap_move", 400)
         self.gesture = getattr(a, "gesture", 1200) / 1000.0
-        self.lock_gap = getattr(a, "lock_gap", 300) / 1000.0
+        self.lock_gap = getattr(a, "lock_gap", 1000) / 1000.0
         self.tick_int = max(4, a.tick) / 1000.0
         self.ramp = max(100, a.ramp) / 1000.0
         self.min_speed = a.min_speed
@@ -258,8 +259,6 @@ class EdgeMotion:
         zy_frac = max(0.005, min(0.5, zy_frac))
         self.xzone = max(20, int((self.xmax - self.xmin) * zx_frac))
         self.yzone = max(20, int((self.ymax - self.ymin) * zy_frac))
-        self.slop_x = max(8, int((self.xmax - self.xmin) * 0.02))
-        self.slop_y = max(8, int((self.ymax - self.ymin) * 0.02))
         # state
         self.pos = [None, None]
         self.touch = False
@@ -267,8 +266,8 @@ class EdgeMotion:
         self.tools = {}
         self.multi = False
         self.tap_start = None
-        self.tap_start_pos = [None, None]
-        self.tap_moved = False
+        self.tap_start_pos = [None, None]  # last value per axis this touch
+        self.tap_travel = 0                # summed axis travel (slurp's "moved")
         self.last_tap_end = None
         self.double_end = None
         self.last_drag_end = None
@@ -290,24 +289,24 @@ class EdgeMotion:
             axis = 0 if code == ABS_X else 1 if code == ABS_Y else None
             if axis is not None:
                 self.pos[axis] = value
-                if self.tap_start is not None and not self.tap_moved:
-                    slop = self.slop_x if axis == 0 else self.slop_y
+                if self.tap_start is not None:
                     if self.tap_start_pos[axis] is None:
-                        # first report OF THIS AXIS after touch-down: adopt
-                        # it as the tap's origin.  (Adopting on every event
-                        # would let the stale coordinate of the *other*
-                        # axis become the origin, and the next real report
-                        # would then exceed slop and poison the tap.)
+                        # first report OF THIS AXIS after touch-down:
+                        # adopt it as the running value.  (Differencing
+                        # against the stale coordinate of the *other*
+                        # touch would poison the travel sum.)
                         self.tap_start_pos[axis] = value
-                    elif abs(value - self.tap_start_pos[axis]) > slop:
-                        self.tap_moved = True
+                    else:
+                        self.tap_travel += abs(
+                            value - self.tap_start_pos[axis])
+                        self.tap_start_pos[axis] = value
         elif typ == EV_KEY:
             if code == BTN_TOUCH:
                 if value:
                     self.touch = True
                     self.tap_start = now
                     self.tap_start_pos = [None, None]  # first report after down adopts
-                    self.tap_moved = False
+                    self.tap_travel = 0
                     if ((self.double_end is not None
                             and now - self.double_end <= self.gesture)
                             or (self.last_drag_end is not None
@@ -321,7 +320,7 @@ class EdgeMotion:
                     self.touch = False
                     ok = (self.tap_start is not None
                           and now - self.tap_start <= self.tap_max
-                          and not self.tap_moved)
+                          and self.tap_travel <= self.tap_move)
                     if ok:
                         # double-tap arming: the drag starts only after TWO
                         # quick taps (a single tap is just a click and never
@@ -382,11 +381,11 @@ class EdgeMotion:
                  "-" if self.zone_since is None
                  else f"{time.monotonic() - self.zone_since:.2f}"))
         vlog("state: tap_start={} last_tap_end={} double_end={} "
-             "last_drag_end={} tap_moved={}".format(
+             "last_drag_end={} tap_travel={}".format(
                  *(self._age(t) for t in
                    (self.tap_start, self.last_tap_end, self.double_end,
                     self.last_drag_end)),
-                 self.tap_moved))
+                 self.tap_travel))
         vlog(f"state: zones x<={self.xmin + self.xzone} or "
              f"x>={self.xmax - self.xzone}  y<={self.ymin + self.yzone} or "
              f"y>={self.ymax - self.yzone}")
@@ -506,19 +505,25 @@ def parse_args(argv):
                     help="pinned time before gliding starts")
     ap.add_argument("--tap-max", type=int, default=300, metavar="MS",
                     help="max touch duration to count as a tap")
-    ap.add_argument("--tap-gap", type=int, default=300, metavar="MS",
+    ap.add_argument("--tap-gap", type=int, default=500, metavar="MS",
                     help="double-tap window: the gap between the two taps "
-                         "that arm tap-and-drag (a single tap never arms)")
+                         "that arm tap-and-drag (a single tap never arms; "
+                         "keep in step with slurp-tap's --double-gap)")
+    ap.add_argument("--tap-move", type=int, default=400, metavar="UNITS",
+                    help="max summed axis travel to count as a tap -- "
+                         "identical to slurp-tap's --tap-move so both "
+                         "tools accept the same taps")
     ap.add_argument("--gesture-window", type=int, default=1200,
                     metavar="MS",
                     help="how long after the double-tap a touch still "
                          "counts as its drag half -- keep in step with "
                          "slurp-tap's --gesture-window (the pick opens "
                          "within it, so gliding must too)")
-    ap.add_argument("--lock-gap", type=int, default=300, metavar="MS",
+    ap.add_argument("--lock-gap", type=int, default=1000, metavar="MS",
                     help="drag lock: after lifting mid-drag, a re-touch "
                          "within this many ms continues the drag (users "
-                         "lift to reposition before pushing a pad edge)")
+                         "lift to reposition before pushing a pad edge; "
+                         "keep in step with slurp-tap's --lock-gap)")
     ap.add_argument("--min-speed", type=float, default=380.0, metavar="PX_S")
     ap.add_argument("--max-speed", type=float, default=1500.0, metavar="PX_S")
     ap.add_argument("--ramp", type=int, default=1400, metavar="MS")

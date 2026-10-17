@@ -24,10 +24,15 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin
 #     --zone-frac-y 0.12   vertical edge zone (narrower: normal dragging
 #                          lives near the pad's top/bottom)
 #     --dwell 250          ms pinned in the zone before gliding starts
-#     --lock-gap 300       drag lock: a re-touch this soon after lifting
+#     --lock-gap 1000      drag lock: a re-touch this soon after lifting
 #                          mid-drag continues the drag (lift to reposition
-#                          before pushing a pad edge, glides included)
-#     --tap-gap 300        double-tap window: the gap between the two taps
+#                          before pushing a pad edge, glides included) --
+#                          slurp-tap's --lock-gap shares the value, so the
+#                          pick and the glide continue together
+#     --tap-gap 500        double-tap window: the gap between the two taps
+#     --tap-move 400       max summed axis travel to count as a tap --
+#                          both identical to slurp-tap's --double-gap and
+#                          --tap-move, so both tools accept the same taps
 #     --gesture-window 1200 how long after the double-tap a touch still
 #                          counts as its drag half -- must stay in step
 #                          with slurp-tap's --gesture-window, or the pick
