@@ -19,6 +19,15 @@ hl.config({
     touchpad = {
       natural_scroll = true,
       scroll_factor = 1,
+
+      -- libinput's tap-and-drag synthesizes its own drag press from a
+      -- SINGLE tap + touch-move, and that press never reaches the pad's
+      -- evdev stream -- edge-motion cannot see it, so glides could never
+      -- fire while it owned the gesture.  Drag gestures are handled by
+      -- our own double-tap stack (slurp-tap + edge-motion) instead, which
+      -- keeps both tools arming together.  Tap-to-click stays as Hyprland
+      -- defaults it (enabled).
+      tap_and_drag = false,
     },
   },
 })
