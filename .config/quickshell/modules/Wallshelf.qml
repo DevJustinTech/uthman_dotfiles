@@ -35,6 +35,8 @@ FloatingWindow {
     property int page: 1
     property int lastPage: 1
     property bool loading: false
+    // page was already bumped by loadMore() but its results have not landed yet
+    property bool moreInFlight: false
     property string errorMsg: ""
     ListModel { id: resultModel }
     function wAt(i){
@@ -125,7 +127,7 @@ FloatingWindow {
                 if(d.cacheDir && d.cacheDir.startsWith(Quickshell.env("HOME"))) root.cacheDir = d.cacheDir
                 if(d.linkDir && d.linkDir.startsWith(Quickshell.env("HOME"))) root.linkDir = d.linkDir
                 if(d.resOverride) root.resOverride = d.resOverride
-                if(d.fallbackMin) root.fallbackMin = d.fallbackMin
+                if(typeof d.fallbackMin === "number") root.fallbackMin = d.fallbackMin
                 if(d.resolution && !root.resOverride) root.detectedRes = d.resolution
             } catch(e) {}
         }
@@ -178,8 +180,11 @@ FloatingWindow {
             }
         }
     }
+    // Only count files that still resolve. `ls` happily lists a dangling symlink,
+    // so deleting a wallpaper from the Downloaded tab used to leave it flagged as
+    // downloaded — enqueue() then early-returned and it could never come back.
     function refreshDownloaded(){
-        dlListProc.command = ["sh","-c","ls '"+root.linkDir+"' '"+root.cacheDir+"' 2>/dev/null"]
+        dlListProc.command = ["sh","-c","find '"+root.linkDir+"' '"+root.cacheDir+"' -maxdepth 1 \\( -type f -o -xtype f \\) -printf '%f\\n' 2>/dev/null"]
         dlListProc.running = true
     }
     Process {
@@ -255,10 +260,13 @@ FloatingWindow {
     function search(reset){
         if(root.loading){ if(reset) root.resetQueued = true; root.searchQueued = true; return }
         if(reset){ root.page = 1; resultModel.clear(); root.selected = {}; root.selCount = 0; root.previewIdx = -1; root.useFallback = true }
+        root.moreInFlight = false
         var now = Date.now()
         var wait = Math.max(0, 1500 - (now - root.lastCall)) + root.backoffMs
         root.pendingUrl = apiUrl(root.page, false)
-        if(wait > 0){ rateTimer.interval = wait; rateTimer.restart() }
+        // loading must cover the wait too: leaving it false let onContentYChanged
+        // re-enter loadMore() on every scroll tick and skip pages outright
+        if(wait > 0){ root.loading = true; rateTimer.interval = wait; rateTimer.restart() }
         else doFetch(root.pendingUrl)
     }
     Timer { id: rateTimer; onTriggered: root.doFetch(root.pendingUrl) }
@@ -313,11 +321,20 @@ FloatingWindow {
                 root.backoffMs = Math.min(30000, (root.backoffMs || 2000) * 2)
                 root.errorMsg = "Rate limited — backing off, scroll to retry"
             } else root.errorMsg = "Search failed — check connection"
+            // the page bump was optimistic — hand it back, otherwise "scroll to
+            // retry" would sail past the page that just failed
+            if(root.moreInFlight){ root.moreInFlight = false; root.page = Math.max(1, root.page - 1) }
             if(root.searchQueued){ root.searchQueued = false; var rq = root.resetQueued; root.resetQueued = false; root.search(rq) }
             return
         }
         root.backoffMs = 0
-        respCache[root.pendingUrl] = {at: Date.now(), body: text}
+        root.moreInFlight = false
+        // every distinct url was cached forever — drop the stale ones and cap the rest
+        var cachedAt = Date.now()
+        for(var ck in respCache){ if(cachedAt - respCache[ck].at >= 60000) delete respCache[ck] }
+        var ckeys = Object.keys(respCache)
+        for(var ci = 0; ci < ckeys.length - 80; ci++) delete respCache[ckeys[ci]]
+        respCache[root.pendingUrl] = {at: cachedAt, body: text}
         root.lastPage = (d.meta && d.meta.last_page) || 1
         var rows = d.data.map(function(w){
             return {id: w.id, page: "https://wallhaven.cc/w/" + w.id,
@@ -341,10 +358,11 @@ FloatingWindow {
     function loadMore(){
         if(root.loading || root.page >= root.lastPage) return
         root.page += 1
+        root.moreInFlight = true
         root.pendingUrl = apiUrl(root.page, false)
         var now = Date.now()
         var wait = Math.max(0, 1500 - (now - root.lastCall)) + root.backoffMs
-        if(wait > 0){ rateTimer.interval = wait; rateTimer.restart() }
+        if(wait > 0){ root.loading = true; rateTimer.interval = wait; rateTimer.restart() }
         else root.doFetch(root.pendingUrl)
     }
 
@@ -352,7 +370,6 @@ FloatingWindow {
     property var dlQueue: []
     property string dlCurrent: ""
     property var dlState: ({})          // id -> {pct, status}
-    property int dlActive: 0
     function dlSet(id, pct, status){
         var s = Object.assign({}, root.dlState)
         s[id] = {pct: pct, status: status}
@@ -396,17 +413,36 @@ FloatingWindow {
         var w = root.dlQueue[0]
         root.dlQueue = root.dlQueue.slice(1)
         root.dlCurrent = w.id
-        root.dlActive = root.dlQueue.length + 1
         var fn = fnameFor(w)
-        dlTotal = 0
-        dlPath = root.cacheDir + "/" + fn
+        root.dlTotal = 0
+        root.dlPath = root.cacheDir + "/" + fn
         root.dlSet(w.id, 0, "downloading")
-        dlProc.command = ["sh","-c","mkdir -p '"+root.cacheDir+"' '"+root.linkDir+"' && rm -f '"+dlPath+"' && total=$(curl -sIL -m 20 -H 'User-Agent: wallshelf/1.0' '"+w.full.replace(/'/g,"'\\''")+"' | grep -i '^content-length:' | tail -1 | tr -dc '0-9'); echo TOTAL_${total:-0} && curl -sSL -m 600 -H 'User-Agent: wallshelf/1.0' '"+w.full.replace(/'/g,"'\\''")+"' -o '"+dlPath+"' && ln -sf '"+dlPath+"' '"+root.linkDir+"/"+fn+"' && echo DL_OK || echo DL_FAIL"]
+        dlProc.command = ["sh","-c","mkdir -p '"+root.cacheDir+"' '"+root.linkDir+"' && rm -f '"+root.dlPath+"' && curl -sSL -m 600 -H 'User-Agent: wallshelf/1.0' '"+w.full.replace(/'/g,"'\\''")+"' -o '"+root.dlPath+"' && ln -sf '"+root.dlPath+"' '"+root.linkDir+"/"+fn+"' && echo DL_OK || echo DL_FAIL"]
         dlProc.running = true
+        // The size probe has to be its own job. Bundled into dlProc it only landed
+        // once the file was already on disk (waitForEnd), so dlTotal never became
+        // non-zero, pollTimer's gate stayed shut and the bar sat at 0% throughout.
+        headProc.pendingId = w.id
+        headProc.command = ["sh","-c","curl -sIL -m 20 -H 'User-Agent: wallshelf/1.0' '"+w.full.replace(/'/g,"'\\''")+"' | grep -i '^content-length:' | tail -1 | tr -dc '0-9'"]
+        headProc.running = true
         pollTimer.restart()
     }
     property string dlPath: ""
     property double dlTotal: 0
+    // content-length only; guarded by pendingId so a slow HEAD for the previous
+    // job cannot stamp the next job's total
+    Process {
+        id: headProc
+        property string pendingId: ""
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: {
+                if(headProc.pendingId !== root.dlCurrent) return
+                var n = parseInt(text.replace(/[^0-9]/g, "")) || 0
+                root.dlTotal = n
+            }
+        }
+    }
     Timer {
         id: pollTimer
         interval: 400
@@ -426,7 +462,7 @@ FloatingWindow {
             onStreamFinished: {
                 if(root.dlCurrent === "" || root.dlTotal <= 0) return
                 var got = parseInt(text.trim()) || 0
-                root.dlSet(root.dlCurrent, Math.min(99, Math.round(got / root.dlTotal * 100)), "downloading")
+                root.dlSet(root.dlCurrent, Math.min(100, Math.round(got / root.dlTotal * 100)), "downloading")
             }
         }
     }
@@ -449,7 +485,6 @@ FloatingWindow {
                 root.dlCurrent = ""
                 root.dlPath = ""
                 root.dlTotal = 0
-                root.dlActive = root.dlQueue.length
                 if(!root.dlQueue.length && ok) root.errorMsg = ""
                 pumpQueue()
             }
@@ -464,8 +499,11 @@ FloatingWindow {
     }
     function removeLocal(path){
         if(!path) return
+        if(root.curReady && path === root.currentWallpaper){ root.errorMsg = "That's the current wallpaper — set another one first"; return }
         var q = path.replace(/'/g,"'\\''")
-        rmProc.command = ["sh","-c","rm -f '"+q+"' && echo RM_OK"]
+        var base = path.split("/").pop().replace(/'/g,"'\\''")
+        // drop the shelf symlink too, or it lingers as a dangling link forever
+        rmProc.command = ["sh","-c","rm -f '"+q+"' '"+root.linkDir.replace(/'/g,"'\\''")+"/"+base+"' && echo RM_OK"]
         rmProc.pendingId = ""
         rmProc.pendingLocal = true
         rmProc.running = true
@@ -668,8 +706,10 @@ FloatingWindow {
                     RowLayout { anchors.fill: parent; anchors.leftMargin: 7; anchors.rightMargin: 10; spacing: 10
                         Rectangle { width: 30; height: 30; radius: 9; color: colors.primary; Layout.alignment: Qt.AlignVCenter
                             Text { anchors.centerIn: parent; text: "󰍉"; color: colors.background; font.family: colors.fontSans; font.pixelSize: 14 } }
-                        TextField { id: qField; Layout.fillWidth: true; placeholderText: "Search Wallhaven…"; placeholderTextColor: colors.alpha(colors.outline, 0.45); color: colors.foreground; font.family: colors.fontSans; font.pixelSize: 13; background: null; selectByMouse: true; onAccepted: { root.query = text.trim(); root.search(true); card.forceActiveFocus() } }
+                        TextField { id: qField; Layout.fillWidth: true; placeholderText: "Search Wallhaven…"; placeholderTextColor: colors.alpha(colors.outline, 0.45); color: colors.foreground; font.family: colors.fontSans; font.pixelSize: 13; background: null; selectByMouse: true
+                            onAccepted: { root.query = text.trim(); root.search(true); card.forceActiveFocus() }
                             Keys.onEscapePressed: function(event){ card.forceActiveFocus(); event.accepted = true }
+                        }
                     }
                 }
                 // selected counter + bulk button
@@ -821,16 +861,6 @@ FloatingWindow {
                         color: colors.alpha(colors.primary, 0.9)
                         Text { anchors.centerIn: parent; text: ""; color: colors.alpha(colors.background, 1); font.family: colors.fontSans; font.pixelSize: 11; font.weight: Font.ExtraBold }
                     }
-                    // selected checkbox (top-left) + progress overlay
-                    Rectangle {
-                        anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 7
-                        width: 22; height: 22; radius: 6
-                        color: root.selected[wid] ? colors.alpha(colors.primary, 0.9) : colors.alpha(colors.background, 0.6)
-                        border.width: 1; border.color: colors.alpha(colors.primary, 0.6)
-                        visible: root.selected[wid] || thumbMa.containsMouse
-                        Text { anchors.centerIn: parent; text: ""; visible: !!root.selected[wid]; color: colors.alpha(colors.background, 1); font.family: colors.fontSans; font.pixelSize: 11; font.weight: Font.ExtraBold }
-                        MouseArea { anchors.fill: parent; onClicked: root.toggleSelect({id: wid}) }
-                    }
                     Rectangle {
                         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                         height: 26
@@ -842,12 +872,24 @@ FloatingWindow {
                             width: Math.max(0, (parent.width - 6) * ((root.dlState[wid] || {}).pct || 0) / 100)
                             color: colors.alpha(colors.primary, 0.7)
                         }
-                        Text { anchors.centerIn: parent; text: ((root.dlState[wid] || {}).status === "queued") ? "queued" : (Math.round(((root.dlState[wid] || {}).pct || 0)) + "%  ↓"); color: colors.foreground; font.family: colors.fontSans; font.pixelSize: 8; font.weight: Font.Bold }
+                        Text { anchors.centerIn: parent; text: (function(){ var s = root.dlState[wid]; if(!s) return ""; if(s.status === "queued") return "queued"; if(s.status === "failed") return "failed — click to retry"; return root.dlTotal > 0 ? (Math.round(s.pct || 0) + "%  ↓") : "↓" })(); color: colors.foreground; font.family: colors.fontSans; font.pixelSize: 8; font.weight: Font.Bold }
                     }
                     MouseArea {
                         id: thumbMa; anchors.fill: parent; hoverEnabled: true
                         onClicked: { grid.currentIndex = index; var st = root.dlState[wid]; if(st && st.status === "failed") root.enqueue(root.wAt(index)) }
                         onDoubleClicked: root.downloadOne(root.wAt(index))
+                    }
+                    // select checkbox: declared after thumbMa on purpose. Sat above
+                    // it before, where the full-cell thumb MouseArea swallowed every
+                    // click and selection only ever worked from the keyboard.
+                    Rectangle {
+                        anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 7
+                        width: 22; height: 22; radius: 6
+                        color: root.selected[wid] ? colors.alpha(colors.primary, 0.9) : colors.alpha(colors.background, 0.6)
+                        border.width: 1; border.color: colors.alpha(colors.primary, 0.6)
+                        visible: root.selected[wid] || thumbMa.containsMouse
+                        Text { anchors.centerIn: parent; text: ""; visible: !!root.selected[wid]; color: colors.alpha(colors.background, 1); font.family: colors.fontSans; font.pixelSize: 11; font.weight: Font.ExtraBold }
+                        MouseArea { anchors.fill: parent; onClicked: { grid.currentIndex = index; root.toggleSelect({id: wid}) } }
                     }
                 }
             }
