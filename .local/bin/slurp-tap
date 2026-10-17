@@ -351,12 +351,22 @@ class TapWatcher(threading.Thread):
 
 
 # -- slurp stack management ---------------------------------------------------
+# Backdrop dim for the framing overlay.  slurp's own default (#00000088,
+# ~53% black) reads as a thick slab on this small screen; 25% keeps the
+# framing region obviously dimmed without swallowing the desktop, and the
+# undimmed selection interior still contrasts cleanly (it stays clear so
+# the captured region comes out clean).
+DIM = "#00000040"
+
+
 def spawn_slurp(transparent):
     args = ["slurp"]
     if transparent:
         # Beneath the bottom instance this must contribute no dim of its
         # own: the bottom (plain) slurp is the one and only backdrop.
         args += ["-b", "#00000000"]
+    else:
+        args += ["-b", DIM]
     p = subprocess.Popen(args, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, text=True)
     debug(f"spawned slurp pid={p.pid} transparent={transparent}")
@@ -387,6 +397,59 @@ def reap_all(procs):
             p.communicate(timeout=1)
         except Exception:
             pass
+
+
+# -- tap-to-click suppression during a pick -----------------------------------
+# Every leading tap would deliver a click through Hyprland's tap-to-click,
+# and that click cancels the top slurp: the dim overlay blinks dead twice
+# per double-tap (inviting "it didn't register, tap again"), and the drag
+# press can race the respawning overlay.  The gesture stack reads the pad's
+# evdev stream directly, so taps keep arming drags either way -- while a
+# pick runs we silence the synthesized clicks and put them back on exit.
+# Only done when the option is currently ON: a nested pick then skips the
+# dance AND the restore, so whichever pick leaves first restores the real
+# value and no exit path can leave tap-to-click stuck off.
+TAP_TO_CLICK = "input:touchpad:tap_to_click"
+
+
+def _tap_option():
+    try:
+        r = subprocess.run(["hyprctl", "getoption", TAP_TO_CLICK],
+                           capture_output=True, text=True, timeout=2)
+        return r.stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _set_tap_clicks(on):
+    # This omarchy build has a non-legacy hyprlang parser: `hyprctl keyword`
+    # is rejected outright ("Use eval"), and configs are Lua.  hl.config
+    # merges, so a single-key config call changes just this option (verified
+    # against input:touchpad:natural_scroll and input:repeat_rate).
+    code = ("hl.config({ input = { touchpad = { tap_to_click = %s } } })"
+            % ("true" if on else "false"))
+    try:
+        subprocess.run(["hyprctl", "eval", code],
+                       capture_output=True, timeout=2)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return ("bool: true" if on else "bool: false") in _tap_option()
+
+
+def silence_tap_clicks():
+    """Turn tap-to-click off for this pick; True if we changed it."""
+    if os.environ.get("SLURP_TAP_TEST"):
+        return False
+    if "bool: true" not in _tap_option():
+        return False
+    return _set_tap_clicks(False)
+
+
+def restore_tap_clicks():
+    # Unconditional on: we only dance when the option was true, so true is
+    # the value this pick started with.  `hyprctl reload` also recovers it
+    # if slurp-tap is ever SIGKILLed before the restore runs.
+    _set_tap_clicks(True)
 
 
 def main():
@@ -430,6 +493,7 @@ def main():
 
     signal.signal(signal.SIGTERM, on_signal)
     signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGHUP, on_signal)
 
     dev = find_touchpad(a.device)
     watcher = None
@@ -444,7 +508,9 @@ def main():
 
     procs = []
     spawned = 0
+    quiet_taps = False
     try:
+        quiet_taps = silence_tap_clicks()
         # Transparent backups first, the PLAIN one last: newer slurp
         # surfaces map on top, so the topmost instance — the one that
         # always catches the next press — is the one that dims. Dim and
@@ -526,6 +592,8 @@ def main():
             time.sleep(0.008)
     finally:
         reap_all(procs)
+        if quiet_taps:
+            restore_tap_clicks()
 
 
 if __name__ == "__main__":
