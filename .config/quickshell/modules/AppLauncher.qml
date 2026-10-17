@@ -38,8 +38,10 @@ PanelWindow {
     }
     // no timer — hover enables on first mouse move only, so open doesn't auto-highlight
 
-    // denylist — system junk the user never launches; edit this array to hide more
-    readonly property var denylist: ["rofi","kvantum","qv4l2","qt5ct","qt6ct","v4l2 test","logseq","printer","assistant","ava","btop","htop","xterm","uxterm","kvantummanager"]
+    // denylist — system junk the user never launches; edit this array to hide more.
+    // Matched as a substring of both the display name and the entry ID.
+    // "avahi" not "ava": the shorter term matched CAVA's name too.
+    readonly property var denylist: ["rofi","kvantum","qv4l2","qt5ct","qt6ct","v4l2 test","logseq","printer","assistant","avahi","btop","htop","xterm","uxterm","kvantummanager"]
     // Hidden when the file says so (NoDisplay/Hidden=true) — the spec's own
     // "do not list me" flag, and Quickshell only exposes it via e.noDisplay.
     // A missing Icon= used to hide the row too, but that silently dropped
@@ -113,7 +115,11 @@ PanelWindow {
                 if(ca!==cb) return cb-ca
                 return a.name.localeCompare(b.name)
             })
-            return copy.slice(0,50)
+            // no cap here — this is the full browse list (search results are
+            // capped in the scored branch below). A 50-cap silently dropped
+            // every app past index 50, so the menu "ended at L" (LibreOffice
+            // Draw) with the rest unreachable no matter how far you scrolled.
+            return copy
         }
         var scored = []
         for (var i=0;i<allApps.length;i++) {
