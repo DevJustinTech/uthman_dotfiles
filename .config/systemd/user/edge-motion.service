@@ -5,7 +5,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 %h/dotfiles/.local/bin/edge-motion --verbose
+ExecStart=/usr/bin/python3 %h/dotfiles/.local/bin/edge-motion --verbose --zone-frac-x 0.20 --zone-frac-y 0.12 --dwell 250
 Restart=on-failure
 RestartSec=5
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
@@ -13,15 +13,29 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin
 # One-time root setup for device access (touchpad + /dev/uinput):
 #     sudo ~/.local/bin/edge-motion-install
 #
-# Tuning — append to ExecStart (see edge-motion --help):
-#     --zone-frac 0.07    edge zone width, fraction of each axis range
-#     --dwell 140         ms pinned before gliding starts
-#     --min-speed 380     px/s at glide start
-#     --max-speed 1500    px/s after ramp-up
-#     --ramp 1400         ms to reach the max speed
-#     --flip-x / --flip-y invert glide on an axis (if it feels backwards)
+# Tuning — the values above were chosen by replaying a recording of real
+# touch gestures (raw evdev stream) through the state machine: wider zones
+# + 250ms dwell glide on genuine edge pushes and stay silent on ordinary
+# drags (shorter dwell + wide zones false-triggered at drag starts).
+#
+#     --zone-frac-x 0.20   horizontal edge zone (wide: pushed blind while
+#                          watching the screen; ordinary drags start clear
+#                          of it and leave it within the dwell)
+#     --zone-frac-y 0.12   vertical edge zone (narrower: normal dragging
+#                          lives near the pad's top/bottom)
+#     --dwell 250          ms pinned in the zone before gliding starts
+#     --lock-gap 300       drag lock: a re-touch this soon after lifting
+#                          mid-drag continues the drag (lift to reposition
+#                          before pushing a pad edge, glides included)
+#     --tap-gap 300        ms after a tap's lift in which a re-touch counts
+#                          as tap-and-drag
+#     --min-speed 380      px/s at glide start
+#     --max-speed 1500     px/s after ramp-up
+#     --ramp 1400          ms to reach the max speed
+#     --flip-x / --flip-y  invert glide on an axis (if it feels backwards)
 #
 # Debug: journalctl --user -u edge-motion -f
+# Live state: kill -USR1 $(systemctl --user show -p MainPID --value edge-motion)
 
 [Install]
 WantedBy=graphical-session.target

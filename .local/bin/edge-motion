@@ -240,6 +240,7 @@ class EdgeMotion:
         self.dwell = a.dwell / 1000.0
         self.tap_max = a.tap_max / 1000.0
         self.tap_gap = a.tap_gap / 1000.0
+        self.lock_gap = getattr(a, "lock_gap", 300) / 1000.0
         self.tick_int = max(4, a.tick) / 1000.0
         self.ramp = max(100, a.ramp) / 1000.0
         self.min_speed = a.min_speed
@@ -248,9 +249,14 @@ class EdgeMotion:
         self.flip_y = -1 if a.flip_y else 1
         self.xmin, self.xmax = info["x"]
         self.ymin, self.ymax = info["y"]
-        zone = max(0.005, min(0.5, a.zone_frac))
-        self.xzone = max(20, int((self.xmax - self.xmin) * zone))
-        self.yzone = max(20, int((self.ymax - self.ymin) * zone))
+        zx_frac = a.zone_frac_x if getattr(a, "zone_frac_x", None) is not None \
+            else a.zone_frac
+        zy_frac = a.zone_frac_y if getattr(a, "zone_frac_y", None) is not None \
+            else a.zone_frac
+        zx_frac = max(0.005, min(0.5, zx_frac))
+        zy_frac = max(0.005, min(0.5, zy_frac))
+        self.xzone = max(20, int((self.xmax - self.xmin) * zx_frac))
+        self.yzone = max(20, int((self.ymax - self.ymin) * zy_frac))
         self.slop_x = max(8, int((self.xmax - self.xmin) * 0.02))
         self.slop_y = max(8, int((self.ymax - self.ymin) * 0.02))
         # state
@@ -263,6 +269,7 @@ class EdgeMotion:
         self.tap_start_pos = [None, None]
         self.tap_moved = False
         self.last_tap_end = None
+        self.last_drag_end = None
         self.tap_drag = False
         self.zone_since = None
         self.gliding = False
@@ -278,18 +285,19 @@ class EdgeMotion:
 
     def event(self, typ, code, value, now):
         if typ == EV_ABS:
-            if code == ABS_X:
-                self.pos[0] = value
-            elif code == ABS_Y:
-                self.pos[1] = value
-            if self.tap_start is not None and not self.tap_moved:
-                for axis, slop in ((0, self.slop_x), (1, self.slop_y)):
-                    if self.pos[axis] is None:
-                        continue
+            axis = 0 if code == ABS_X else 1 if code == ABS_Y else None
+            if axis is not None:
+                self.pos[axis] = value
+                if self.tap_start is not None and not self.tap_moved:
+                    slop = self.slop_x if axis == 0 else self.slop_y
                     if self.tap_start_pos[axis] is None:
-                        # first position report after touch-down: adopt it
-                        self.tap_start_pos[axis] = self.pos[axis]
-                    elif abs(self.pos[axis] - self.tap_start_pos[axis]) > slop:
+                        # first report OF THIS AXIS after touch-down: adopt
+                        # it as the tap's origin.  (Adopting on every event
+                        # would let the stale coordinate of the *other*
+                        # axis become the origin, and the next real report
+                        # would then exceed slop and poison the tap.)
+                        self.tap_start_pos[axis] = value
+                    elif abs(value - self.tap_start_pos[axis]) > slop:
                         self.tap_moved = True
         elif typ == EV_KEY:
             if code == BTN_TOUCH:
@@ -298,17 +306,25 @@ class EdgeMotion:
                     self.tap_start = now
                     self.tap_start_pos = [None, None]  # first report after down adopts
                     self.tap_moved = False
-                    if (self.last_tap_end is not None
-                            and now - self.last_tap_end <= self.tap_gap):
+                    if ((self.last_tap_end is not None
+                            and now - self.last_tap_end <= self.tap_gap)
+                            or (self.last_drag_end is not None
+                                and now - self.last_drag_end
+                                <= self.lock_gap)):
                         self.tap_drag = True
                         vlog("tap-and-drag started")
                     self.last_tap_end = None
+                    self.last_drag_end = None
                 else:
                     self.touch = False
                     ok = (self.tap_start is not None
                           and now - self.tap_start <= self.tap_max
                           and not self.tap_moved)
                     self.last_tap_end = now if ok else None
+                    if self.tap_drag:
+                        # drag lock: lift-to-reposition mid-drag; a quick
+                        # re-touch continues the drag (glides included)
+                        self.last_drag_end = now
                     self.tap_start = None
                     self.tap_drag = False
                     self.zone_since = None
@@ -332,6 +348,12 @@ class EdgeMotion:
             self.multi = False
             self._stop_glide("syn dropped")
 
+    @staticmethod
+    def _age(t):
+        if t is None:
+            return "-"
+        return f"{time.monotonic() - t:.3f}s ago"
+
     def dump(self):
         vlog("state: touch={} btn_left={} tap_drag={} multi={} tools={{{}}} "
              "pos=({}, {}) gliding={} zone_since={}s ago".format(
@@ -340,6 +362,11 @@ class EdgeMotion:
                  self.pos[0], self.pos[1], self.gliding,
                  "-" if self.zone_since is None
                  else f"{time.monotonic() - self.zone_since:.2f}"))
+        vlog("state: tap_start={} last_tap_end={} last_drag_end={} "
+             "tap_moved={}".format(
+                 *(self._age(t) for t in
+                   (self.tap_start, self.last_tap_end, self.last_drag_end)),
+                 self.tap_moved))
         vlog(f"state: zones x<={self.xmin + self.xzone} or "
              f"x>={self.xmax - self.xzone}  y<={self.ymin + self.yzone} or "
              f"y>={self.ymax - self.yzone}")
@@ -448,10 +475,21 @@ def parse_args(argv):
     ap.add_argument("--flip-y", action="store_true", help="invert vertical glide")
     ap.add_argument("--zone-frac", type=float, default=0.07,
                     help="edge zone width, fraction of each axis range")
+    ap.add_argument("--zone-frac-x", type=float, default=None,
+                    help="override --zone-frac for the horizontal axis "
+                         "(wide zones make horizontal drag extension easy "
+                         "to hit blind; keep vertical narrower so normal "
+                         "dragging near the top/bottom doesn't glide)")
+    ap.add_argument("--zone-frac-y", type=float, default=None,
+                    help="override --zone-frac for the vertical axis")
     ap.add_argument("--dwell", type=int, default=140, metavar="MS",
                     help="pinned time before gliding starts")
     ap.add_argument("--tap-max", type=int, default=300, metavar="MS")
     ap.add_argument("--tap-gap", type=int, default=300, metavar="MS")
+    ap.add_argument("--lock-gap", type=int, default=300, metavar="MS",
+                    help="drag lock: after lifting mid-drag, a re-touch "
+                         "within this many ms continues the drag (users "
+                         "lift to reposition before pushing a pad edge)")
     ap.add_argument("--min-speed", type=float, default=380.0, metavar="PX_S")
     ap.add_argument("--max-speed", type=float, default=1500.0, metavar="PX_S")
     ap.add_argument("--ramp", type=int, default=1400, metavar="MS")
