@@ -110,8 +110,11 @@ DEFAULT_DOUBLE = 0.50      # max gap between the two taps of the double-tap
 DEFAULT_LOCK = 1.0         # drag lock: a re-touch within this of the press
                            # lifting continues the drag (no new double-tap;
                            # edge-motion's --lock-gap keeps the same value)
-DEFAULT_GESTURE = 1.2      # a moving touch within this of the double-tap =
-                           # the drag half of tap-and-drag (synth press)
+DEFAULT_GESTURE = 2.5      # a moving touch within this of the double-tap =
+                           # the drag half of tap-and-drag (synth press) --
+                           # real pacing between the double-tap and the
+                           # drag touch runs past a second; edge-motion's
+                           # --gesture-window shares the value
 
 
 def make_synth_pointer():
@@ -416,7 +419,8 @@ def main():
     ap.add_argument("--gesture-window", type=float,
                     default=DEFAULT_GESTURE,
                     help="how long after the double-tap a moving touch "
-                         "counts as its drag half (1.2s)")
+                         "counts as its drag half (2.5s; keep in step "
+                         "with edge-motion)")
     ap.add_argument("--device", default="",
                     help="touchpad event device (default: auto-detect)")
     a = ap.parse_args()

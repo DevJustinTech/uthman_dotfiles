@@ -241,7 +241,7 @@ class EdgeMotion:
         self.tap_max = a.tap_max / 1000.0
         self.tap_gap = a.tap_gap / 1000.0
         self.tap_move = getattr(a, "tap_move", 400)
-        self.gesture = getattr(a, "gesture", 1200) / 1000.0
+        self.gesture = getattr(a, "gesture", 2500) / 1000.0
         self.lock_gap = getattr(a, "lock_gap", 1000) / 1000.0
         self.tick_int = max(4, a.tick) / 1000.0
         self.ramp = max(100, a.ramp) / 1000.0
@@ -513,7 +513,7 @@ def parse_args(argv):
                     help="max summed axis travel to count as a tap -- "
                          "identical to slurp-tap's --tap-move so both "
                          "tools accept the same taps")
-    ap.add_argument("--gesture-window", type=int, default=1200,
+    ap.add_argument("--gesture-window", type=int, default=2500,
                     metavar="MS",
                     help="how long after the double-tap a touch still "
                          "counts as its drag half -- keep in step with "

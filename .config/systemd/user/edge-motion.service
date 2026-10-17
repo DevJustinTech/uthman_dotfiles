@@ -33,7 +33,7 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin
 #     --tap-move 400       max summed axis travel to count as a tap --
 #                          both identical to slurp-tap's --double-gap and
 #                          --tap-move, so both tools accept the same taps
-#     --gesture-window 1200 how long after the double-tap a touch still
+#     --gesture-window 2500 how long after the double-tap a touch still
 #                          counts as its drag half -- must stay in step
 #                          with slurp-tap's --gesture-window, or the pick
 #                          opens while gliding has already disarmed
