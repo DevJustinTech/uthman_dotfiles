@@ -20,14 +20,19 @@ hl.config({
       natural_scroll = true,
       scroll_factor = 1,
 
-      -- libinput's tap-and-drag synthesizes its own drag press from a
-      -- SINGLE tap + touch-move, and that press never reaches the pad's
-      -- evdev stream -- edge-motion cannot see it, so glides could never
-      -- fire while it owned the gesture.  Drag gestures are handled by
-      -- our own double-tap stack (slurp-tap + edge-motion) instead, which
-      -- keeps both tools arming together.  Tap-to-click stays as Hyprland
-      -- defaults it (enabled).
-      tap_and_drag = false,
+      -- libinput's tap-and-drag is the OS feature behind double-tap-then-
+      -- drag text selection, so it stays ON.  It also synthesizes its own
+      -- drag press (single tap + touch-move) that travels libinput ->
+      -- Hyprland -> clients and never reaches the pad's evdev stream, so
+      -- while it owns a gesture edge-motion cannot see it (busy() false
+      -- while slurp drives the box through the invisible press: "the box
+      -- opens but the pad edge never glides").  The two systems only ever
+      -- fight during a pick, and every pick starts on a keybinding before
+      -- the fingers touch the pad, so slurp-tap flips tap_and_drag off in
+      -- the same eval dance that silences tap-to-click and restores both
+      -- on every exit path.  Tap-to-click stays as Hyprland defaults it
+      -- (enabled).
+      tap_and_drag = true,
     },
   },
 })

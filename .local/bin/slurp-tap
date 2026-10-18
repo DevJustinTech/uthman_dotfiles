@@ -399,57 +399,81 @@ def reap_all(procs):
             pass
 
 
-# -- tap-to-click suppression during a pick -----------------------------------
+# -- tap-to-click / tap-and-drag suppression during a pick -------------------
 # Every leading tap would deliver a click through Hyprland's tap-to-click,
 # and that click cancels the top slurp: the dim overlay blinks dead twice
 # per double-tap (inviting "it didn't register, tap again"), and the drag
-# press can race the respawning overlay.  The gesture stack reads the pad's
-# evdev stream directly, so taps keep arming drags either way -- while a
-# pick runs we silence the synthesized clicks and put them back on exit.
-# Only done when the option is currently ON: a nested pick then skips the
-# dance AND the restore, so whichever pick leaves first restores the real
-# value and no exit path can leave tap-to-click stuck off.
+# press can race the respawning overlay.  Tap-and-drag gets silenced in the
+# same dance because libinput's synthetic drag press (single tap +
+# touch-move) travels libinput -> Hyprland -> clients and never reaches the
+# pad's evdev stream, so edge-motion cannot see it while slurp drives the
+# box through it -- the two systems fight over the same fingers and glides
+# die ("box opens, pad edge never glides").  Both options therefore stay ON
+# in input.lua -- tap-and-drag is what makes double-tap-then-drag select
+# text -- and a pick turns them off for its own duration.  The gesture
+# stack reads the pad's evdev stream directly, so taps keep arming drags
+# either way.  Dance only runs when at least one option is ON: a nested
+# pick then skips the dance AND the restore, so whichever pick leaves first
+# puts back the real values and no exit path can leave either stuck off.
 TAP_TO_CLICK = "input:touchpad:tap_to_click"
+TAP_AND_DRAG = "input:touchpad:tap_and_drag"
+_tap_saved = None  # (tap_to_click, tap_and_drag) as found at dance start
 
 
-def _tap_option():
+def _tap_option(name):
     try:
-        r = subprocess.run(["hyprctl", "getoption", TAP_TO_CLICK],
+        r = subprocess.run(["hyprctl", "getoption", name],
                            capture_output=True, text=True, timeout=2)
         return r.stdout
     except (OSError, subprocess.SubprocessError):
         return ""
 
 
-def _set_tap_clicks(on):
+def _tap_on(name):
+    return "bool: true" in _tap_option(name)
+
+
+def _set_tap_options(t2c, tad):
     # This omarchy build has a non-legacy hyprlang parser: `hyprctl keyword`
     # is rejected outright ("Use eval"), and configs are Lua.  hl.config
-    # merges, so a single-key config call changes just this option (verified
-    # against input:touchpad:natural_scroll and input:repeat_rate).
-    code = ("hl.config({ input = { touchpad = { tap_to_click = %s } } })"
-            % ("true" if on else "false"))
+    # merges, so a single-key config call changes just these options
+    # (verified against input:touchpad:natural_scroll and input:repeat_rate).
+    code = ("hl.config({ input = { touchpad = { tap_to_click = %s, "
+            "tap_and_drag = %s } } })"
+            % ("true" if t2c else "false", "true" if tad else "false"))
     try:
         subprocess.run(["hyprctl", "eval", code],
                        capture_output=True, timeout=2)
     except (OSError, subprocess.SubprocessError):
         return False
-    return ("bool: true" if on else "bool: false") in _tap_option()
+    return (("bool: true" if t2c else "bool: false") in _tap_option(TAP_TO_CLICK)
+            and ("bool: true" if tad else "bool: false")
+            in _tap_option(TAP_AND_DRAG))
 
 
 def silence_tap_clicks():
-    """Turn tap-to-click off for this pick; True if we changed it."""
+    """Turn tap-to-click and tap-and-drag off for this pick; True if we did."""
+    global _tap_saved
     if os.environ.get("SLURP_TAP_TEST"):
         return False
-    if "bool: true" not in _tap_option():
+    t2c = _tap_on(TAP_TO_CLICK)
+    tad = _tap_on(TAP_AND_DRAG)
+    if not (t2c or tad):
         return False
-    return _set_tap_clicks(False)
+    if not _set_tap_options(False, False):
+        return False
+    _tap_saved = (t2c, tad)
+    return True
 
 
 def restore_tap_clicks():
-    # Unconditional on: we only dance when the option was true, so true is
-    # the value this pick started with.  `hyprctl reload` also recovers it
-    # if slurp-tap is ever SIGKILLed before the restore runs.
-    _set_tap_clicks(True)
+    # Back to exactly what the dance found -- normally (true, true), but a
+    # machine that runs tap_to_click off gets that preference back too.
+    # `hyprctl reload` also recovers it if slurp-tap is ever SIGKILLed
+    # before the restore runs.
+    if _tap_saved is None:
+        return
+    _set_tap_options(*_tap_saved)
 
 
 def main():
