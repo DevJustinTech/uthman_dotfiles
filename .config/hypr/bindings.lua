@@ -150,6 +150,18 @@ hl.unbind("SUPER + SHIFT + S")
 -- which is what made it look like the one logged call had failed.
 hl.unbind("XF86AudioMute")
 hl.unbind("XF86AudioMicMute")
+-- The transport half of media.lua (Play/Pause/Next/Prev) execs
+-- `omarchy-shell media ...` -- stock shell commands, and this desktop runs
+-- the quickshell fork instead, so those six chords have been dead no-ops
+-- all along. Unbind them rather than keep keys that pretend. Left alone on
+-- purpose: SHIFT + Pause/Play (source switch) and the lid-switch events --
+-- those exec real scripts, not the shell, and still work.
+for _, chord in ipairs({
+  "XF86AudioNext", "ALT + XF86AudioPlay", "XF86AudioPause",
+  "XF86AudioPlay", "XF86AudioPrev", "ALT + SHIFT + XF86AudioPlay",
+}) do
+  hl.unbind(chord)
+end
 -- Screenshots use letter keys only (see above) -- T is OCR text capture.
 o.bind("SUPER + SHIFT + T", "OCR from screenshot", "shot ocr")
 -- S: mac-style capture of the focused window, rounded over a blurred wallpaper.
@@ -335,7 +347,13 @@ for _, keys in ipairs({
   "XF86MonBrightnessUp", "XF86MonBrightnessDown",
 }) do
   for _, mods in ipairs({ "", "SHIFT", "ALT" }) do
-    hl.unbind(mods .. " + " .. keys)
+    -- The bare form must be the bare key: `mods .. " + " .. keys` with empty
+    -- mods built " + KEY", which never matches anything -- so Omarchy's plain
+    -- Volume up/down and Brightness up/down survived every reload and fired
+    -- alongside the shell's: one keypress, two volume steps. The SHIFT/ALT
+    -- forms were fine (they come out "SHIFT + KEY"); only the no-mod string
+    -- was malformed, which is why the duplicates hid in plain sight.
+    hl.unbind((mods ~= "" and mods .. " + " or "") .. keys)
   end
 end
 
