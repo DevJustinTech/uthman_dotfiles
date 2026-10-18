@@ -26,7 +26,6 @@ PanelWindow {
     property var binds: [
         {key:"SUPER + Return", desc:"Terminal", cat:"Apps", disp:"exec", arg:"omarchy-launch-terminal"},
         {key:"SUPER + Space", desc:"Launch apps", cat:"Apps", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call launcher toggle"},
-        {key:"SUPER Shift + F", desc:"File manager", cat:"Apps", disp:"exec", arg:"uwsm-app -- thunar"},
         {key:"SUPER Shift + B", desc:"Browser", cat:"Apps", disp:"exec", arg:"uwsm-app -- zen"},
         {key:"SUPER Alt Shift + B", desc:"Browser (private)", cat:"Apps", disp:"exec", arg:"uwsm-app -- zen --private-window"},
         {key:"SUPER Shift + N", desc:"Editor (Zed)", cat:"Apps", disp:"exec", arg:"uwsm-app -- zed"},
@@ -81,6 +80,7 @@ PanelWindow {
         {key:"SUPER Alt + H", desc:"Theme editor", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call themeedit toggle"},
         {key:"SUPER Shift + S", desc:"Pretty screenshot", cat:"System", disp:"exec", arg:"shot pretty"},
         {key:"SUPER Shift + D", desc:"Screenshot (drag area)", cat:"System", disp:"exec", arg:"shot"},
+        {key:"SUPER Shift + F", desc:"Full screenshot", cat:"System", disp:"exec", arg:"shot full"},
         {key:"SUPER Ctrl + C", desc:"Capture menu (all tools)", cat:"System", disp:"exec", arg:"uwsm-app -- capture-menu"},
         {key:"SUPER Alt + Y", desc:"WatchCat (data watchdog)", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call watchcat toggle"},
         {key:"SUPER Shift + H", desc:"Hornet pet (on/off)", cat:"System", disp:"exec", arg:"quickshell -p ~/.config/quickshell ipc call pet toggle"},

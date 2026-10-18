@@ -162,6 +162,12 @@ o.bind("SUPER + SHIFT + S", "Pretty screenshot", "shot pretty")
 -- reachable as `omarchy-launch-docker-tui` from a terminal.
 hl.unbind("SUPER + SHIFT + D")
 o.bind("SUPER + SHIFT + D", "Screenshot (drag area)", "shot")
+-- F: whole-screen capture, no drag -- grim straight to file + clipboard via
+-- shot's `full` mode. SUPER + SHIFT + F was Omarchy's plain file manager, so
+-- it goes the same way S and D did above. Nautilus keeps SUPER + ALT + SHIFT + F
+-- (file manager, cwd) and the app launcher, so the file manager is not lost.
+hl.unbind("SUPER + SHIFT + F")
+o.bind("SUPER + SHIFT + F", "Full screenshot", "shot full")
 
 -- ── Shell panels ────────────────────────────────────────────────────────
 -- Omarchy puts its menu on SUPER+SPACE and a panel set on SUPER+H/U/B. All of
