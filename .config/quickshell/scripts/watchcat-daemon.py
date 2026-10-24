@@ -199,7 +199,7 @@ def main():
                 " peak_mb=CASE WHEN excluded.peak_mb>day_proc.peak_mb THEN excluded.peak_mb ELSE day_proc.peak_mb END",
                 (day, prog, r * dt / 1024.0, t * dt / 1024.0, peak),
             )
-            hot[prog] = hot[prog] + dt if rate >= HOT_KBS else 0.0
+            hot[prog] = hot.get(prog, 0.0) + dt if rate >= HOT_KBS else 0.0
             if hot[prog] >= HOT_SECS and not sent_today(c, day, "hot", prog):
                 c.execute("INSERT INTO sent(day, kind, prog) VALUES(?,?,?)", (day, "hot", prog))
                 notify("critical", "WatchCat: %s hogging data" % prog,
