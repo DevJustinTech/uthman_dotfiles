@@ -47,7 +47,12 @@ WATCH = [
 IGNORE = re.compile(
     r"Ignoring duplicate name|org\.freedesktop\.Notifications|FileManager1|"
     r"dunst\.service|swaync\.service|RTKit|RTTimeUSecMax|"
-    r"xdg-desktop-portal.*Realtime|pam_unix.*session (opened|closed)",
+    r"xdg-desktop-portal.*Realtime|pam_unix.*session (opened|closed)|"
+    # Boot-time CPU vulnerability disclosures. These match the `oops` rule's
+    # bare `BUG`, but they are the kernel *reporting* a mitigated hardware
+    # erratum ("MDS CPU bug present and SMT on, data leak possible"), not a
+    # fault — printed every boot, 3 lines, never actionable.
+    r"CPU bug present and SMT on|data leak possible\. See https://www\.kernel\.org",
     re.I,
 )
 
@@ -57,6 +62,31 @@ def notify(urg, title, body):
         subprocess.Popen([NOTIFY, "-a", "FailWatch", "-u", urg, title, body])
     except OSError:
         pass
+
+
+def wait_for_notification_bus(timeout=60):
+    """Block until a notification daemon owns org.freedesktop.Notifications.
+
+    failwatch.service is ordered After=graphical-session.target, but the
+    quickshell process that actually owns that bus name is started by Hyprland
+    and registers a beat later. Without this wait, the very first poll fires
+    notify-send before anyone is listening: notify-send prints
+    "Failed to show notification: ...ServiceUnknown" and the alert is dropped
+    on the floor (observed on 2026-10-18 boot: 4 alerts lost).
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            # busctl exits 0 only if the name is owned.
+            out = subprocess.run(
+                ["busctl", "--user", "status", "org.freedesktop.Notifications"],
+                capture_output=True, text=True, timeout=5)
+            if out.returncode == 0:
+                return True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        time.sleep(1)
+    return False
 
 
 def connect():
@@ -134,6 +164,27 @@ def write_cursor(cur):
     os.replace(tmp, CURSOR_FILE)
 
 
+def seed_cursor():
+    """Set the journal cursor to 'now' if it is not already set.
+
+    Idempotent and non-consuming: safe to call before the poll loop so that
+    entries arriving while we wait for the notification daemon are still
+    seen on the first poll. Returns True if a cursor now exists.
+    """
+    if read_cursor():
+        return True
+    try:
+        out = subprocess.check_output(
+            ["journalctl", "--show-cursor", "-n", "0", "--no-pager"],
+            text=True, stderr=subprocess.DEVNULL)
+        m = re.search(r"cursor:\s*(\S+)", out)
+        if m:
+            write_cursor(m.group(1))
+    except Exception:
+        pass
+    return bool(read_cursor())
+
+
 def journal_new():
     """Return (entries, new_cursor). entries = list of json dicts since cursor.
 
@@ -141,15 +192,7 @@ def journal_new():
     """
     cur = read_cursor()
     if not cur:
-        try:
-            out = subprocess.check_output(
-                ["journalctl", "--show-cursor", "-n", "0", "--no-pager"],
-                text=True, stderr=subprocess.DEVNULL)
-            m = re.search(r"cursor:\s*(\S+)", out)
-            if m:
-                write_cursor(m.group(1))
-        except Exception:
-            pass
+        seed_cursor()
         return [], read_cursor()
     try:
         out = subprocess.check_output(
@@ -228,6 +271,17 @@ def main():
     c = connect()
     prune(c)
     c.commit()
+
+    # Seed the journal cursor immediately (before any blocking wait) so that
+    # entries landing while we wait for the notification daemon are still
+    # picked up on the first poll rather than silently skipped. seed_cursor()
+    # is non-consuming, so a daemon restart keeps its place in the journal.
+    seed_cursor()
+
+    # Don't fire the first poll until someone owns org.freedesktop.Notifications,
+    # otherwise boot-time alerts are dropped (see wait_for_notification_bus).
+    wait_for_notification_bus()
+
     last_failed = {}  # name -> row; notify only on NEW failures
     t_failed = 0.0
     Urg = {"oom": "critical", "oops": "critical", "unit-fail": "critical",
