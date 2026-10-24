@@ -129,3 +129,7 @@ if [[ -z "$SPLASH_DONE" ]]; then
   export SPLASH_DONE=1
   ~/.local/bin/shell-splash
 fi
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/justin/.local/bin:$PATH"
