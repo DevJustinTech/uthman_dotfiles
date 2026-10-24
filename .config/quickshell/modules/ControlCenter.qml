@@ -296,7 +296,7 @@ FloatingWindow {
     function setBrightness(v){ Quickshell.execDetached(["sh","-c","brightnessctl set "+Math.round(v*100)+"% >/dev/null 2>&1 &"]) }
     Process {
         id: weatherProc
-        command: ["sh", "-c", "curl -s --max-time 8 'wttr.in/Lagos,Nigeria?format=j1' 2>/dev/null"]
+        command: ["sh", "-c", "loc=$(jq -r 'if ((.latitude|type)==\"number\" and (.longitude|type)==\"number\") then ((.latitude|tostring) + \",\" + (.longitude|tostring)) else (.name // empty) end' \"$HOME/.local/state/omarchy/settings/weather.json\" 2>/dev/null); [ -z \"$loc\" ] && loc=Akure; curl -s --max-time 8 \"wttr.in/${loc// /+}?format=j1\" 2>/dev/null"]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: {
