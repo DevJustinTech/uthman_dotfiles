@@ -66,18 +66,6 @@ output_path = "~/.config/theme/themes/snow_black/pear-desktop.css"
 input_path = "~/.config/matugen/templates/pear-desktop.css"
 output_path = "~/.config/theme/current/pear-desktop.css"
 
-# Spotifast (native Spotify client). Same two-dir pattern as pear-desktop:
-# matugen only ever writes inside ~/.config/theme, which always exists, so an
-# uninstalled player can never break a wallpaper change. getTheme then copies
-# the palette into spotifast's own config dir if it has one.
-[templates.spotifast-theme]
-input_path = "~/.config/matugen/templates/spotifast.json"
-output_path = "~/.config/theme/themes/snow_black/spotifast.json"
-
-[templates.spotifast-current]
-input_path = "~/.config/matugen/templates/spotifast.json"
-output_path = "~/.config/theme/current/spotifast.json"
-
 # (cavasik outputs removed -- see "Intentionally absent" at the end of this file)
 
 [templates.gtk-theme]

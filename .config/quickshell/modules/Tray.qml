@@ -10,8 +10,8 @@ Item {
 
     property var colors
 
-    // hide icons for apps already represented elsewhere (Spotifast → NowPlaying pill)
-    readonly property var hiddenApps: ["spotify", "spotifast"]
+    // hide icons for apps already represented elsewhere (Spotify → NowPlaying pill)
+    readonly property var hiddenApps: ["spotify"]
     readonly property var items: SystemTray.items.values.filter(function(it) {
         var s = ((it.id || "") + " " + (it.title || "")).toLowerCase()
         for (var i = 0; i < hiddenApps.length; i++)

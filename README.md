@@ -162,7 +162,7 @@ The screen is 1366x768, and the base assumed something bigger.
 * Dead stock chords swept, the power button and the Herdr chord revived,
   `SUPER+C` returned to Universal copy, and the cheat sheet re-synced to the
   live binding list.
-* `SUPER+SHIFT+M` points at Spotifast, themed from matugen.
+* `SUPER+SHIFT+M` points at Spotify (official client; Spotifast removed).
 * The wifi and mute double-toggles fixed; `SUPER+RETURN` opens one terminal,
   not two.
 

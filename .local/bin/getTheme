@@ -125,20 +125,6 @@ for _zprof in "$HOME/.config/zen"/*.Default* "$HOME/.config/zen"/*.default*; do
     done
 done &
 
-# Spotifast reads its palette from its own config dir, which only exists once
-# the app has run at least once — so a machine without spotifast never gets
-# stray files. themes/ is created before the copy because spotifast scans that
-# directory and offers whatever it finds as a theme named after the file
-# (omarchy.json → "omarchy"); pick it once in Settings → Themes.
-if [[ -d "$HOME/.config/spotifast" ]]; then
-    mkdir -p "$HOME/.config/spotifast/themes"
-    cp -f "$HOME/.config/theme/current/spotifast.json" "$HOME/.config/spotifast/themes/omarchy.json"
-    if command -v spotifast >/dev/null 2>&1; then
-        # Only contacts a running instance; a stopped app stays stopped and
-        # reads the file on next launch.
-        spotifast reload-themes >/dev/null 2>&1 || true
-    fi
-fi &
 
 # Live-reload any running nvim instances (via the --listen sockets).
 for sock in /tmp/nvim-"$USER"/*.sock; do

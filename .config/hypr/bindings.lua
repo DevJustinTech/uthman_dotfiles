@@ -60,10 +60,10 @@ o.bind("SUPER + ALT + SHIFT + B", "Browser (private)", o.launch("zen --private-w
 -- runaway zoom. (Zen launch key removed 10-08 -- too close to the zoom chord.)
 hl.unbind("SUPER + CTRL + Z")
 
--- Music: the `music` wrapper opens Spotifast and says how to install it
--- instead of dying as a bare "command not found" when it is absent. Omarchy's
--- default on this chord is Spotify and it fires too -- with spotify absent it
--- opens its "install the service" terminal rather than failing quietly.
+-- Music: the `music` wrapper opens Spotify and says how to install it
+-- instead of dying as a bare "command not found" when the client is absent.
+-- Omarchy's stock bind on this chord is unbound below so only this wrapper
+-- fires.
 hl.unbind("SUPER + SHIFT + M")
 o.bind("SUPER + SHIFT + M", "Music", o.launch("music"))
 o.bind("SUPER + SHIFT + N", "Editor", o.launch("zed"))

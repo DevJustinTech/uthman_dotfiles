@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
-# music — open Spotifast, the native Spotify client.
+# music — open Spotify, the official desktop client.
 #
-# Why this wrapper exists instead of binding `spotifast` directly: the old
-# SUPER+SHIFT+M ran `uwsm-app -- spotify` against a client that was never
-# installed here, so pressing it produced a bare "command not found: spotify"
-# with nothing on screen explaining what to do. Spotifast ships in the AUR
-# only, so this tells you how to get it rather than failing mute.
+# Why this wrapper exists instead of binding the client directly: this chord
+# (SUPER+SHIFT+M) used to point at Spotifast, an unofficial AUR client, and
+# before that at a `spotify` binary that was never installed — so pressing it
+# either failed mute or popped an "install it" notification. The fallback
+# below still explains what to do if the client is ever removed again.
 #
 # Playback needs Spotify Premium; a free account can browse and search.
 
 set -euo pipefail
 
-if command -v spotifast >/dev/null 2>&1; then
-  exec spotifast "$@"
+if command -v spotify >/dev/null 2>&1; then
+  if command -v uwsm-app >/dev/null 2>&1; then
+    exec uwsm-app -- spotify "$@"
+  fi
+  exec spotify "$@"
 fi
 
-notify-send -u critical "Spotifast not installed" \
-  "Install it with:  yay -S spotifast-bin" 2>/dev/null || true
+notify-send -u critical "Spotify not installed" \
+  "Install it with: omarchy install service spotify" 2>/dev/null || true
 
-echo "spotifast not found. Install it with: yay -S spotifast-bin" >&2
+echo "spotify not found. Install it with: omarchy install service spotify" >&2
 exit 1

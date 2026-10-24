@@ -29,7 +29,7 @@ PanelWindow {
         {key:"SUPER Shift + B", desc:"Browser", cat:"Apps", disp:"exec", arg:"uwsm-app -- zen"},
         {key:"SUPER Alt Shift + B", desc:"Browser (private)", cat:"Apps", disp:"exec", arg:"uwsm-app -- zen --private-window"},
         {key:"SUPER Shift + N", desc:"Editor (Zed)", cat:"Apps", disp:"exec", arg:"uwsm-app -- zed"},
-        {key:"SUPER Shift + M", desc:"Music (Spotifast)", cat:"Apps", disp:"exec", arg:"uwsm-app -- music"},
+        {key:"SUPER Shift + M", desc:"Music (Spotify)", cat:"Apps", disp:"exec", arg:"uwsm-app -- music"},
         {key:"SUPER Shift + O", desc:"Obsidian", cat:"Apps", disp:"exec", arg:"uwsm-app -- obsidian -disable-gpu --enable-wayland-ime"},
         // Web apps — chromeless via zenapp; focus the same window as the
         // app-menu rows. These replaced Omarchy's chromium --app binds.
@@ -197,9 +197,9 @@ PanelWindow {
         {key:"Ctrl + H", desc:"Hidden files", cat:"Thunar"},
         {key:"F2", desc:"Rename", cat:"Thunar"},
         {key:"Right-click", desc:"Terminal here / Neovim / Copy path / Wallpaper", cat:"Thunar"},
-        {key:"Space", desc:"Play / pause", cat:"Spotifast"},
-        {key:"Ctrl + Left / Right", desc:"Prev / next track", cat:"Spotifast"},
-        {key:"Ctrl + Up / Down", desc:"Volume up / down", cat:"Spotifast"},
+        {key:"Space", desc:"Play / pause", cat:"Spotify"},
+        {key:"Ctrl + Left / Right", desc:"Prev / next track", cat:"Spotify"},
+        {key:"Ctrl + Up / Down", desc:"Volume up / down", cat:"Spotify"},
         {key:"?", desc:"Help overlay", cat:"btop"},
         {key:"Q / Esc", desc:"Quit / back", cat:"btop"},
         {key:"Arrows + Enter", desc:"Select process", cat:"btop"},

@@ -115,7 +115,7 @@ FloatingWindow {
         return 1
     }
     // drives the bounce and refreshes the position bindings; silent unless the panel
-    // is open and music is playing. MPRIS players (Spotifast included) don't push
+    // is open and music is playing. MPRIS players (Spotify included) don't push
     // Position updates mid-track, and quickshell deliberately leaves `position`
     // signals inert until asked — reading it is always live, but no notify arrives,
     // so npPos/npCur sat frozen until a pause forced a refresh. Re-emitting here,
@@ -216,7 +216,7 @@ FloatingWindow {
         {app: "foot", secs: 5400},
         {app: "firefox", secs: 3200},
         {app: "code", secs: 1800},
-        {app: "spotifast", secs: 900}
+        {app: "spotify", secs: 900}
     ]
     property var activityLast7: []
     property real activityMax: 1
