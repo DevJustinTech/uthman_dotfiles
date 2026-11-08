@@ -24,7 +24,7 @@ end
 
 shell_window("System Monitor", 840, 560)
 shell_window("Monitors", 440, 560)
-shell_window("ThemeEditor", 440, 560)
+shell_window("ThemeEditor", 440, 620)
 shell_window("Earbuds", 380, 400)
 shell_window("Bluetooth", 440, 520)
 -- DriveHealth's window title is "Hardware Health", not the module name.

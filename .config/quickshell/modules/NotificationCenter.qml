@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Notification daemon + toast stack + center drawer.
 // Owns org.freedesktop.Notifications (replaces swaync).
@@ -297,7 +298,7 @@ Item {
             }
         }
 
-        Rectangle {
+        Glass {
             id: drawer
             focus: visible
             anchors { top: parent.top; right: parent.right }
@@ -306,9 +307,14 @@ Item {
             width: 380
             height: 520
             radius: 16
-            color: colors.alpha(colors.surface, 0.52)
-            border.width: 1
-            border.color: colors.alpha(colors.outline, 0.15)
+            surfaceId: "notify"
+            colors: root.colors
+            classicColor: colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+            classicBorder: colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+            classicBorderWidth: 1
+            // floor: the drawer is mostly text and often sits over a live
+            // window; the wallpaper sample can be a smooth dark sky (0.09).
+            densityFloor: 0.32
 
             // ESC closes any open panel (convention for all future panels)
             Keys.onEscapePressed: root.panelOpen = false

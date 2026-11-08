@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.LocalStorage 2.0
+import "../components"
 
 // Battery Panel — nice battery UI, change performance, calculate life & usage,
 // plus nbfc fan speeds (no sudo: the service runs as root),
@@ -223,15 +224,18 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: root.open=false }
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors { top: parent.top; right: parent.right }
         anchors.topMargin: 52; anchors.rightMargin: 8
         width: 400
         height: Math.min(620, col.implicitHeight+28)
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1; border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "battery"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         focus: root.open
         Keys.onEscapePressed: root.open=false
         transform: [

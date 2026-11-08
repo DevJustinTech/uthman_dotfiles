@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Services.SystemTray
 import QtQuick
 import QtQuick.Layouts
+import "../components"
 
 // StatusPill — single glass pill that consolidates all transient indicators:
 // idle inhibitor, DND, screen-recording, plus every SystemTray icon
@@ -22,7 +23,8 @@ Item {
 
     // --- tray filtering ---
     // Spotify keeps a tray icon; the NowPlaying pill already covers it.
-    readonly property var hiddenApps: ["spotify"]
+    // LocalSend is filtered out of the bar entirely.
+    readonly property var hiddenApps: ["spotify", "localsend"]
     readonly property var trayItems: SystemTray.items.values.filter(function(it) {
         var s = ((it.id || "") + " " + (it.title || "")).toLowerCase()
         for (var i = 0; i < hiddenApps.length; i++)
@@ -92,7 +94,7 @@ Item {
         NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutSine }
     }
 
-    Rectangle {
+    Glass {
         id: pill
         anchors.centerIn: parent
         implicitWidth: row.implicitWidth + 22
@@ -100,9 +102,12 @@ Item {
         width: implicitWidth
         height: 30
         radius: 14
-        color: colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        classicColor: colors.alpha(colors.surface, 0.55)
+        classicBorder: colors.alpha(colors.outline, 0.15)
+        classicBorderWidth: 1
 
         Behavior on implicitWidth { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 

@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Package Manager — Hyprland floating window (NOT a PanelWindow popup).
 // Search official + AUR via yay, multi-select queue, install with live progress,
@@ -772,13 +773,15 @@ FloatingWindow {
     Timer { id: searchDebounce; interval: 380; onTriggered: if(root.query.trim().length>=1) searchProc.running=true; else {searchResults=[]; searching=false} }
 
     // card
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 20
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "pkgman"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         focus: root.open
         Keys.onEscapePressed: {
             if(root.installing) return

@@ -1,0 +1,83 @@
+#!/bin/bash
+# glass-apply — point Hyprland's blur pipeline at the classic or liquid-glass
+# recipe.
+#
+# The surface tint/rim is Qt Quick's job (components/Glass.qml); this script
+# only owns the compositor half: the filter behind the surface — blur quality,
+# saturation, the brightness lift/dim and the shadow.
+#
+# State comes from ~/.cache/quickshell/glass.json (same file the Quickshell
+# toggle writes) and the live matugen background in
+# ~/.config/quickshell/colors.css, which decides whether the light or dark
+# tint scale applies. Hyprland 0.56's Lua config refuses `hyprctl keyword`, so
+# values are set with `hyprctl eval` — the same pattern winfx uses.
+#
+# Run on toggles/slider release (Quickshell), at login, and from getTheme
+# after a wallpaper/theme change. Safe to call repeatedly.
+
+set -u
+
+STATE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/glass.json"
+COLORS="$HOME/.config/quickshell/colors.css"
+
+enabled=false
+light=1
+dark=1
+if [ -r "$STATE" ]; then
+    enabled=$(jq -r 'if .enabled == null then true else .enabled end' "$STATE" 2>/dev/null || echo true)
+    light=$(jq -r '.lightTint // 1' "$STATE" 2>/dev/null || echo 1)
+    dark=$(jq -r '.darkTint // 1' "$STATE" 2>/dev/null || echo 1)
+fi
+
+# ── Which theme is live ────────────────────────────────────────────────────
+# matugen writes a light palette or a dark palette; its background luminance
+# is the reliable split (the same test Colors.qml uses).
+bg=$(grep -m1 '@define-color background' "$COLORS" 2>/dev/null | grep -oE '#[0-9a-fA-F]{6}')
+dark_theme=true
+if [ -n "${bg:-}" ]; then
+    hex=${bg#\#}
+    r=$((16#${hex:0:2}))
+    g=$((16#${hex:2:2}))
+    b=$((16#${hex:4:2}))
+    lum=$(((299 * r + 587 * g + 114 * b) / 1000))
+    [ "$lum" -ge 128 ] && dark_theme=false
+fi
+
+# ── Recipes ────────────────────────────────────────────────────────────────
+# Classic: bit-for-bit the values looknfeel.lua shipped before glass existed,
+# so turning the mode off restores today's desktop exactly.
+size=6
+passes=1
+contrast=0.8916
+brightness=1.0
+vibrancy=0.1696
+vibrancy_darkness=0.0
+shadow='rgba(00000066)'
+shadow_inactive='rgba(00000025)'
+
+if [ "$enabled" = "true" ]; then
+    if [ "$dark_theme" = "true" ]; then
+        # Dark glass: dim like a multiply with black rather than a milky wash.
+        contrast=0.9200
+        brightness=$(awk -v s="$dark" 'BEGIN { b = 1 + (0.80 - 1) * s; if (b < 0.60) b = 0.60; printf "%.4f", b }')
+        vibrancy=$(awk -v s="$dark" 'BEGIN { v = 0.1696 + (0.35 - 0.1696) * (s > 1 ? 1 : s); printf "%.4f", v }')
+        vibrancy_darkness=$(awk -v s="$dark" 'BEGIN { v = 0.30 * (s > 1 ? 1 : s); printf "%.4f", v }')
+        shadow='rgba(00000040)'
+        shadow_inactive='rgba(00000022)'
+    else
+        # Light glass: colour comes from behind, vivid, slightly lifted. The
+        # lift thins with the tint scale, so at 0 only blur/rim/shadow remain.
+        contrast=0.9300
+        brightness=$(awk -v s="$light" 'BEGIN { b = 1 + (1.06 - 1) * s; printf "%.4f", b }')
+        vibrancy=$(awk -v s="$light" 'BEGIN { v = 0.1696 + (0.40 - 0.1696) * (s > 1 ? 1 : s); printf "%.4f", v }')
+        vibrancy_darkness=0
+        shadow='rgba(0000002e)'
+        shadow_inactive='rgba(00000018)'
+    fi
+fi
+
+# Keep passes at 1 and size at 6: this is the HD 520 (see GPU_TUNING in
+# looknfeel.lua). Vibrance/contrast are single post passes, not extra blurs.
+hyprctl eval "hl.config({decoration={blur={enabled=true, size=$size, passes=$passes, new_optimizations=true, xray=false, ignore_opacity=false, noise=0.0117, contrast=$contrast, brightness=$brightness, vibrancy=$vibrancy, vibrancy_darkness=$vibrancy_darkness}, shadow={enabled=true, range=28, render_power=2, color=\"$shadow\", color_inactive=\"$shadow_inactive\"}}})" >/dev/null 2>&1
+
+exit 0

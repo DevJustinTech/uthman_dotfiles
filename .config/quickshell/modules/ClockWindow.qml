@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
+import "../components"
 
 // ClockWindow — small glass CARD on bar-clock click.
 // FloatingWindow centered popup, Amber Bento tokens only.
@@ -79,13 +80,16 @@ FloatingWindow {
         return Math.ceil((end - n) / 86400000)
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 6
-        color: colors.alpha(colors.surface, 0.62)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.28)
+        surfaceId: "clock"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.62) : "transparent"
+        densityOverride: 0.6
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.28) : "transparent"
+        classicBorderWidth: 1
         // mock pop: 280ms overshoot entrance
         ParallelAnimation {
             id: openAnim

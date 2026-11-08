@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // FailWatch panel — silent failures the resource watcher can't see.
 // Reads ~/.local/share/failwatch/live.json written by failwatch.service.
@@ -149,6 +150,11 @@ FloatingWindow {
         if (kind === "segfault") return colors.primary
         return colors.secondary
     }
+    function fmtEventTs(ts) {
+        var d = new Date(ts)
+        if (isNaN(d.getTime())) return String(ts).slice(5, 19).replace("T", " ")
+        return Qt.formatDateTime(d, "MM-dd HH:mm:ss")
+    }
 
     function runPkgCheck() {
         if (root.pkgBusy) return
@@ -170,13 +176,16 @@ FloatingWindow {
         }
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: root.failedCount > 0 ? colors.alpha(colors.error, 0.35) : colors.alpha(colors.outline, 0.15)
+        surfaceId: "failwatch"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? root.failedCount > 0 ? colors.alpha(colors.error, 0.35) : colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
+        preserveBorder: root.failedCount > 0
         // bezier pair — open pops with overshoot bounce, close hurries out
         ParallelAnimation {
             id: openAnim
@@ -354,7 +363,7 @@ FloatingWindow {
                             }
                             Text { text: (modelData.unit || "kernel").slice(0, 40); color: colors.alpha(colors.outline, 0.65); font.family: colors.fontSans; font.pixelSize: 8; elide: Text.ElideRight; Layout.maximumWidth: 200 }
                             Item { Layout.fillWidth: true }
-                            Text { text: String(modelData.ts).slice(5, 19).replace("T", " "); color: colors.alpha(colors.outline, 0.45); font.family: colors.fontSans; font.pixelSize: 8 }
+                            Text { text: root.fmtEventTs(modelData.ts); color: colors.alpha(colors.outline, 0.45); font.family: colors.fontSans; font.pixelSize: 8 }
                         }
                         RowLayout {
                             Layout.fillWidth: true

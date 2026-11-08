@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
+import "../components"
 
 // MonitorSettings — display controls (scale / orientation / mode line) in the
 // segmented-pill design, themed off `colors`. Applies persistently via
@@ -186,13 +187,15 @@ FloatingWindow {
     // glass card — anchors.fill so the hairline lands exactly on the window
     // edge. A fixed/inset card leaves a margin the compositor then frames,
     // which reads as a second border.
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 28
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "monitors"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         // bezier pair — open pops with overshoot bounce, close hurries out
         ParallelAnimation {
             id: openAnim

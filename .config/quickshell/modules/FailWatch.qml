@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../components"
 
 // FailWatch pill — silent-failure watchdog. Shows failed-unit + journal-error
 // counts from the failwatch.service daemon (scripts/failwatch-daemon.py).
@@ -65,19 +66,21 @@ Item {
     implicitWidth: label.implicitWidth + 32
     implicitHeight: 30
 
-    Rectangle {
+    Glass {
         anchors.fill: parent
         radius: 14
-        color: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: root.daemonState === "error" ? colors.alpha(colors.outline, 0.3)
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        hovered: root.hovered
+        classicColor: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
+        classicBorder: root.daemonState === "error" ? colors.alpha(colors.outline, 0.3)
                     : root.bad ? colors.alpha(colors.error, 0.55)
                     : root.warn ? colors.alpha(colors.primary, 0.5)
                     : root.hovered ? colors.alpha(colors.secondary, 0.45)
                     : colors.alpha(colors.outline, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 300 } }
-        Behavior on border.color { ColorAnimation { duration: 300 } }
+        classicBorderWidth: 1
+        preserveBorder: root.daemonState === "error" || root.bad || root.warn
 
         Text {
             id: label

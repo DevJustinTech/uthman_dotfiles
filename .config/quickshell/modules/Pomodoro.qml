@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Pomodoro — standalone focus timer. Full cycle (focus / short / long break),
 // adjustable durations, session dots, daily stats persisted to disk, critical
@@ -175,13 +176,15 @@ FloatingWindow {
     }
 
     // window glass
-    Rectangle {
+    Glass {
         id: bg
         anchors.fill: parent
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "pomodoro"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         focus: true
         Keys.onEscapePressed: root.open = false
         Keys.onPressed: function(e){

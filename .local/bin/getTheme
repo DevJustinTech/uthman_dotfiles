@@ -134,4 +134,10 @@ done
 
 wait
 
+# Liquid glass: resample the scene under each surface for density/ink, then
+# retune the compositor's tint recipe. The shell's own tint/ink recomputes
+# off colors.css and glass-sample.json on its polls.
+"$HOME/.config/quickshell/scripts/glass-sample.py" "$WALLPAPER" >/dev/null 2>&1 || true
+"$HOME/.local/bin/glass-apply" >/dev/null 2>&1 || true
+
 echo "Done!"

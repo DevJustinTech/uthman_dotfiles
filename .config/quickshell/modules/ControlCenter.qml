@@ -7,6 +7,7 @@ import QtQuick.Controls
 import QtQuick.LocalStorage 2.0
 import QtQuick.Effects
 import Qt5Compat.GraphicalEffects
+import "../components"
 
 // Control Center — bento-grid regular Hyprland window (FloatingWindow, NOT layershell overlay).
 // Opens with SUPER ALT P, behaves like a normal window: floats centered, focusable, tileable if you unfloat.
@@ -462,13 +463,15 @@ FloatingWindow {
 
     NetRate { id: netRate }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 20
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "controlcenter"
+        colors: root.colors
+        classicColor: colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         // bezier pair — open pops with overshoot bounce, close hurries out
         ParallelAnimation {
             id: openAnim
@@ -749,6 +752,34 @@ FloatingWindow {
                             Text { text: "BRIGHTNESS"; Layout.alignment: Qt.AlignVCenter; color: colors.alpha(colors.outline,0.65); font.family: colors.fontSans; font.pixelSize: 7; font.weight: Font.Bold; font.letterSpacing: 1.3 }
                             Item { Layout.fillWidth: true }
                             Text { text: Math.round(root.brightness*100)+"%"; Layout.alignment: Qt.AlignVCenter; color: colors.secondary; font.family: colors.fontSans; font.pixelSize: 10; font.weight: Font.ExtraBold }
+                            // Liquid glass on/off — same state as SUPER ALT J
+                            // and the Theme editor row. Sits beside nightlight
+                            // because both are surface treatments.
+                            Rectangle {
+                                width: 26; height: 26; radius: 13
+                                Layout.alignment: Qt.AlignVCenter
+                                color: colors.glassOn ? colors.alpha(colors.primary, 0.18) : colors.alpha(colors.surfaceVariant, 0.45)
+                                border.width: 1
+                                border.color: colors.glassOn ? colors.alpha(colors.primary, 0.45) : colors.alpha(colors.outline, glassHover.containsMouse ? 0.4 : 0.22)
+                                scale: glassHover.containsMouse ? 1.1 : 1
+                                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "󰍖"
+                                    color: colors.glassOn ? colors.primary : colors.alpha(colors.outline, glassHover.containsMouse ? 0.9 : 0.7)
+                                    font.family: colors.fontSans
+                                    font.pixelSize: 12
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                }
+                                MouseArea {
+                                    id: glassHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: colors.toggleGlass()
+                                }
+                            }
                             Rectangle {
                                 width: 26; height: 26; radius: 13
                                 Layout.alignment: Qt.AlignVCenter

@@ -437,6 +437,17 @@ Unwired but still on disk: `QuickNotes` (scratch idea capture; nothing instantia
 
 `PLUGINS.md` is the registry of every module, its IPC target, and its bind. Keep both current when you change a module.
 
+### Liquid glass mode
+
+An optional material for the surfaces that float over the wallpaper. Off by default — the warm classic fills are untouched, and flipping it either way is instant.
+
+* Toggle: `SUPER ALT J`, the **Liquid glass** tile in Control Center, or the pill in the Theme editor (`SUPER ALT G`).
+* The Theme editor's **SURFACE** row carries two tint sliders: **L** for light themes, **D** for dark. `1.0` is the designed tint; below it the fill and the compositor's brightness lift thin together, above it they deepen. Each theme remembers its own value.
+* `~/.local/bin/glass-apply` swaps the Hyprland blur recipe (`passes`/`size` stay pinned for the HD 520; only brightness/vibrancy/contrast move). `getTheme` re-runs it after every wallpaper or theme change.
+* Density and ink come from `scripts/glass-sample.py`. It covers the monitor with the wallpaper, samples a 5×3 grid under each surface, drops the extremes, and writes `~/.cache/quickshell/glass-sample.json`; density rises until the chosen ink clears 4.5:1. Light themes flip to light ink only on surfaces whose text is fully wired (currently toasts); everything else keeps theme ink on white glass rather than risking dark-on-dark.
+* `glass-check` prints what the sampler decided and flags any surface under 4.5:1.
+* Left solid on purpose: ThemePanel (it paints its own blurred wallpaper inside the card), the Now Playing hover card (album art is the tint), bar pills and menus (they sit on the glass island, not the wallpaper), the pet, GTK apps, SDDM and hyprlock.
+
 ## Notifications
 
 The shell is its own notification daemon. Toasts carry action buttons, screenshot notifications carry a Save button that files the image into `~/Pictures/Screenshots`, and everything lands in the history drawer. When an app ships no icon, the row falls back to a per-app Phosphor glyph (40+ apps mapped, from Firefox down to `brightnessctl` and `grim`), so rows never show bare initial letters. `notify-send -a <AppName>` is all a sender needs for a correct icon.
@@ -495,6 +506,7 @@ The daemon seeds its journal cursor on first run (no backlog spam), dedupes repe
 | `SUPER+,` / `SUPER SHIFT+,` | Notifications / do-not-disturb |
 | `SUPER CTRL+V` / `SUPER CTRL+P` / `SUPER+N` | Clipboard window / pin clipboard to sticky shelf / system info |
 | `SUPER ALT+Space` / `SUPER SHIFT+Space` | Island style / bar sides |
+| `SUPER ALT+J` | Liquid glass on/off |
 | `SUPER+Escape` / `SUPER SHIFT+Q` | Power menu / shutdown (reboot lives in the power menu) |
 | `SUPER+arrows`, `SUPER+1-0` | Focus, workspaces |
 | Fn row | Volume/brightness/mic via the quickshell OSD |
@@ -509,7 +521,7 @@ The full list lives in `.config/hypr/bindings.lua`. Every panel also closes on `
 
 ## Helper scripts
 
-`~/.local/bin/` (stowed from this repo) holds the CLI surface: `set-wallpaper`, `getTheme`, `shot`, `record`, `utpdf`, `vol`, `bright`, `nightlight`, `lock`, `qemu-launch`, and more. These are what binds, panels, and muscle memory call.
+`~/.local/bin/` (stowed from this repo) holds the CLI surface: `set-wallpaper`, `getTheme`, `shot`, `record`, `utpdf`, `vol`, `bright`, `nightlight`, `lock`, `qemu-launch`, `glass-apply`, `glass-check`, and more. These are what binds, panels, and muscle memory call.
 
 ## Tools
 

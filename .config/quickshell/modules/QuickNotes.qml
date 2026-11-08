@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.LocalStorage 2.0
+import "../components"
 
 // QuickNotes: small floating idea capture window.
 // Opens from the app launcher (Utilities view / search "notes"; `ipc call notes toggle`).
@@ -145,11 +146,14 @@ FloatingWindow {
     }
     Timer { id: remindTimer; interval: 3600000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.maybeRemind() }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 22
-        color: colors.alpha(colors.surface, 0.62)
+        surfaceId: "notes"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.62) : "transparent"
+        densityOverride: 0.7
         focus: root.open
         Keys.onEscapePressed: root.handleEscape()
 

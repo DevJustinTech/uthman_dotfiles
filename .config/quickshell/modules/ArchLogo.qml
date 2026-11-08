@@ -1,5 +1,6 @@
 import Quickshell
 import QtQuick
+import "../components"
 
 // Arch logo pill — waybar #custom-arch parity:
 // 󰌽 glyph at 16px, primary color, glass island slightly brighter than others.
@@ -12,15 +13,16 @@ Item {
     implicitWidth: label.implicitWidth + 26
     implicitHeight: 30
 
-    Rectangle {
+    Glass {
         anchors.fill: parent
         radius: 14
-        color: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: root.hovered ? colors.alpha(colors.primary, 0.45) : colors.alpha(colors.outline, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 300 } }
-        Behavior on border.color { ColorAnimation { duration: 300 } }
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        hovered: root.hovered
+        classicColor: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
+        classicBorder: root.hovered ? colors.alpha(colors.primary, 0.45) : colors.alpha(colors.outline, 0.15)
+        classicBorderWidth: 1
 
         Text {
             id: label

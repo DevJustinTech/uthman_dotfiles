@@ -36,8 +36,12 @@ Item {
     readonly property real contentStart: lobeR * 2 + 8          // clear of the lobe
     readonly property real contentLen: (spanH - tailPad) - contentStart
 
-    property color fill: colors ? colors.alpha(colors.surface, 0.78) : "#212323"
-    property color stroke: colors ? colors.alpha(colors.primary, 0.35) : "#9bd0d2"
+    property color fill: colors
+        ? (colors.glassOn ? colors.glassCardColor("osd", false, 0.8) : colors.alpha(colors.surface, 0.78))
+        : "#212323"
+    property color stroke: colors
+        ? (colors.glassOn ? colors.glassCardBorder("osd") : colors.alpha(colors.primary, 0.35))
+        : "#9bd0d2"
 
     implicitWidth: bodyW
     implicitHeight: bodyH

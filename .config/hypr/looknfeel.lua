@@ -97,9 +97,13 @@ hl.animation({ leaf = "fadeLayersOut",    enabled = true, speed = 3,   bezier = 
 -- Every Quickshell surface is a layer surface. ignore_alpha is the important
 -- half: without it Hyprland blurs the whole rectangular layer including the
 -- transparent margin, and each panel grows a visible box around its content.
+--
+-- 0.03, not 0.15: liquid-glass tints run as thin as 6%, and at 0.15 Hyprland
+-- treated the thinnest glass as empty margin and skipped the blur behind it.
+-- Fully transparent margins are still 0 alpha, so the no-box behaviour holds.
 
 local function frost(namespace)
-  hl.layer_rule({ match = { namespace = "^" .. namespace .. "$" }, blur = true, ignore_alpha = 0.15 })
+  hl.layer_rule({ match = { namespace = "^" .. namespace .. "$" }, blur = true, ignore_alpha = 0.03 })
 end
 
 -- Bar island, popups, toasts, and the dedicated namespaces.

@@ -36,6 +36,7 @@ Rules of the house (from AGENTS.md / memory.md):
 | Dictionary.qml | **dictionary** — definitions, IPA, audio, examples, synonym/antonym chips, Datamuse related words, session cache + history | `dict` | Launcher → Utilities (no bind) | pure QML (dictionaryapi.dev, no key); Enter to define, chips drill down |
 | Grap.qml | **grep search** — instant content search (home by default, `@path` to scope), file-type icons, Enter opens match in nano (foot) at line | `grap` | Launcher → Utilities (no bind) | FloatingWindow 600×470 glass; debounced ripgrep, ↑↓ + Enter, Esc |
 | Bar pills (ArchLogo, Memory, Cpu, Network, Temp, Tray, DndIndicator, ScriptIndicator) | status pills | — | — | ScriptIndicator runs scripts/update.sh + idle.sh |
+| Glass.qml + Colors.qml | optional liquid-glass material for wallpaper-backed surfaces: tint bands, rim/sheen, glass rows, adaptive density/ink, per-theme tint sliders | `glass` (`toggle/on/off/tint/resample`) | `SUPER ALT J` | off by default; compositor recipe via `glass-apply`, scene sampler via `scripts/glass-sample.py`, audit via `glass-check`; see README → Liquid glass mode |
 
 ## Unwired / dormant
 

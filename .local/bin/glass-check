@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""glass-check — report the sampled glass state and its text contrast.
+
+Reads ~/.cache/quickshell/glass-sample.json (written by glass-sample.py) and
+~/.cache/quickshell/glass.json for the mode. Prints one line per surface:
+
+  surface        density  tint band  ink    contrast  verdict
+
+The sampler already raises density until contrast clears 4.5:1; this script
+is the audit — run it after changing the wallpaper or the tint sliders if a
+surface looks marginal. Contrast is estimated from the wallpaper region and
+the tint band, before compositor blur; blur can only reduce local detail, not
+average contrast, so it is a fair lower bound for text.
+
+Exit code 1 if any ready surface is under 4.5:1.
+"""
+import json
+import os
+import sys
+
+SAMPLE = os.path.expanduser("~/.cache/quickshell/glass-sample.json")
+STATE = os.path.expanduser("~/.cache/quickshell/glass.json")
+
+# Mirrors Glass.densityFloor: the shell raises these surfaces to a floor on
+# top of the raw sample. The sample's contrast was computed at the raw
+# density; a denser floor can only improve it.
+FLOORS = {"wifi": 0.32, "notify": 0.32}
+
+
+def main():
+    try:
+        with open(SAMPLE) as f:
+            samples = json.load(f)
+    except Exception:
+        print("no sample yet — run glass-sample.py after setting a wallpaper")
+        return 1
+
+    enabled = True
+    light = dark = 1.0
+    try:
+        with open(STATE) as f:
+            state = json.load(f)
+        enabled = bool(state.get("enabled", True))
+        light = float(state.get("lightTint", 1.0))
+        dark = float(state.get("darkTint", 1.0))
+    except Exception:
+        pass
+
+    print(f"{'surface':<16}{'density':>8}{'band':>6}{'ink':>8}{'contrast':>10}  verdict")
+    bad = []
+    floored = []
+    for name in sorted(samples):
+        s = samples[name]
+        raw = s.get("density", 0.35)
+        density = max(raw, FLOORS.get(name, 0.0))
+        contrast = s.get("contrast")
+        verdict = "ok"
+        if density > raw + 1e-9:
+            floored.append(name)
+            verdict = "ok*"
+        if contrast is not None and contrast < 4.5:
+            verdict = "LOW"
+            bad.append(name)
+        band = int(round(density * 4))
+        print(f"{name:<16}{density:>8.2f}{band:>6}{s.get('ink', '?'):>8}"
+              f"{(f'{contrast:.2f}' if contrast is not None else '-'):>10}  {verdict}")
+
+    print()
+    if floored:
+        print("* raised to the shell's densityFloor:", ", ".join(floored))
+    print("mode:", "on" if enabled else "off",
+          "| tint scales:", f"light {light:.2f}", f"dark {dark:.2f}")
+    if bad:
+        print("under 4.5:1:", ", ".join(bad))
+        return 1
+    print("all sampled surfaces clear 4.5:1")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

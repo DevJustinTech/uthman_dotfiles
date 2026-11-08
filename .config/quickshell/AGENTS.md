@@ -238,13 +238,17 @@ rewriting ~35 data rows — see the table above when extending it.
 
 ---
 
-## 6. Networking API (Quickshell.Networking, iwd backend)
+## 6. Networking API (Quickshell.Networking, NetworkManager backend)
 
 * `Networking.devices.values` → `WifiDevice`/`WiredDevice`. Filter by `d.type === DeviceType.Wifi`.
-* `wifiDev.networks.values` → `WifiNetwork[]` with `name` (ssid), `signalStrength` (0-100), `security` (`WifiSecurityType.None` vs secured), `connected`, `known`, `address`.
+* `wifiDev.networks.values` → `WifiNetwork[]` with `name` (ssid), `signalStrength` (**0.0–1.0**, not 0–100), `security` (`WifiSecurityType.Open`/`Owe` = passwordless; everything else secured), `connected`, `known`.
+* `NetworkDevice.address` is the **MAC**, not the IPv4 address. For the IP shown in the panel, run `nmcli -g IP4.ADDRESS device show <iface>`.
 * Sorting for the list: connected first, then known, then `signalStrength` descending.
 * Connect: `net.connect()` (open or known) vs `net.connectWithPsk("password")` (secured+unknown). No `rescan()` method exists — toggle `wifiDev.scannerEnabled = false; ... = true`.
+* `scannerEnabled = false` **clears** every non-connected network from `networks.values`, so scan only while the panel is open and stop after the close animation.
 * Rescan spinner: `scannerEnabled` is always-on background flag, useless as signal. Drive a local `scanSpinning: bool` on click + `Timer { interval:4000 }` + `onNetsChanged` early-stop.
+* Secured unknown networks go through the resident `PassPrompt`: `ipc call passprompt ask "<ssid> — password needed to join"`. An inline `TextField` on the panel's layer surface did not reliably take keyboard focus; typed characters fell through to the panel's `Keys.onPressed` handler.
+* Inside a root `function`, `root.<id>.restart()` does **not** resolve QML ids. Call `failClear.restart()` / `connectWatch.restart()` directly.
 
 ---
 
@@ -314,7 +318,7 @@ poll.interval = 200; poll.repeat = true
 6. Verify via `pkill -x quickshell; setsid quickshell -p ~/.config/quickshell > /tmp/qs-bar.log 2>&1 &` → wait 4s → `grep -E 'ERROR|WARN' /tmp/qs-bar.log` must be empty (ignore accumulated session lines — hard-restart before judging).
 7. `quickshell -p ~/.config/quickshell ipc show` must list the new target.
 8. Every new panel ships the unified glass + bounce pair — no exceptions, no dim overlays:
-   - card fill `colors.alpha(colors.surface, 0.52)`, hairline `border.width: 1; border.color: colors.alpha(colors.outline, 0.15)` (inner tiles keep their own fills; state-driven borders like error stay).
+   - card root is `Glass` with `surfaceId`, `colors: root.colors`, and the old values kept in `classicColor` / `classicBorder` / `classicBorderWidth`; `preserveBorder` for error/connected states. If you truly cannot use `Glass`, the card fill is `colors.alpha(colors.surface, 0.52)` + hairline `border.width: 1; border.color: colors.alpha(colors.outline, 0.15)` (inner tiles keep their own fills; state-driven borders like error stay).
    - click-catcher stays `"transparent"` — a dim backdrop is never added.
    - `openAnim`: opacity 0→1 220ms + scale 0.94→1 280ms overshoot bezier `[0.34, 1.35, 0.64, 1]`; `closeAnim`: opacity→0 160ms + scale→0.94 180ms plain `[0.32, 0.72, 0, 1]`. Drawer-style cards slide their axis (Translate + Scale with origin at the anchored edge) instead of center-scaling.
    - window `visible: root.open || closeAnim.running`, anims restarted from `onOpenChanged` (merge with fetchers/refresh/focus, never replace).
@@ -361,3 +365,28 @@ ScrollView {
 ```
 Never nest a `ListView` inside a `ScrollView`, and never put `anchors.*` inside a `Layout` child — use `Layout.alignment`.
 
+---
+
+## Liquid Glass (optional surface material)
+
+Off by default; classic is bit-identical. `Colors.qml` owns the tokens/state, `Glass.qml` is the drop-in material, and `~/.local/bin/glass-apply` swaps the compositor recipe.
+
+### Opt in only where it belongs
+Chrome that floats over the wallpaper: panels, toasts, OSD, bar island, and the bar pills (raised glass layers on the island). Everything drawn over a solid fill stays solid — nested tiles, list rows on an opaque list, the Now Playing hover card (album art is the tint), ThemePanel (it paints its own blurred wallpaper inside the card), the pet.
+
+### Rules
+* Swap the card `Rectangle` for `Glass`; keep width/height/radius/clip and all children. One material per surface — never add a second backdrop layer.
+* Always set `colors: root.colors` and a unique `surfaceId` per material surface (the bar pills deliberately share `"bar-pill"` as one raised layer). `Glass` declares its own `colors` property, so inside a delegate `colors` resolves to the Glass instance, not the panel — leaving it unset gives null colours and turns the material off.
+* Keep today's look in `classicColor` / `classicBorder` / `classicBorderWidth`; `preserveBorder` for error/connected states. Glass borders and row layers are white glass, never grey washes.
+* Rows: `interactive: true`, bind `hovered` / `selected` (they already exist on `Glass`; do not redeclare them). Selected = white 76% (a third in dark), hover = white 42% (a third in dark), plus a white stroke. Row strokes use `glassRowBorder`.
+* Tint bands: dark glass `rgb(20 20 24)` at 16–38%, light glass white at 6–22%, light-theme-over-dark `rgb(16 18 22)` at 10–30%. Density 0–1 picks the band (`glassCardColor(surfaceId, hovered, override)`); sampled density wins unless a small control overrides it (OSD 0.8, toasts 0.65, pass prompt 0.7, capsule 0.9). Text-heavy panels over live windows can set `densityFloor` (WiFi, notifications: 0.32) so a smooth dark wallpaper sample cannot leave them near-clear.
+* Ink: `colors.inkTitle(surfaceId, fallback)` / `inkSecondary(...)`; always pass the old colour as the fallback so classic stays identical. Adaptive flips are allowed only for surfaces in `Colors.glassInkReady` whose every text/icon is wired — currently `toast`. Do not add a surface there half-wired: the tint family flips with the ink and unwired dark text lands on dark glass. Unwired light-theme surfaces keep theme ink on white glass (the safe fallback).
+* Bar pills are the one nested exception: `Glass` with `raised: true`, `surfaceId: "bar-pill"` (shared so every pill gets the same layer), `colors: root.colors`, `hovered` bound to the pill's hover state, and `preserveBorder` for warning/error states. They are a lighter frosted layer on the island — white 16% in the dark theme (24% hover) and 36% in the light theme (52% hover) — not the sampled card tint. A dark gradient inside the capsule (clear at the top, tinted at the base) keeps 11px ink legible over a bright scene, and `raised` gives the lit rim. Their 22–30px height earns that rim via `raised`, bypassing the 32px sheen gate.
+* Rim: Qt Quick has no `feDisplacementMap`. `Glass.qml` paints the lens as gradient light inside the edge — rim width `min(44, shortSide/3.5)` floored at 4, an approximated version of the brief's `1.1 × rim × (1 − d/rim)^2.6` falloff, and the sheen is skipped under 32px except `raised` pills. Do not add a per-frame shader or RGB channel split; neither maps to a Wayland layer.
+* Tint sliders live in the Theme editor status slot; drags stage locally in `stageTint()` and save once after 260 ms. `glass-apply` re-runs on every save, and `getTheme` re-runs sampler + apply on wallpaper/theme changes.
+
+### Sampler and checking
+`scripts/glass-sample.py [wallpaper]` covers the focused monitor with the wallpaper, samples a 5×3 grid per surface, drops the 2 darkest + 2 brightest, and writes `~/.cache/quickshell/glass-sample.json`. It computes texture/chroma density and raises density until the chosen ink clears 4.5:1 — density, never ink opacity. Light themes flip ink under lum 0.5 with ±0.05 hysteresis; dark themes are always light ink. `glass-check` prints the decisions and flags anything under 4.5:1. The sampler assumes surfaces sit over the wallpaper; a fullscreen app under the bar is a known approximation.
+
+### GPU budget
+This machine is an HD Graphics 520. Keep Hyprland `passes = 1`, `size = 6`; tune only `brightness` / `vibrancy` / `vibrancy_darkness` / `contrast` in `glass-apply`. Glass adds roughly 2–3% idle CPU here (overlays only render while visible). Do not add per-frame JS or animated displacement.

@@ -4,6 +4,7 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
+import "../components"
 
 // Workspace Viewer — fullscreen overview of every workspace with live
 // mini-screen previews (windows laid out by their real geometry).
@@ -134,15 +135,17 @@ PanelWindow {
     }
 
     // centered card; height follows the grid row count
-    Rectangle {
+    Glass {
         id: card
         anchors.centerIn: parent
         width: 960
         height: 84 + root.rows * root.cellH + (root.rows - 1) * 14
         radius: 20
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "workspaces"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         focus: root.open
 
         // bezier pair — open pops with overshoot bounce (fast), close hurries

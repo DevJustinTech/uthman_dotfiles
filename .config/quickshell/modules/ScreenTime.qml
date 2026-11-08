@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Screen Time — graph + 7-day list, Hyprland FloatingWindow, no hover clutter
 FloatingWindow {
@@ -119,13 +120,15 @@ FloatingWindow {
     onOpenChanged: { if (open) { fetcher.running = true; appFetcher.running = true; openAnim.restart() } else closeAnim.restart() }
 
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "screentime"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         // bezier pair — open pops with overshoot bounce, close hurries out
         ParallelAnimation {
             id: openAnim

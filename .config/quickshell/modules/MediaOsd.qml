@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../components"
 
 // MediaOsd — quickshell replacement for omarchy's swayosd.
 // Glass pill at top-center showing volume / mic / brightness level.
@@ -81,13 +82,16 @@ PanelWindow {
 
     Timer { id: hideTimer; interval: 1400; onTriggered: root._show = false }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 18
-        color: colors.alpha(colors.surface, 0.78)
-        border.width: 1
-        border.color: colors.alpha(colors.primary, 0.25)
+        surfaceId: "mediaosd"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.78) : "transparent"
+        densityOverride: 0.7
+        classicBorder: root.colors ? colors.alpha(colors.primary, 0.25) : "transparent"
+        classicBorderWidth: 1
         opacity: root.show ? 1 : 0
         scale: root.show ? 1 : 0.92
         Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }

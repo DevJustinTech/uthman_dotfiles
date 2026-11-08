@@ -139,12 +139,17 @@ def failed_units(scope):
     return rows
 
 
-def log_event(c, kind, unit, summary, detail, cursor):
-    now = datetime.now(timezone.utc).isoformat()
+def log_event(c, kind, unit, summary, detail, cursor, ts=None):
+    # ts is the journal entry's own timestamp when available. The old code
+    # always used "now", so a boot-time replay of entries logged while the
+    # daemon was stopped (e.g. the shutdown failures it missed) made them look
+    # like they happened at boot instead of when they actually occurred.
+    if not ts:
+        ts = datetime.now(timezone.utc).isoformat()
     cur = c.execute(
         "INSERT INTO events(ts, kind, unit, summary, detail, cursor)"
         " VALUES(?,?,?,?,?,?)",
-        (now, kind, unit or "", summary[:300], detail[:2000], cursor or ""),
+        (ts, kind, unit or "", summary[:300], detail[:2000], cursor or ""),
     )
     return cur.lastrowid
 
@@ -241,6 +246,33 @@ def fmt_ts(usec_str):
         return ""
 
 
+def event_iso(usec_str):
+    """Journal __REALTIME_TIMESTAMP -> UTC ISO timestamp for events.ts."""
+    try:
+        return datetime.fromtimestamp(
+            int(usec_str) / 1e6, timezone.utc).isoformat()
+    except Exception:
+        return datetime.now(timezone.utc).isoformat()
+
+
+def entry_unit(e):
+    """Pick the unit the entry is about, not the manager that emitted it.
+
+    systemd PID 1 logs from init.scope and user managers log from
+    user@1000.service, so _SYSTEMD_UNIT is the emitter for their messages.
+    The `UNIT=` field (or the leading `foo.service:` in the message) names
+    the unit that actually failed.
+    """
+    unit = e.get("UNIT") or ""
+    if not unit:
+        for key in ("_SYSTEMD_USER_UNIT", "_SYSTEMD_UNIT"):
+            value = e.get(key) or ""
+            if value and value != "init.scope":
+                unit = value
+                break
+    return unit or e.get("SYSLOG_IDENTIFIER") or ""
+
+
 def write_live(c, failed):
     recent = c.execute(
         "SELECT id, ts, kind, unit, summary, cursor FROM events"
@@ -329,24 +361,31 @@ def main():
             kind = classify(msg)
             if not kind:
                 continue
-            # a failed unit already emits its own failed-unit event with a
-            # cleaner summary + `journalctl -u` command — skip the journal
-            # echo so one crash = one notification, not two.
+            unit = entry_unit(e)
             if kind == "unit-fail":
-                m = re.search(r"(\S+\.service)", msg)
-                if m and m.group(1) in {u["name"] for u in failed}:
+                # "foo.service: Failed with result..." — the real unit is in
+                # the message when systemd didn't attach a UNIT= field.
+                m = re.match(
+                    r"^([\w@.\-]+\.(?:service|socket|timer|mount|automount"
+                    r"|target|path|slice|scope)):", msg)
+                if m:
+                    unit = m.group(1)
+                # a failed unit already emits its own failed-unit event with a
+                # cleaner summary + `journalctl -u` command — skip the journal
+                # echo so one crash = one notification, not two.
+                if unit in {u["name"] for u in failed}:
                     continue
-            unit = e.get("_SYSTEMD_UNIT") or e.get("SYSLOG_IDENTIFIER") or ""
             h = hashlib.sha256(
                 (kind + "|" + unit + "|" + msg[:200]).encode()).hexdigest()
             if seen(c, h):
                 continue
-            ts = fmt_ts(e.get("__REALTIME_TIMESTAMP", "0"))
+            event_ts = event_iso(e.get("__REALTIME_TIMESTAMP", "0"))
             cursor = e.get("__CURSOR", "")
             summary = msg.strip().split("\n")[0][:200]
             detail = "%s\nunit: %s\nlog id: %s\nfull: journalctl --after-cursor='%s' --no-pager" % (
                 msg.strip()[:1500], unit or "—", cursor[:27] or "—", cursor)
-            eid = log_event(c, kind, unit, summary, detail, cursor)
+            eid = log_event(c, kind, unit, summary, detail, cursor,
+                            ts=event_ts)
             mark(c, h)
             notify(Urg.get(kind, "normal"),
                    "FailWatch: %s%s" % (kind, (" — " + unit) if unit else ""),

@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.LocalStorage 2.0
 import Quickshell
 import Quickshell.Io
+import "../components"
 
 // Clipboard Manager: history from cliphist plus 9 pinned notes.
 //   SUPER CTRL V   open the window
@@ -267,11 +268,14 @@ FloatingWindow {
         }
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 22
-        color: colors.alpha(colors.surface, 0.62)
+        surfaceId: "clipboard"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.62) : "transparent"
+        densityOverride: 0.7
         focus: root.open
 
         ParallelAnimation {

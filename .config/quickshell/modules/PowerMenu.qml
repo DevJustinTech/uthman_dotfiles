@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Power menu — centered modal glass card.
 // Open: SUPER+ESC (hypr bind -> IpcHandler) or Bar power button if wired.
@@ -40,15 +41,17 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.centerIn: parent
         width: 520
         height: 200
         radius: 18
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "power"
+        colors: root.colors
+        classicColor: colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         Keys.onEscapePressed: root.open = false
         focus: root.open
 

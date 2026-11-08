@@ -250,6 +250,9 @@ o.bind("SUPER + CTRL + J", "Pin clipboard to sticky shelf", ipc("sticky", "pin")
 o.bind("SUPER + ESCAPE", "Power menu", open("power"))
 o.bind("SUPER + L", "Lock screen", "pidof hyprlock || hyprlock")
 o.bind("SUPER + ALT + SPACE", "Island style", ipc("bar", "toggleIsland"))
+-- J: the liquid-glass material on/off. Same state as the Control Center tile
+-- and the Theme editor row; this is the shortcut.
+o.bind("SUPER + ALT + J", "Liquid glass", ipc("glass", "toggle"))
 o.bind("SUPER + SHIFT + SPACE", "Bar sides", ipc("bar", "toggle"))
 -- Lower-case "comma" is the xkbcommon name for this key (the stock binds
 -- spell it that way for exactly that reason); these were spelled "COMMA",

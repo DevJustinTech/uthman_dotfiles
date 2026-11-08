@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
+import "../components"
 
 // Earbuds — bluetooth headset battery panel. Data comes from the stack itself:
 // bluetoothctl for pairing/connection, UPower for battery levels. No vendor
@@ -207,13 +208,15 @@ FloatingWindow {
     Timer { id: statusClear; interval: 5000; onTriggered: root.statusText = "" }
 
     // glass card
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "earbuds"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         ParallelAnimation {
             id: openAnim
             NumberAnimation { target: card; property: "opacity"; from: 0; to: 1; duration: 220; easing.type: Easing.Bezier; easing.bezierCurve: [0.32, 0.72, 0, 1] }

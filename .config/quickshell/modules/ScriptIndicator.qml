@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../components"
 
 // Generic script indicator — waybar parity:
 // inactive → fully transparent (hidden while text empty anyway);
@@ -57,15 +58,17 @@ Item {
         NumberAnimation { to: 1; duration: 750; easing.type: Easing.InOutSine }
     }
 
-    Rectangle {
+    Glass {
         anchors.fill: parent
         radius: 14
         visible: root.isActive
-        color: colors.alpha(colors.surface, 0.6)
-        border.width: 1
-        border.color: colors.alpha(root.activeColor, 0.4)
-
-        Behavior on border.color { ColorAnimation { duration: 300 } }
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        classicColor: colors.alpha(colors.surface, 0.6)
+        classicBorder: colors.alpha(root.activeColor, 0.4)
+        classicBorderWidth: 1
+        preserveBorder: true
 
         Text {
             id: label

@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Services.SystemTray
 import QtQuick
 import QtQuick.Controls
+import "../components"
 
 // Tray — glass pill container (surface .6, radius 14, padding like waybar #tray),
 // 13px icons, L-click activate, R-click menu, scroll passthrough, hover tooltips.
@@ -10,8 +11,9 @@ Item {
 
     property var colors
 
-    // hide icons for apps already represented elsewhere (Spotify → NowPlaying pill)
-    readonly property var hiddenApps: ["spotify"]
+    // hide icons for apps already represented elsewhere (Spotify → NowPlaying
+    // pill) and apps that should not appear in the bar at all (LocalSend).
+    readonly property var hiddenApps: ["spotify", "localsend"]
     readonly property var items: SystemTray.items.values.filter(function(it) {
         var s = ((it.id || "") + " " + (it.title || "")).toLowerCase()
         for (var i = 0; i < hiddenApps.length; i++)
@@ -23,15 +25,18 @@ Item {
     implicitHeight: 30
     visible: items.length > 0
 
-    Rectangle {
+    Glass {
         id: frame
         anchors.centerIn: parent
         width: trayRow.implicitWidth + 20
         height: 22
         radius: 14
-        color: colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        classicColor: colors.alpha(colors.surface, 0.55)
+        classicBorder: colors.alpha(colors.outline, 0.15)
+        classicBorderWidth: 1
 
         Row {
             id: trayRow

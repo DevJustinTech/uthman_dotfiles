@@ -3,6 +3,7 @@ import Quickshell.Services.Notifications
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // One notification toast. Self-managing lifetime:
 // created via createObject(), plays entrance, auto-expires (unless Critical),
@@ -10,7 +11,7 @@ import QtQuick.Controls
 //
 // Layout: header row (small app icon + app name + ×), then thumbnail LEFT /
 // text RIGHT, then actions. Nothing renders full-width or oversized.
-Rectangle {
+Glass {
     id: root
 
     required property var notification
@@ -25,10 +26,13 @@ Rectangle {
     height: content.height + 24
     radius: 16
     clip: true
-    color: colors.alpha(colors.background, 0.78)
-    border.width: 1
-    border.color: critical ? colors.alpha(colors.error, 0.5)
-                           : colors.alpha(colors.outline, 0.15)
+    surfaceId: "toast"
+    classicColor: colors.alpha(colors.background, 0.78)
+    classicBorder: critical ? colors.alpha(colors.error, 0.5)
+                            : colors.alpha(colors.outline, 0.15)
+    classicBorderWidth: 1
+    densityOverride: 0.65
+    preserveBorder: critical
 
     opacity: 0
     // growT 0 = cinched dot, 1 = full card. Scaling (not animating width)
@@ -247,7 +251,7 @@ Rectangle {
 
             Text {
                 text: root.alive ? notification.appName : ""
-                color: colors.alpha(colors.outline, 0.9)
+                color: colors.inkSecondary("toast", colors.alpha(colors.outline, 0.9))
                 font.family: colors.fontSans
                 font.pixelSize: 10
                 Layout.fillWidth: true
@@ -296,7 +300,7 @@ Rectangle {
 
                 Text {
                     text: root.alive ? (notification.summary || "").replace(/<[^>]*>/g, "").substring(0, 120) : ""
-                    color: colors.foreground
+                    color: colors.inkTitle("toast", colors.foreground)
                     font.family: colors.fontSans
                     font.pixelSize: 12
                     font.weight: Font.Bold
@@ -309,7 +313,7 @@ Rectangle {
                 Text {
                     visible: root.alive && notification.body !== ""
                     text: root.alive ? (notification.body || "").replace(/<[^>]*>/g, "").substring(0, 200) : ""
-                    color: colors.on_surface
+                    color: colors.inkSecondary("toast", colors.on_surface)
                     font.family: colors.fontSans
                     font.pixelSize: 11
                     font.letterSpacing: 0.3
@@ -346,7 +350,7 @@ Rectangle {
                         id: tActLbl
                         anchors.centerIn: parent
                         text: tAct.modelData.text || ""
-                        color: colors.foreground
+                        color: colors.inkTitle("toast", colors.foreground)
                         font.family: colors.fontSans
                         font.pixelSize: 10
                         font.weight: Font.DemiBold
@@ -374,7 +378,7 @@ Rectangle {
                 width: 68; height: 22; radius: 11
                 color: saveMa.containsMouse ? colors.alpha(colors.primary,0.18) : colors.alpha(colors.surfaceVariant,0.35)
                 border.width: 1; border.color: colors.alpha(colors.outline,0.2)
-                Text { anchors.centerIn: parent; text: "Save"; color: colors.foreground; font.family: colors.fontSans; font.pixelSize: 10 }
+                Text { anchors.centerIn: parent; text: "Save"; color: colors.inkTitle("toast", colors.foreground); font.family: colors.fontSans; font.pixelSize: 10 }
                 MouseArea {
                     id: saveMa; anchors.fill: parent; hoverEnabled:true
                     onClicked: {

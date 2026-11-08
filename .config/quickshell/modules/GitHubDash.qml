@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // GitHubDash — compact tabbed GitHub dashboard. Overview (contribution
 // heatmap, stats, top repos), Inbox (notifications + reviews), Pulls
@@ -444,13 +445,15 @@ FloatingWindow {
     }
 
     // window glass
-    Rectangle {
+    Glass {
         id: bg
         anchors.fill: parent
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "github"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         // bezier pair — open pops with overshoot bounce, close hurries out
         ParallelAnimation {
             id: openAnim

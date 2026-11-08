@@ -1,10 +1,11 @@
 import QtQuick
 import QtQuick.Layouts
+import "../components"
 
 // Toast — one-line bottom flash shared by panels (copied, saved, sent).
 // Owns its hold timer: call flash("Copied") and forget. Restarts cleanly
 // when flashed again mid-show.
-Rectangle {
+Glass {
     id: root
 
     QtObject {
@@ -38,9 +39,11 @@ Rectangle {
     implicitWidth: toastRow.implicitWidth + 28
     implicitHeight: 32
     radius: 16
-    color: colors.alpha(colors.surfaceVariant, 0.55)
-    border.width: 1
-    border.color: colors.alpha(colors.outline, 0.14)
+    surfaceId: "toast"
+    classicColor: colors.alpha(colors.surfaceVariant, 0.55)
+    classicBorder: colors.alpha(colors.outline, 0.14)
+    classicBorderWidth: 1
+    densityOverride: 0.65
     opacity: 0
     Behavior on opacity { NumberAnimation { duration: 150 } }
 
@@ -60,7 +63,7 @@ Rectangle {
         }
         Text {
             text: root.text
-            color: colors.foreground
+            color: colors.inkTitle("toast", colors.foreground)
             font.family: colors.fontSans
             font.pixelSize: 10
             font.weight: Font.Medium

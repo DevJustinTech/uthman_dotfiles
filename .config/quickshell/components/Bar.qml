@@ -199,6 +199,27 @@ PanelWindow {
         function toggleIsland(): void { bar.dynamicIsland = !bar.dynamicIsland; bar.pulseIsland() }
     }
 
+    // Re-apply the persisted material at login: looknfeel.lua always starts
+    // from classic blur numbers, glass.json decides whether the glass recipe
+    // should be in force. Idempotent; also heals after a manual Hyprland reload.
+    Component.onCompleted: Quickshell.execDetached(["sh", "-c",
+        "\"$HOME/.local/bin/glass-apply\"; \"$HOME/.config/quickshell/scripts/glass-sample.py\" \"$(readlink -f \"$HOME/.config/theme/current/background\")\" >/dev/null 2>&1"])
+
+    // Liquid glass material on/off. State lands in glass.json and every Colors
+    // instance (Bar + ShellRoot) picks it up; glass-apply retunes the
+    // compositor's blur. Sliders call the same palette functions from theme UI.
+    IpcHandler {
+        target: "glass"
+        function toggle(): void { palette.toggleGlass() }
+        function on(): void { palette.setGlass(true) }
+        function off(): void { palette.setGlass(false) }
+        function tint(which: string, value: string): void { palette.setTint(which, parseFloat(value)) }
+        function resample(): void {
+            Quickshell.execDetached(["sh", "-c",
+                "\"$HOME/.config/quickshell/scripts/glass-sample.py\" \"$(readlink -f \"$HOME/.config/theme/current/background\")\""])
+        }
+    }
+
     Item {
         id: content
         anchors.fill: parent
@@ -343,9 +364,9 @@ PanelWindow {
                 width: island.width
                 height: 40
                 radius: height / 2
-                color: colors.alpha(colors.background, 0.85)
-                border.color: colors.alpha(colors.surfaceVariant, 0.8)
-                border.width: 2
+                color: colors.glassOn ? colors.glassCardColor("bar", false, 0.9) : colors.alpha(colors.background, 0.85)
+                border.color: colors.glassOn ? colors.glassCardBorder("bar") : colors.alpha(colors.surfaceVariant, 0.8)
+                border.width: colors.glassOn ? 1 : 2
             }
 
             Shape {
@@ -365,9 +386,13 @@ PanelWindow {
                 ShapePath {
                     // 0.6: frosted, not flat — Hyprland's `blur on, match:namespace qs-bar`
                     // layerrule blurs the wallpaper behind; this alpha lets it bite
-                    fillColor: colors.alpha(colors.background, 0.6)
-                    strokeColor: "transparent"
-                    strokeWidth: 0
+                    fillColor: colors.glassOn ? colors.glassCardColor("bar")
+                                              : colors.alpha(colors.background, 0.6)
+                    // glass: the slab's edge. The top edge sits off-screen, so
+                    // the visible rim is the three lower edges — exactly where
+                    // the brief wants the light.
+                    strokeColor: colors.glassOn ? colors.glassCardBorder("bar") : "transparent"
+                    strokeWidth: colors.glassOn ? 1.2 : 0
 
                     // every x below is offset by shp.f because the Shape starts at x = -f
                     startX: 0; startY: 0

@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "../components"
 
 // Temperature pill — glass island, foreground text; warning→tertiary,
 // critical→error + blink (waybar parity). Reuses the same script.
@@ -53,18 +54,20 @@ Item {
         NumberAnimation { to: 1; duration: 500; easing.type: Easing.InOutSine }
     }
 
-    Rectangle {
+    Glass {
         anchors.fill: parent
         radius: 14
-        color: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: root.critical ? colors.alpha(colors.error, 0.5)
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        hovered: root.hovered
+        classicColor: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
+        classicBorder: root.critical ? colors.alpha(colors.error, 0.5)
                     : root.warning ? colors.alpha(colors.tertiary, 0.4)
                     : root.hovered ? colors.alpha(colors.primary, 0.45)
                     : colors.alpha(colors.outline, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 300 } }
-        Behavior on border.color { ColorAnimation { duration: 300 } }
+        classicBorderWidth: 1
+        preserveBorder: root.critical || root.warning
 
         Text {
             id: label

@@ -1,5 +1,6 @@
 import Quickshell.Io
 import QtQuick
+import "../components"
 
 // Memory pill — glass island, tertiary accent (waybar parity).
 Item {
@@ -44,15 +45,16 @@ Item {
         onTriggered: proc.running = true
     }
 
-    Rectangle {
+    Glass {
         anchors.fill: parent
         radius: 14
-        color: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: root.hovered ? colors.alpha(colors.tertiary, 0.45) : colors.alpha(colors.outline, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 300 } }
-        Behavior on border.color { ColorAnimation { duration: 300 } }
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        hovered: root.hovered
+        classicColor: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
+        classicBorder: root.hovered ? colors.alpha(colors.tertiary, 0.45) : colors.alpha(colors.outline, 0.15)
+        classicBorderWidth: 1
 
         Text {
             id: label

@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import QtQuick
+import "../components"
 
 // Workspaces — segmented control pill (waybar style.css parity).
 // Container: surface .65, radius 14 · buttons radius 11, min-width 18.
@@ -39,15 +40,18 @@ Item {
     implicitHeight: 30
 
     // segmented-control container (width driven by the Row's implicit size — no childrenRect)
-    Rectangle {
+    Glass {
         id: container
         anchors.centerIn: parent
         width: btnRow.implicitWidth + 10
         height: 30
         radius: 14
-        color: colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        classicColor: colors.alpha(colors.surface, 0.55)
+        classicBorder: colors.alpha(colors.outline, 0.15)
+        classicBorderWidth: 1
 
         Row {
             id: btnRow

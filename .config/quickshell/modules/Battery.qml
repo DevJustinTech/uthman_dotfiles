@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Services.UPower
 import QtQuick
+import "../components"
 
 // Battery pill — glass island, foreground text; charging→secondary,
 // warning→tertiary, critical→error (waybar parity).
@@ -27,19 +28,21 @@ Item {
     implicitHeight: 30
     visible: dev !== null && dev !== undefined
 
-    Rectangle {
+    Glass {
         anchors.fill: parent
         radius: 14
-        color: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
-        border.width: 1
-        border.color: root.critical ? colors.alpha(colors.error, 0.5)
+        surfaceId: "bar-pill"
+        raised: true
+        colors: root.colors
+        hovered: root.hovered
+        classicColor: root.hovered ? colors.alpha(colors.surface, 0.75) : colors.alpha(colors.surface, 0.55)
+        classicBorder: root.critical ? colors.alpha(colors.error, 0.5)
                     : root.warning ? colors.alpha(colors.tertiary, 0.35)
                     : root.charging ? colors.alpha(colors.secondary, 0.35)
                     : root.hovered ? colors.alpha(colors.primary, 0.35)
                     : colors.alpha(colors.outline, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 300 } }
-        Behavior on border.color { ColorAnimation { duration: 300 } }
+        classicBorderWidth: 1
+        preserveBorder: root.critical || root.warning || root.charging
 
         Text {
             id: label

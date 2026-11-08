@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Wi-Fi panel — network selector + password entry + live throughput + speed test.
 // Opens from the Network pill (or `quickshell -p ~/.config/quickshell ipc call wifi toggle`).
@@ -16,6 +17,7 @@ PanelWindow {
     property bool open: false
     property string connectingSsid: ""
     property string errorText: ""
+    property string ipAddress: ""
     property real _lastBytes: 0
     property real _lastStamp: 0
 
@@ -93,8 +95,62 @@ PanelWindow {
 
     NetRate { id: rate }
 
+    // Quickshell exposes the interface MAC as NetworkDevice.address; the
+    // address row in the card is meant to be the IPv4 address, so ask NM.
+    Process {
+        id: ipProc
+        command: ["true"]
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: root.ipAddress = text.trim()
+        }
+    }
+
     function strengthGlyph(sig) {
-        return sig >= 80 ? "󰤨" : sig >= 60 ? "󰤥" : sig >= 40 ? "󰤢" : "󰤟"
+        return sig >= 0.8 ? "󰤨" : sig >= 0.6 ? "󰤥" : sig >= 0.4 ? "󰤢" : "󰤟"
+    }
+
+    // True for networks that take no secret. The enum has no `None` -- the
+    // open value is `Open`, and `Owe` is enhanced-open. Everything else
+    // (WPA/WPA2/WPA3, WEP, EAP) prompts.
+    function isPasswordless(sec) {
+        return sec === WifiSecurityType.Open || sec === WifiSecurityType.Owe
+    }
+
+    function startScan() {
+        if (!root.wifiDev) return
+        var wasScanning = root.wifiDev.scannerEnabled
+        root.wifiDev.scannerEnabled = true
+        // Reopening before the close timer fires keeps the cached results;
+        // only show the spinner when this actually starts a fresh scan.
+        if (!wasScanning) {
+            root.scanSpinning = true
+            scanTimeout.restart()
+        }
+    }
+
+    function stopScan() {
+        if (!root.wifiDev) return
+        root.wifiDev.scannerEnabled = false
+        root.scanSpinning = false
+        scanTimeout.stop()
+        scanSpinStop.stop()
+    }
+
+    function rescan() {
+        if (!root.wifiDev) return
+        root.wifiDev.scannerEnabled = false
+        root.wifiDev.scannerEnabled = true
+        root.scanSpinning = true
+        scanTimeout.restart()
+    }
+
+    function refreshIp() {
+        if (!root.wifiDev) { root.ipAddress = ""; return }
+        ipProc.command = ["sh", "-c",
+            "nmcli -g IP4.ADDRESS device show " + root.wifiDev.name +
+            " 2>/dev/null | head -n1 | cut -d/ -f1"]
+        ipProc.running = true
     }
 
     function connectTo(net) {
@@ -111,7 +167,7 @@ PanelWindow {
             if (root.connectingSsid !== "") {
                 root.errorText = "\"" + root.connectingSsid + "\" is taking too long — wrong password?"
                 root.connectingSsid = ""
-                root.failClear.restart()
+                failClear.restart()
             }
         }
     }
@@ -128,13 +184,85 @@ PanelWindow {
 
     // ── keyboard selection / actions ──
     property int selectedIndex: 0
-    property string askPwSsid: ""   // which row shows the password field
+    property var pendingPskNet: null   // network waiting on PassPrompt
+
+    function shellQuote(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'" }
+
+    // Secured, unknown networks ask through the shared PassPrompt overlay.
+    // The inline field on this layer surface did not reliably take keyboard
+    // focus, so typed characters fell through to the panel's key handler.
+    function askPsk(net) {
+        if (!net) return
+        root.pendingPskNet = net
+        root.errorText = ""
+        // Keep the (possibly long) SSID in the reason line so PassPrompt's
+        // header does not elide it.
+        var prompt = "Wi-Fi — password for " + net.name.trim()
+        passAskProc.command = ["sh", "-c",
+            "quickshell -p $HOME/.config/quickshell ipc call passprompt ask " +
+            root.shellQuote(prompt) + " >/dev/null 2>&1"]
+        passAskProc.running = true
+    }
 
     function connectSelected() {
         var n = root.filteredNets[root.selectedIndex]
         if (!n || n.connected) return
-        if (!n.security || n.security === WifiSecurityType.None || n.known) root.connectTo(n)
-        else root.askPwSsid = n.name.trim()
+        if (root.isPasswordless(n.security) || n.known) root.connectTo(n)
+        else root.askPsk(n)
+    }
+
+    // PassPrompt bridge: ask -> poll st() -> read result() -> connectWithPsk.
+    Process {
+        id: passAskProc
+        running: false
+        onExited: function(code) {
+            if (code !== 0) {
+                root.errorText = "Could not open the password prompt"
+                root.pendingPskNet = null
+                failClear.restart()
+                return
+            }
+            passPoll.restart()
+        }
+    }
+    Timer { id: passPoll; interval: 250; repeat: true; onTriggered: passStProc.running = true }
+    Process {
+        id: passStProc
+        running: false
+        command: ["sh", "-c", "quickshell -p $HOME/.config/quickshell ipc call passprompt st 2>/dev/null | tr -d '\" '"]
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: {
+                var st = text.trim()
+                if (st === "done") {
+                    passPoll.stop()
+                    passResProc.running = true
+                } else if (st === "cancelled" || st === "idle") {
+                    passPoll.stop()
+                    root.pendingPskNet = null
+                }
+            }
+        }
+    }
+    Process {
+        id: passResProc
+        running: false
+        command: ["sh", "-c", "quickshell -p $HOME/.config/quickshell ipc call passprompt result 2>/dev/null | sed 's/^\"//; s/\"$//'"]
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: {
+                var net = root.pendingPskNet
+                root.pendingPskNet = null
+                // Strip only the trailing newline from the IPC result; a Wi-Fi
+                // passphrase may legitimately start or end with a space.
+                var pw = text.replace(/\r?\n$/, "")
+                if (net && pw !== "") {
+                    root.connectingSsid = net.name.trim()
+                    connectWatch.restart()
+                    net.connectWithPsk(pw)
+                }
+            }
+        }
     }
     function forgetSelected() {
         var n = root.filteredNets[root.selectedIndex]
@@ -163,13 +291,45 @@ PanelWindow {
     // drawer motion lives in openAnim/closeAnim below (bezier pair).
     // Close plays out before the window hides (visible binds running).
     onOpenChanged: {
-        if (root.open) openAnim.restart()
-        else { root.connectingSsid = ""; root.errorText = ""; closeAnim.restart() }
+        if (root.open) {
+            scanStopTimer.stop()
+            openAnim.restart()
+            root.startScan()
+            root.refreshIp()
+        } else {
+            root.connectingSsid = ""
+            root.errorText = ""
+            wifiSearch.text = ""
+            root.searchQuery = ""
+            closeAnim.restart()
+            scanStopTimer.restart()   // stop the radio scan only after the close finishes
+        }
+    }
+
+    // The device appears a moment after the shell starts; if the panel is
+    // already open, make sure the scan and address lookup still happen.
+    onWifiDevChanged: if (root.open) { root.startScan(); root.refreshIp() }
+    onWifiConnectedChanged: if (root.open) {
+        root.refreshIp()
+        // NetworkManager reports "connected" before DHCP finishes.
+        if (root.wifiConnected) ipRetry.restart()
+    }
+
+    Timer {
+        id: scanStopTimer
+        interval: 350
+        onTriggered: root.stopScan()
+    }
+
+    Timer {
+        id: ipRetry
+        interval: 2500
+        onTriggered: if (root.open) root.refreshIp()
     }
 
     Timer {
         id: scanTimeout
-        interval: 4000
+        interval: 10000   // NetworkManager scans can take ~6s on a busy radio
         onTriggered: root.scanSpinning = false
     }
 
@@ -193,7 +353,7 @@ PanelWindow {
     }
 
     // ── the card ──
-    Rectangle {
+    Glass {
         id: card
         anchors { top: parent.top; right: parent.right }
         anchors.topMargin: 52
@@ -201,16 +361,24 @@ PanelWindow {
         width: 410
         height: 640
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "wifi"
+        colors: root.colors
+        classicColor: colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
+        // floor: text headings and the speedtest block sit directly on the
+        // card; a dark-sky sample would otherwise leave it near-clear.
+        densityFloor: 0.32
         focus: root.open
         Keys.onEscapePressed: root.open = false
         Keys.onPressed: function(event){
+            // Arrows keep steering the list even while the search field is typing
+            if (event.key === Qt.Key_Down) { root.moveSel(1); event.accepted = true; return }
+            if (event.key === Qt.Key_Up) { root.moveSel(-1); event.accepted = true; return }
             if (wifiSearch.activeFocus) return
             var txt = event.text ? event.text.toLowerCase() : ""
             if (txt === "s" || event.key === Qt.Key_S) {
-                if (root.wifiDev) { root.wifiDev.scannerEnabled = false; root.wifiDev.scannerEnabled = true; root.scanSpinning = true }
+                root.rescan()
                 event.accepted = true
             } else if (txt === "t" || event.key === Qt.Key_T) { root.runSpeedTest(); event.accepted = true }
             else if (event.key === Qt.Key_C || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.connectSelected(); event.accepted = true }
@@ -326,10 +494,7 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
-                            if (!root.wifiDev) return
-                            root.wifiDev.scannerEnabled = false
-                            root.wifiDev.scannerEnabled = true
-                            root.scanSpinning = true   // spin until results land or timeout
+                            root.rescan()
                         }
                     }
                 }
@@ -392,7 +557,7 @@ PanelWindow {
                         }
 
                         Text {
-                            text: "signal " + ((root.connectedNet || {}).signalStrength ?? 0) + "%"
+                            text: "signal " + Math.round(((root.connectedNet || {}).signalStrength ?? 0) * 100) + "%"
                             color: colors.alpha(colors.outline, 0.7)
                             font.family: colors.fontSans
                             font.pixelSize: 9
@@ -447,7 +612,7 @@ PanelWindow {
                     // row 2: IP indented to line up exactly under the SSID
                     Text {
                         Layout.leftMargin: connGlyph.width + 8
-                        text: root.wifiDev && root.wifiDev.address !== "" ? root.wifiDev.address : "no address"
+                        text: root.ipAddress !== "" ? root.ipAddress : "no address"
                         color: colors.alpha(colors.outline, 0.7)
                         font.family: colors.fontSans
                         font.pixelSize: 9
@@ -653,7 +818,7 @@ PanelWindow {
                 implicitHeight: 40
                 leftPadding: 12
                 rightPadding: 12
-                placeholderText: "Search networks…  (S)"
+                placeholderText: "Search networks…"
                 placeholderTextColor: colors.alpha(colors.outline,0.5)
                 color: colors.foreground
                 font.family: colors.fontSans
@@ -665,6 +830,13 @@ PanelWindow {
                     border.color: wifiSearch.activeFocus ? colors.alpha(colors.primary,0.5) : colors.alpha(colors.outline,0.15)
                 }
                 onTextChanged: root.searchQuery = text
+                // Esc while typing clears the filter instead of closing the panel.
+                Keys.onEscapePressed: function(event) {
+                    text = ""
+                    root.searchQuery = ""
+                    card.forceActiveFocus()
+                    event.accepted = true
+                }
             }
 
             // ══════════ section label ══════════
@@ -689,12 +861,15 @@ PanelWindow {
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                delegate: Rectangle {
+                delegate: Glass {
                     required property var modelData
                     required property int index
 
-                    property bool hovered: rowArea.containsMouse
-                    readonly property bool askPw: root.askPwSsid === modelData.name.trim()
+                    surfaceId: "wifi"
+                    interactive: true
+                    colors: root.colors
+                    hovered: rowArea.containsMouse || fgMouse.containsMouse
+                    selected: index === root.selectedIndex
                     readonly property bool isSelected: index === root.selectedIndex
                     readonly property bool isConnecting: modelData.stateChanging || modelData.state === ConnectionState.Connecting
 
@@ -705,7 +880,7 @@ PanelWindow {
                             if (root.connectingSsid === modelData.name.trim()) {
                                 root.errorText = "Failed to join \"" + modelData.name.trim() + "\": " + root.failText(reason)
                                 root.connectingSsid = ""
-                                root.failClear.restart()
+                                failClear.restart()
                             }
                         }
                         function onStateChanged(state) {
@@ -717,14 +892,29 @@ PanelWindow {
                     }
 
                     width: netList.width - 8
-                    height: askPw ? 120 : isConnecting ? 68 : 44
+                    height: isConnecting ? 68 : 44
                     radius: 10
-                    color: hovered ? colors.alpha(colors.surfaceVariant, 0.3) : "transparent"
-                    border.width: modelData.connected || isSelected ? 1 : 0
-                    border.color: modelData.connected ? colors.alpha(colors.primary, 0.45)
-                                                      : colors.alpha(colors.outline, 0.35)
+                    classicColor: hovered ? colors.alpha(colors.surfaceVariant, 0.3) : "transparent"
+                    classicBorder: modelData.connected ? colors.alpha(colors.primary, 0.45)
+                                 : isSelected ? colors.alpha(colors.outline, 0.35) : "transparent"
+                    classicBorderWidth: modelData.connected || isSelected ? 1 : 0
+                    preserveBorder: modelData.connected
 
                     Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+
+                    // Row click lives UNDER the content so the nested forget
+                    // button gets its clicks first.
+                    MouseArea {
+                        id: rowArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            root.selectedIndex = index   // F/C/D etc. follow the last click
+                            if (modelData.connected || isConnecting) return
+                            if (root.isPasswordless(modelData.security) || modelData.known) root.connectTo(modelData)
+                            else root.askPsk(modelData)
+                        }
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -792,7 +982,7 @@ PanelWindow {
                             }
 
                             Text {
-                                visible: modelData.security !== undefined && modelData.security !== WifiSecurityType.None
+                                visible: !root.isPasswordless(modelData.security)
                                 text: ""
                                 color: colors.alpha(colors.outline, 0.65)
                                 font.family: colors.fontSans
@@ -805,64 +995,6 @@ PanelWindow {
                                 color: colors.primary
                                 font.family: colors.fontSans
                                 font.pixelSize: 11
-                            }
-                        }
-
-                        // password entry (secured + unknown only)
-                        RowLayout {
-                            visible: askPw
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            TextField {
-                                id: pwField
-                                Layout.fillWidth: true
-                                implicitHeight: 36
-                                leftPadding: 12
-                                rightPadding: 12
-                                topPadding: 8
-                                bottomPadding: 8
-                                echoMode: TextInput.Password
-                                font.family: colors.fontSans
-                                font.pixelSize: 12
-                                color: colors.foreground
-                                placeholderText: "Enter WiFi password…"
-                                placeholderTextColor: colors.alpha(colors.outline,0.6)
-                                background: Rectangle {
-                                    radius: 10
-                                    color: colors.alpha(colors.surface, 0.85)
-                                    border.width: 1
-                                    border.color: pwField.activeFocus ? colors.alpha(colors.primary,0.5) : colors.alpha(colors.primary,0.3)
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
-                                }
-                                onAccepted: joinTap.tap()
-                            }
-
-                            Rectangle {
-                                width: 64; height: 36; radius: 10
-                                color: pwField.text.length >= 8 ? colors.primary : colors.alpha(colors.surfaceVariant,0.35)
-                                border.width: 1
-                                border.color: pwField.text.length >= 8 ? colors.primary : colors.alpha(colors.outline,0.15)
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "Join"
-                                    color: pwField.text.length >= 8 ? colors.background : colors.alpha(colors.outline,0.6)
-                                    font.family: colors.fontSans
-                                    font.pixelSize: 11
-                                    font.weight: Font.Bold
-                                }
-
-                                TapHandler {
-                                    id: joinTap
-                                    function tap() {
-                                        if (pwField.text.length < 8) return
-                                        root.connectingSsid = modelData.name.trim()
-                                        root.connectWatch.restart()
-                                        modelData.connectWithPsk(pwField.text)
-                                        pwField.text = ""
-                                        root.askPwSsid = ""
-                                    }
-                                }
                             }
                         }
 
@@ -881,26 +1013,6 @@ PanelWindow {
                         }
                     }
 
-                    MouseArea {
-                        id: rowArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        enabled: !askPw
-                        propagateComposedEvents: true
-                        onClicked: {
-                            if (modelData.connected || isConnecting) return
-                            if (!modelData.security || modelData.security === WifiSecurityType.None || modelData.known) {
-                                root.connectTo(modelData)
-                            } else {
-                                if (root.askPwSsid === modelData.name.trim()) {
-                                    root.askPwSsid = ""
-                                } else {
-                                    root.askPwSsid = modelData.name.trim()
-                                    Qt.callLater(function(){ pwField.forceActiveFocus() })
-                                }
-                            }
-                        }
-                    }
                 }
             }
 

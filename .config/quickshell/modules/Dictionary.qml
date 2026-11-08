@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Dictionary — instant word lookup via dictionaryapi.dev (no key, no auth),
 // related words via Datamuse. Type + Enter, synonyms/antonyms/related chips
@@ -318,13 +319,15 @@ FloatingWindow {
         Quickshell.execDetached(["sh", "-c", "printf %s " + shQuote(txt) + " | wl-copy && notify-send -u low -a 'Dictionary' 'Copied' " + shQuote(entry.word)])
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.fill: parent
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "dictionary"
+        colors: root.colors
+        classicColor: root.colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: root.colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         // bezier pair — open pops with overshoot bounce, close hurries out
         ParallelAnimation {
             id: openAnim

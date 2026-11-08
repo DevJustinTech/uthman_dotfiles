@@ -3,6 +3,7 @@ import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // Keybinds — static, no dynamic loading, just text. Enter executes.
 PanelWindow {
@@ -385,14 +386,17 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: root.open=false }
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.centerIn: parent
         width: 640
         height: 520
         radius: 18
-        color: colors.alpha(colors.surface, 0.52)
-        border.width:1; border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "keybinds"
+        colors: root.colors
+        classicColor: colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         focus: root.open
         Keys.onEscapePressed: root.open=false
         Keys.onReturnPressed: root.executeSelected()

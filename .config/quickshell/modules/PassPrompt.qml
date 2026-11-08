@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../components"
 
 // PassPrompt — system password prompt (SUDO_ASKPASS backend). Flow:
 // ask() shows, result()/st() poll. Reskinned to the approved mock:
@@ -68,15 +69,18 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: {} }
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.centerIn: parent
         width: Math.min(parent.width * 0.92, 420)
         height: col.implicitHeight + 36
         radius: 10
-        color: colors.alpha(colors.surface, 0.62)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.22)
+        surfaceId: "passprompt"
+        colors: root.colors
+        classicColor: colors ? colors.alpha(colors.surface, 0.62) : "transparent"
+        classicBorder: colors ? colors.alpha(colors.outline, 0.22) : "transparent"
+        classicBorderWidth: 1
+        densityOverride: 0.7
         focus: true
         Keys.onEscapePressed: root.cancel()
         transform: Translate { id: shakeT }

@@ -297,15 +297,20 @@ ShellRoot {
         function onOpenChanged() { if (dictLoader.item && !dictLoader.item.open) dictOpen = false }
     }
 
-    // PdfViewer — toggle + open(path) + close
+    // PdfViewer — toggle + open(path) + browse store + close
     property bool pdfOpen: false
     property string pdfPath: ""
+    property bool pdfStorePending: false
     IpcHandler {
         target: "pdfviewer"
         function toggle(): void { if (pdfOpen && pdfLoader.status === Loader.Loading) return; pdfOpen = !pdfOpen }
         function open(path: string): void {
             if (pdfLoader.item) { if (path) pdfLoader.item.openWith(path); else pdfLoader.item.open = true }
             else { if (path) pdfPath = path; pdfOpen = true }
+        }
+        function browse(): void {
+            if (pdfLoader.item) { pdfLoader.item.tab = "store"; pdfLoader.item.open = true }
+            else { pdfStorePending = true; pdfOpen = true }
         }
         function close(): void { if (pdfOpen && pdfLoader.status === Loader.Loading) return; pdfOpen = false }
     }
@@ -314,7 +319,15 @@ ShellRoot {
         active: pdfOpen || pdfWarm
         asynchronous: true
         source: "modules/PdfViewer.qml"
-        onLoaded: { pdfWarm = true; item.colors = barPalette; if (pdfPath !== "") { var p = pdfPath; pdfPath = ""; item.openWith(p) } else item.open = true }
+        onLoaded: {
+            pdfWarm = true
+            item.colors = barPalette
+            if (pdfPath !== "") { var p = pdfPath; pdfPath = ""; item.openWith(p) }
+            else {
+                if (pdfStorePending) { pdfStorePending = false; item.tab = "store" }
+                item.open = true
+            }
+        }
     }
     property bool pdfWarm: false
     onPdfOpenChanged: { if (pdfLoader.item) pdfLoader.item.open = pdfOpen }

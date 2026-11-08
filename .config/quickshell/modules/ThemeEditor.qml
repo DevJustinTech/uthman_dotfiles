@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
+import "../components"
 
 // ThemeEditor — post-wallpaper theme tweaks (mode / scheme + live preview).
 // Port of ui-options/theme option A (control strip). Opens after an explicit
@@ -10,8 +11,9 @@ import QtQuick.Layouts
 // Contrast is fixed at the getTheme default (0.2) — no control surfaces it.
 // Preview: every mode/scheme change (700ms debounce) runs matugen --dry-run
 // and paints the swatches with exactly what Apply would generate.
-// HEIGHT BUDGET 740: margins 32 + header 30 + 5x10 gaps + wprow 84 + mode 92
-//   + scheme 262 + palette 100 + footer 56 + status 30.
+// HEIGHT: windows.lua pins 620. The extra height over the old 560 keeps the
+// Apply row on screen (it used to clip below the card); 644 is this screen's
+// ceiling before the top edge hides under the bar.
 // TYPE SCALE: 9 caps labels · 11 body · 13 titles. Spacing: 16 / 10 / 14.
 FloatingWindow {
     id: root
@@ -22,9 +24,10 @@ FloatingWindow {
     title: "ThemeEditor"
     // Height matches windows.lua's rule. 644 is the most that clears the 54px
     // bar on this 768-tall screen, so it is the ceiling whether the rule is in
-    // play or not.
+    // play or not. 620 leaves the status row AND the Apply button on screen;
+    // the old 560 clipped Apply below the card.
     implicitWidth: 440
-    implicitHeight: 560
+    implicitHeight: 620
     minimumSize: Qt.size(420, 500)
     maximumSize: Qt.size(480, 644)
     color: "transparent"
@@ -195,6 +198,18 @@ FloatingWindow {
         Quickshell.execDetached(["quickshell", "-p", Quickshell.env("HOME") + "/.config/quickshell", "ipc", "call", "theme", "toggle"])
     }
 
+    // Tint sliders stage locally while dragging; one save + glass-apply on
+    // settle (260ms), so a drag does not spawn a process per pixel.
+    property string tintWhich: "light"
+    property real tintValue: 1
+    function stageTint(which, v) {
+        if (which === "light") colors.glassLightTint = v
+        else colors.glassDarkTint = v
+        root.tintWhich = which
+        root.tintValue = v
+        tintDebounce.restart()
+    }
+
     // ================= UI =================
     ParallelAnimation {
         id: openAnim
@@ -215,13 +230,58 @@ FloatingWindow {
         font.letterSpacing: 1.2
     }
 
-    Rectangle {
+    // Compact tint slider for the glass row: 0 → 1.5 (1 is as designed).
+    component TintSlider: Item {
+        id: ts
+        property var colors
+        property real value: 1
+        signal moved(real v)
+
+        implicitHeight: 18
+        implicitWidth: 84
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            height: 6
+            radius: 3
+            color: ts.colors.alpha(ts.colors.surfaceVariant, 0.35)
+            border.width: 1
+            border.color: ts.colors.alpha(ts.colors.outline, 0.16)
+            Rectangle {
+                width: Math.max(0, Math.min(parent.width, parent.width * (ts.value / 1.5)))
+                height: parent.height
+                radius: 3
+                color: ts.colors.alpha(ts.colors.primary, 0.55)
+            }
+        }
+        Rectangle {
+            x: Math.max(0, Math.min(parent.width - width, parent.width * (ts.value / 1.5) - width / 2))
+            anchors.verticalCenter: parent.verticalCenter
+            width: 9
+            height: 9
+            radius: 4.5
+            color: ts.colors.primary
+        }
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            function apply(x) { ts.moved(Math.max(0, Math.min(1.5, (x / ts.width) * 1.5))) }
+            onPressed: function(mouse) { apply(mouse.x) }
+            onPositionChanged: function(mouse) { if (pressed) apply(mouse.x) }
+        }
+    }
+
+    Glass {
         id: card
         anchors.fill: parent
         radius: 16
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "themeedit"
+        colors: root.colors
+        classicColor: colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         focus: root.open
         Keys.onEscapePressed: root.open = false
 
@@ -392,9 +452,58 @@ FloatingWindow {
             }
 
             // ── footer: status slot (fixed height, swaps in place) + apply ──
+            // The slot doubles as the liquid-glass controls when there is no
+            // status to show, so the material row adds zero panel height.
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 30
+
+                RowLayout {
+                    anchors.fill: parent
+                    visible: root.statusMsg === ""
+                    spacing: 6
+
+                    Text {
+                        text: "SURFACE"
+                        color: colors.alpha(colors.outline, 0.62)
+                        font.family: root.fontUi
+                        font.pixelSize: 8
+                        font.weight: Font.Bold
+                        font.letterSpacing: 1
+                    }
+                    Rectangle {
+                        implicitWidth: 106; implicitHeight: 24; radius: 7
+                        color: colors.glassOn ? colors.alpha(colors.primary, 0.18) : "transparent"
+                        border.width: 1
+                        border.color: colors.glassOn ? colors.alpha(colors.primary, 0.55) : colors.alpha(colors.outline, 0.25)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 5
+                            Rectangle { width: 6; height: 6; radius: 3; color: colors.glassOn ? colors.primary : colors.alpha(colors.outline, 0.5); Behavior on color { ColorAnimation { duration: 150 } } }
+                            Text { text: "Liquid glass"; color: colors.glassOn ? colors.primary : colors.alpha(colors.outline, 0.85); font.family: root.fontUi; font.pixelSize: 9; font.weight: Font.DemiBold }
+                        }
+                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: colors.toggleGlass() }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Text { text: "L"; color: colors.alpha(colors.outline, 0.6); font.family: root.fontUi; font.pixelSize: 8; font.weight: Font.Bold }
+                    TintSlider {
+                        Layout.preferredWidth: 56
+                        colors: root.colors
+                        value: root.colors.glassLightTint
+                        onMoved: function(v) { root.stageTint("light", v) }
+                    }
+                    Text { text: "D"; color: colors.alpha(colors.outline, 0.6); font.family: root.fontUi; font.pixelSize: 8; font.weight: Font.Bold }
+                    TintSlider {
+                        Layout.preferredWidth: 56
+                        colors: root.colors
+                        value: root.colors.glassDarkTint
+                        onMoved: function(v) { root.stageTint("dark", v) }
+                    }
+                }
+
                 Text {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
@@ -404,6 +513,12 @@ FloatingWindow {
                     font.family: root.fontUi
                     font.pixelSize: 11
                     elide: Text.ElideRight
+                }
+
+                Timer {
+                    id: tintDebounce
+                    interval: 260
+                    onTriggered: root.colors.setTint(root.tintWhich, root.tintValue)
                 }
             }
             RowLayout {

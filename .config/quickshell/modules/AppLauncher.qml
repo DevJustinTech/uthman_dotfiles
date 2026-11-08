@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.LocalStorage 2.0
+import "../components"
 
 // App Launcher — Spotlight-style, replaces rofi.
 // SUPER+SPACE to toggle. Type to fuzzy-search, ↑↓ to navigate, Enter to launch, Esc to close.
@@ -194,15 +195,17 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: root.open = false }
     }
 
-    Rectangle {
+    Glass {
         id: card
         anchors.centerIn: parent
         width: 750
         height: Math.min(520, col.implicitHeight + 28)
         radius: 18
-        color: colors.alpha(colors.surface, 0.52)
-        border.width: 1
-        border.color: colors.alpha(colors.outline, 0.15)
+        surfaceId: "launcher"
+        colors: root.colors
+        classicColor: colors ? colors.alpha(colors.surface, 0.52) : "transparent"
+        classicBorder: colors ? colors.alpha(colors.outline, 0.15) : "transparent"
+        classicBorderWidth: 1
         Keys.onEscapePressed: root.open = false
         focus: root.open
 
