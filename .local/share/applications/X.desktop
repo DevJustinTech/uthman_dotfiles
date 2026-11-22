@@ -7,5 +7,5 @@ Name=X
 Exec=zenapp x https://x.com/ "/ X"
 Terminal=false
 Type=Application
-Icon=x
+Icon=applications-internet
 StartupNotify=true

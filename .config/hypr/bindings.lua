@@ -25,21 +25,16 @@ local function open(target, method)
 end
 
 -- ── Application launches ────────────────────────────────────────────────
--- No SUPER + RETURN here. Omarchy already binds it to omarchy-launch-terminal
--- (and SUPER CTRL RETURN to Herdr, SUPER ALT RETURN to Tmux), so binding it again
--- fired twice: this repo's hardcoded kitty plus Omarchy's launcher, which goes
--- through ~/.local/bin/xdg-terminal-exec and so now opens foot. Two terminals
--- per press, one of each.
---
--- Leaving it to Omarchy is the better behaviour anyway: omarchy-launch-terminal
--- opens in the current terminal's working directory, which the bare binary does
--- not. Anything else wanting a terminal should go through the same shim so it
--- follows whatever terminal is configured, rather than hardcoding a name.
---
--- Omarchy binds this chord to nautilus, and nautilus is installed on this
--- machine, so both file managers opened on one press. Drop the default first.
-hl.unbind("SUPER + SHIFT + F")
-o.bind("SUPER + SHIFT + F", "File manager", o.launch("thunar"))
+-- The terminal goes through ~/.local/bin/xdg-terminal-exec, which opens foot in
+-- the current working directory. This is the same shim GUI apps use, so there
+-- is one terminal choice for the whole session.
+o.bind("SUPER + RETURN", "Terminal", o.launch("xdg-terminal-exec"))
+-- Herdr and tmux in the terminal, matching the old Omarchy chords.
+o.bind("SUPER + CTRL + RETURN", "Herdr", o.launch("xdg-terminal-exec herdr"))
+o.bind("SUPER + ALT + RETURN", "Tmux", o.launch("xdg-terminal-exec tmux"))
+-- File manager. The old default was SUPER + SHIFT + F, but that chord is the
+-- full-screen screenshot now; SUPER + ALT + SHIFT + F keeps it reachable.
+o.bind("SUPER + ALT + SHIFT + F", "File manager", o.launch("thunar"))
 -- Browser. These two binds named `firefox`, which is not installed and never
 -- will be, so they did nothing -- while Omarchy's defaults on the same chords
 -- opened whatever xdg-settings calls the default browser, which here is
@@ -150,18 +145,20 @@ hl.unbind("SUPER + SHIFT + S")
 -- which is what made it look like the one logged call had failed.
 hl.unbind("XF86AudioMute")
 hl.unbind("XF86AudioMicMute")
--- The transport half of media.lua (Play/Pause/Next/Prev) execs
--- `omarchy-shell media ...` -- stock shell commands, and this desktop runs
--- the quickshell fork instead, so those six chords have been dead no-ops
--- all along. Unbind them rather than keep keys that pretend. Left alone on
--- purpose: SHIFT + Pause/Play (source switch) and the lid-switch events --
--- those exec real scripts, not the shell, and still work.
+-- Transport keys. The old Omarchy defaults routed these through its shell,
+-- which this session replaces; rebind the working four to playerctl. The two
+-- Alt chords were source-switch shortcuts in Omarchy and have no equivalent
+-- here, so they stay unbound.
 for _, chord in ipairs({
   "XF86AudioNext", "ALT + XF86AudioPlay", "XF86AudioPause",
   "XF86AudioPlay", "XF86AudioPrev", "ALT + SHIFT + XF86AudioPlay",
 }) do
   hl.unbind(chord)
 end
+o.bind("XF86AudioNext", "Next track", "playerctl next")
+o.bind("XF86AudioPrev", "Previous track", "playerctl previous")
+o.bind("XF86AudioPlay", "Play/pause", "playerctl play-pause")
+o.bind("XF86AudioPause", "Play/pause", "playerctl play-pause")
 -- Screenshots use letter keys only (see above) -- T is OCR text capture.
 o.bind("SUPER + SHIFT + T", "OCR from screenshot", "shot ocr")
 -- S: mac-style capture of the focused window, rounded over a blurred wallpaper.
@@ -169,14 +166,14 @@ o.bind("SUPER + SHIFT + T", "OCR from screenshot", "shot ocr")
 -- because spurious Print events fired screenshot overlays during unrelated
 -- chords. The same hazard applies to this one.
 o.bind("SUPER + SHIFT + S", "Pretty screenshot", "shot pretty")
--- D: drag-area capture. Omarchy's applications.lua binds SUPER SHIFT D to its
--- Docker TUI; unbind that first, or both run on the chord. Docker stays
--- reachable as `omarchy-launch-docker-tui` from a terminal.
+-- D: drag-area capture. Omarchy's vendored applications.lua used to bind this
+-- chord to a Docker TUI; that bind is gone now, but the unbind stays harmless
+-- on older copies and keeps the chord single-purpose.
 hl.unbind("SUPER + SHIFT + D")
 o.bind("SUPER + SHIFT + D", "Screenshot (drag area)", "shot")
 -- F: whole-screen capture, no drag -- grim straight to file + clipboard via
 -- shot's `full` mode. SUPER + SHIFT + F was Omarchy's plain file manager, so
--- it goes the same way S and D did above. Nautilus keeps SUPER + ALT + SHIFT + F
+-- it goes the same way S and D did above. Thunar keeps SUPER + ALT + SHIFT + F
 -- (file manager, cwd) and the app launcher, so the file manager is not lost.
 hl.unbind("SUPER + SHIFT + F")
 o.bind("SUPER + SHIFT + F", "Full screenshot", "shot full")
@@ -317,7 +314,10 @@ for slot = 1, 9 do
 end
 
 -- ── Emoji picker ────────────────────────────────────────────────────────
-o.bind("SUPER + CTRL + E", "Emoji picker", o.launch("~/.config/rofi/emoji.sh"))
+-- Absolute path: o.launch may prefix this with `uwsm-app --`, which does not
+-- expand a leading `~` (it expects an executable name or path).
+o.bind("SUPER + CTRL + E", "Emoji picker",
+  o.launch((os.getenv("HOME") or "~") .. "/.config/rofi/emoji.sh"))
 
 -- ── Screen recording ────────────────────────────────────────────────────
 -- Local toggle (gpu-screen-recorder, saves to ~/Videos/Recordings).

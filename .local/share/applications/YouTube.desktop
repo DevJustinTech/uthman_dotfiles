@@ -7,5 +7,5 @@ Name=YouTube
 Exec=zenapp youtube https://youtube.com/ "YouTube"
 Terminal=false
 Type=Application
-Icon=youtube
+Icon=applications-internet
 StartupNotify=true

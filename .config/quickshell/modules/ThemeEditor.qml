@@ -91,7 +91,7 @@ FloatingWindow {
     // current wallpaper: the live background symlink
     Process {
         id: wallProc
-        command: ["sh", "-c", "readlink \"$HOME/.config/theme/current/background\" 2>/dev/null || readlink \"$HOME/.config/omarchy/current/background\" 2>/dev/null"]
+        command: ["sh", "-c", "readlink \"$HOME/.config/theme/current/background\" 2>/dev/null"]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: {

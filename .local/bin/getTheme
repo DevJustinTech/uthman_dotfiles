@@ -36,7 +36,6 @@ done
 
 if [[ -z "$WALLPAPER" ]]; then
     WALLPAPER=$(readlink ~/.config/theme/current/background 2>/dev/null | tr -d '[:space:]')
-    [[ -z "$WALLPAPER" ]] && WALLPAPER=$(readlink ~/.config/omarchy/current/background 2>/dev/null | tr -d '[:space:]')
 fi
 
 if [[ -z "$WALLPAPER" ]]; then
@@ -77,7 +76,7 @@ fi
 echo "Applying colors..."
 
 # Fire every reload in parallel so nothing flashes sequentially.
-# Hyprland re-sources colors.conf, so borders/window colors update too.
+# Hyprland re-reads theme.lua -> theme/colors.lua, so borders update too.
 hyprctl reload &
 
 # kitty watches only kitty.conf, not the matugen theme include — force the
@@ -129,7 +128,7 @@ done &
 # Live-reload any running nvim instances (via the --listen sockets).
 for sock in /tmp/nvim-"$USER"/*.sock; do
     [[ -S "$sock" ]] || continue
-    nvim --server "$sock" --remote-send ':OmarchyReloadTheme<CR>' 2>/dev/null &
+    nvim --server "$sock" --remote-send ':lua local t=dofile(vim.fn.expand("~/.config/theme/current/neovim.lua")) t[1].opts.colorscheme()<CR>' 2>/dev/null &
 done
 
 wait

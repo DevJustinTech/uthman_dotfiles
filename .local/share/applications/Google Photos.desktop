@@ -7,5 +7,5 @@ Name=Google Photos
 Exec=zenapp gphotos https://photos.google.com/ "Google Photos"
 Terminal=false
 Type=Application
-Icon=google-photos
+Icon=applications-internet
 StartupNotify=true

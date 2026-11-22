@@ -87,6 +87,5 @@ hl.window_rule({ match = { class = "org.gnome.Loupe" }, float = true, center = t
 hl.window_rule({ match = { class = "^dev.zed.Zed$" }, opaque = false })
 hl.window_rule({ match = { class = "^zed$" }, opaque = false })
 
--- Terminal touchpad scrolling used to live here as a kitty/Alacritty rule.
--- Omarchy's default input.lua now owns it (it also covers foot and ghostty),
--- so duplicating it here would just be a second copy to keep in sync.
+-- Terminal touchpad scrolling. No extra rule is needed: the vendored input
+-- defaults plus Hyprland's own handling cover foot, kitty, and GTK terminals.

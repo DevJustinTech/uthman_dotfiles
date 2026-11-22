@@ -1,6 +1,6 @@
 #!/bin/bash
 # layout-toggle — toggle dwindle/master tiling layout via hyprctl
-export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr/ 2>/dev/null | head -1)
+export HYPRLAND_INSTANCE_SIGNATURE="${HYPRLAND_INSTANCE_SIGNATURE:-$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/hypr/ 2>/dev/null | head -1)}"
 # general:layout still reads via getoption; writes go through hl.config --
 # `hyprctl keyword` is refused under the Lua config parser ("Use eval").
 CUR=$(hyprctl -j getoption general:layout 2>/dev/null | jq -r '.str // empty')

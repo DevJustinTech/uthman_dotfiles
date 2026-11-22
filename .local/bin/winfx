@@ -1,6 +1,6 @@
 #!/bin/bash
 # winfx [transparent|gaps] — window effect toggles via hyprctl
-export HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr/ 2>/dev/null | head -1)
+export HYPRLAND_INSTANCE_SIGNATURE="${HYPRLAND_INSTANCE_SIGNATURE:-$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/hypr/ 2>/dev/null | head -1)}"
 case "$1" in
   transparent)
     # toggleopaque is gone under the Lua config. getprop still reads window

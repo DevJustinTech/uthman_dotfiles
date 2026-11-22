@@ -54,7 +54,7 @@ def aa_host_filter(url):
 
 def read_profile(db, host_filter):
     """Copy the profile DB (plus WAL) and return its AA cookies."""
-    tmpdir = tempfile.mkdtemp(prefix="aa-ck-", dir="/tmp/opencode" if os.path.isdir("/tmp/opencode") else None)
+    tmpdir = tempfile.mkdtemp(prefix="aa-ck-")
     tmp = os.path.join(tmpdir, "cookies.sqlite")
     try:
         shutil.copyfile(db, tmp)

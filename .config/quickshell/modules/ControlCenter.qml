@@ -297,7 +297,7 @@ FloatingWindow {
     function setBrightness(v){ Quickshell.execDetached(["sh","-c","brightnessctl set "+Math.round(v*100)+"% >/dev/null 2>&1 &"]) }
     Process {
         id: weatherProc
-        command: ["sh", "-c", "loc=$(jq -r 'if ((.latitude|type)==\"number\" and (.longitude|type)==\"number\") then ((.latitude|tostring) + \",\" + (.longitude|tostring)) else (.name // empty) end' \"$HOME/.local/state/omarchy/settings/weather.json\" 2>/dev/null); [ -z \"$loc\" ] && loc=Akure; curl -s --max-time 8 \"wttr.in/${loc// /+}?format=j1\" 2>/dev/null"]
+        command: ["sh", "-c", "loc=$(jq -r 'if ((.latitude|type)==\"number\" and (.longitude|type)==\"number\") then ((.latitude|tostring) + \",\" + (.longitude|tostring)) else (.name // empty) end' \"$HOME/.config/quickshell/weather.json\" 2>/dev/null); [ -z \"$loc\" ] && loc=Akure; curl -s --max-time 8 \"wttr.in/${loc// /+}?format=j1\" 2>/dev/null"]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: {
@@ -346,7 +346,7 @@ FloatingWindow {
     function applyNightlight(target) {
         if (nightlightProc.running) { nightlightProc.pendingTarget = target; nightlightProc.hasPending = true; return }
         nightlightProc.command = ["sh", "-c",
-            "pgrep -x hyprsunset >/dev/null || { setsid uwsm-app -- hyprsunset >/dev/null 2>&1 & }; " +
+            "pgrep -x hyprsunset >/dev/null || { setsid hyprsunset >/dev/null 2>&1 & }; " +
             "for i in 1 2 3 4 5 6 7 8 9 10; do hyprctl hyprsunset temperature " + target + " >/dev/null 2>&1; sleep 0.2; " +
             "[ \"$(hyprctl hyprsunset temperature 2>/dev/null | grep -oE '[0-9]+' | head -n1)\" = \"" + target + "\" ] && break; done"]
         nightlightProc.running = true

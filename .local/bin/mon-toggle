@@ -1,8 +1,91 @@
 #!/bin/bash
-# mon-toggle — toggle the internal laptop display on/off (presentation mode).
+# mon-toggle [on|off|toggle|recover] — control the internal laptop display.
 #
-# Delegates to Omarchy's toggle: it refuses to disable the only active
-# display (the old local version could blank a single-monitor session with no
-# way back), persists the state for the next login, and the clamshell watcher
-# can recover the panel. SUPER+CTRL+DELETE is the same toggle as a bind.
-exec omarchy-hyprland-monitor-internal "${1:-toggle}"
+# `off` refuses to disable the only active display, so a single-monitor session
+# can never be blanked with no way back. The disabled state is written to
+# ~/.local/state/hypr/internal-monitor-disabled.lua, which hyprland.lua loads
+# on every startup/reload.
+#
+# `recover` re-enables the panel only when an external display is active and
+# the panel was deliberately disabled. It is safe to call repeatedly (e.g. from
+# a clamshell watcher or a resume hook).
+
+set -u
+
+STATE_DIR="$HOME/.local/state/hypr"
+STATE_FILE="$STATE_DIR/internal-monitor-disabled.lua"
+ACTION="${1:-toggle}"
+
+usage() {
+  echo "Usage: $(basename "$0") [on|off|toggle|recover]" >&2
+  exit 1
+}
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -u low -i computer "Laptop display" "$1" || true
+}
+
+internal=$(hyprctl monitors all -j 2>/dev/null | jq -r '.[] | select(.name | test("^(eDP|LVDS|DSI)-")) | .name' 2>/dev/null | head -n 1)
+
+external_active() {
+  hyprctl monitors all -j 2>/dev/null |
+    jq -e '.[] | select(.name | test("^(eDP|LVDS|DSI)-") | not) | select(.disabled == false)' >/dev/null 2>&1
+}
+
+wake() {
+  hyprctl dispatch 'hl.dsp.dpms({ action = "enable" })' >/dev/null 2>&1 || true
+}
+
+on() {
+  if [[ -f $STATE_FILE ]]; then
+    rm -f "$STATE_FILE"
+    hyprctl reload >/dev/null 2>&1 || true
+    notify "enabled"
+  fi
+  wake
+}
+
+off() {
+  if [[ -z $internal ]]; then
+    notify "No laptop display found"
+    exit 1
+  fi
+
+  # The name is written into generated Lua, so only a plain connector name may
+  # pass; anything else could execute on the next reload.
+  if [[ ! $internal =~ ^[A-Za-z0-9._-]+$ ]]; then
+    notify "Refusing unsafe monitor name"
+    exit 1
+  fi
+
+  if ! external_active; then
+    notify "Can't disable the only active display"
+    exit 1
+  fi
+
+  if [[ ! -f $STATE_FILE ]]; then
+    mkdir -p "$STATE_DIR"
+    printf 'hl.monitor({ output = "%s", disabled = true })\n' "$internal" >"$STATE_FILE"
+    hyprctl reload >/dev/null 2>&1 || true
+    notify "disabled"
+  fi
+}
+
+recover() {
+  # A no-op unless it actually re-enables a display: an unconditional wake here
+  # undoes lock-screen blanking and races the resume modeset into a flash.
+  external_active || return 0
+  [[ -f $STATE_FILE ]] || return 0
+
+  rm -f "$STATE_FILE"
+  hyprctl reload >/dev/null 2>&1 || true
+  wake
+}
+
+case "$ACTION" in
+  on) on ;;
+  off) off ;;
+  toggle) if [[ -f $STATE_FILE ]]; then on; else off; fi ;;
+  recover) recover ;;
+  *) usage ;;
+esac

@@ -7,5 +7,5 @@ Name=Discord
 Exec=zenapp discord https://discord.com/channels/@me "Discord"
 Terminal=false
 Type=Application
-Icon=omarchy-discord
+Icon=applications-internet
 StartupNotify=true

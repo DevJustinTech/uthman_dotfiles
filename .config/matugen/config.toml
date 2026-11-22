@@ -12,9 +12,9 @@ input_path = "~/.config/matugen/templates/waybar-colors.css"
 output_path = "~/.config/quickshell/colors.css"
 
 # ── Hyprland ────────────────────────────────────────────────────────────
-# One Lua module, consumed by ~/.config/hypr/theme.lua via require("theme.colors").
-# It lives at ~/.config/theme/colors.lua rather than theme/current/ because
-# package.path resolves "theme.colors" to exactly that path.
+# One Lua module, loaded by ~/.config/hypr/theme.lua with dofile(). Keeping it
+# at a fixed path means the Hyprland config does not depend on Lua's module
+# search path (Omarchy's bootstrap used to provide that).
 #
 # This replaces the three hyprland-colors.conf outputs that used to be
 # `source`d from hyprland.conf. Source directives are gone under Hyprland's
@@ -27,6 +27,17 @@ output_path = "~/.config/theme/colors.lua"
 input_path = "~/.config/matugen/templates/hyprland-colors.lua"
 output_path = "~/.config/theme/themes/snow_black/colors.lua"
 
+# Small shell-readable palette. matugen-cursor, shell-splash, and
+# syncLimusicTheme parse `$name = rgb(RRGGBB)`; without this output they would
+# keep reading the first palette forever.
+[templates.colors-conf]
+input_path = "~/.config/matugen/templates/colors.conf"
+output_path = "~/.config/theme/current/colors.conf"
+
+[templates.colors-conf-snapshot]
+input_path = "~/.config/matugen/templates/colors.conf"
+output_path = "~/.config/theme/themes/snow_black/colors.conf"
+
 # hyprlock is still a .conf application, so it keeps a .conf palette and is
 # pulled in by ~/.config/hypr/hyprlock.conf.
 
@@ -37,10 +48,6 @@ output_path = "~/.config/theme/current/hyprlock.conf"
 [templates.kitty-theme]
 input_path = "~/.config/matugen/templates/kitty-theme.conf"
 output_path = "~/.config/theme/themes/snow_black/kitty.conf"
-
-[templates.kitty-current]
-input_path = "~/.config/matugen/templates/kitty-theme.conf"
-output_path = "~/.config/omarchy/current/theme/kitty.conf"
 
 [templates.kitty-standalone]
 input_path = "~/.config/matugen/templates/kitty-theme.conf"
@@ -72,10 +79,6 @@ output_path = "~/.config/theme/current/pear-desktop.css"
 input_path = "~/.config/matugen/templates/gtk.css"
 output_path = "~/.config/theme/themes/snow_black/gtk.css"
 
-[templates.gtk-current]
-input_path = "~/.config/matugen/templates/gtk.css"
-output_path = "~/.config/omarchy/current/theme/gtk.css"
-
 [templates.gtk-standalone]
 input_path = "~/.config/matugen/templates/gtk.css"
 output_path = "~/.config/theme/current/gtk.css"
@@ -87,10 +90,6 @@ output_path = "~/.config/theme/themes/snow_black/chromium.theme"
 [templates.chromium-current]
 input_path = "~/.config/matugen/templates/chromium.theme"
 output_path = "~/.config/theme/current/chromium.theme"
-
-[templates.chromium-omarchy-current]
-input_path = "~/.config/matugen/templates/chromium.theme"
-output_path = "~/.config/omarchy/current/theme/chromium.theme"
 
 [templates.btop-theme]
 input_path = "~/.config/matugen/templates/btop.theme"
@@ -120,25 +119,13 @@ output_path = "~/.config/theme/current/firefox.css"
 input_path = "~/.config/matugen/templates/rofi-colors.rasi"
 output_path = "~/.config/rofi/colors.rasi"
 
-[templates.neovim]
-input_path = "~/.config/matugen/templates/neovim.lua"
-output_path = "~/.config/omarchy/current/theme/neovim.lua"
-
 [templates.neovim-standalone]
 input_path = "~/.config/matugen/templates/neovim.lua"
 output_path = "~/.config/theme/current/neovim.lua"
 
-[templates.swayosd-current]
-input_path = "~/.config/matugen/templates/swayosd.css"
-output_path = "~/.config/omarchy/current/theme/swayosd.css"
-
 [templates.swayosd-standalone]
 input_path = "~/.config/matugen/templates/swayosd.css"
 output_path = "~/.config/theme/current/swayosd.css"
-
-[templates.zed-palette]
-input_path = "~/.config/matugen/templates/zed-palette.json"
-output_path = "~/.config/omarchy/current/theme/matugen-base.json"
 
 [templates.zed-standalone]
 input_path = "~/.config/matugen/templates/zed-palette.json"
@@ -178,7 +165,7 @@ output_path = "~/.config/zathura/zathurarc"
 #   sddm      -> /usr/share/sddm/themes/elarun-custom/Palette.qml
 #   obsidian  -> <notes vault>/.obsidian/snippets/matugen.css
 #   cavasik   -> ~/.config/cavasik/colors.rgb
-#   hyprlock-omarchy -> ~/.config/omarchy/current/theme/hyprlock.conf
+#   hyprlock-omarchy -> the old Omarchy theme path (removed)
 #
 # matugen aborts the whole run on an output it cannot write, so leaving a
 # root-owned or nonexistent-path output in the default set makes EVERY
@@ -187,8 +174,8 @@ output_path = "~/.config/zathura/zathurarc"
 #
 # sddm: /usr/share is root-owned and the SDDM greeter runs as its own user, so
 #   a wallpaper-driven login palette would need a root prompt on every theme
-#   change. Omarchy's login theme stays instead. To use elarun-custom anyway,
-#   install it and repoint SDDM by hand -- see README "Login screen".
+#   change. The bundled static theme is used instead; see README "Login
+#   screen".
 # obsidian: pointed at a personal notes vault path that does not exist here.
 # cavasik: Cavasik is not installed; this desktop uses plain cava.
 # hyprlock-omarchy: only read by the Omarchy shell we replaced. The live

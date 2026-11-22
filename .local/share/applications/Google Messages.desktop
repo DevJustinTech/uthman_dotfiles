@@ -7,5 +7,5 @@ Name=Google Messages
 Exec=zenapp gmessages https://messages.google.com/web/conversations "Messages"
 Terminal=false
 Type=Application
-Icon=google-messages
+Icon=applications-internet
 StartupNotify=true

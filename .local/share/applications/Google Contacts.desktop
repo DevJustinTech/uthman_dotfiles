@@ -7,5 +7,5 @@ Name=Google Contacts
 Exec=zenapp gcontacts https://contacts.google.com/ "Contacts"
 Terminal=false
 Type=Application
-Icon=google-contacts
+Icon=applications-internet
 StartupNotify=true

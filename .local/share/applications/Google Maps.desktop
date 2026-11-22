@@ -7,5 +7,5 @@ Name=Google Maps
 Exec=zenapp gmaps https://maps.google.com "Google Maps"
 Terminal=false
 Type=Application
-Icon=google-maps
+Icon=applications-internet
 StartupNotify=true

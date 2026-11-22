@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Prefer standalone wallpapers, fallback to omarchy path for legacy installs
+# Wallpapers live in the repo (ignored by git) or, failing that, beside the
+# current theme.
 WALL_DIR="$HOME/dotfiles/wallpapers"
-[[ -d "$WALL_DIR" ]] || WALL_DIR="$HOME/.config/omarchy/themes/snow_black/backgrounds"
 [[ -d "$WALL_DIR" ]] || WALL_DIR="$HOME/.config/theme/current"
 THUMB_DIR="/tmp/wall_thumbs"
 LOOKUP_FILE="/tmp/wall_lookup.json"

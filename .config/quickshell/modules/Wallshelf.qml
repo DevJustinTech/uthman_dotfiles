@@ -269,7 +269,7 @@ FloatingWindow {
         }
     }
     function resolveCurrent(){
-        curProc.command = ["sh","-c","readlink -f ~/.config/theme/current/background 2>/dev/null || readlink -f ~/.config/omarchy/current/background 2>/dev/null"]
+        curProc.command = ["sh","-c","readlink -f ~/.config/theme/current/background 2>/dev/null"]
         curProc.running = true
     }
     function syncCurrentToLocal(){

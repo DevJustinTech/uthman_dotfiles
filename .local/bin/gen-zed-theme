@@ -14,9 +14,7 @@ import os
 import re
 import sys
 
-BASE_NEW = os.path.expanduser("~/.config/theme/current/matugen-base.json")
-BASE_OLD = os.path.expanduser("~/.config/omarchy/current/theme/matugen-base.json")
-BASE = BASE_NEW if os.path.exists(BASE_NEW) else BASE_OLD
+BASE = os.path.expanduser("~/.config/theme/current/matugen-base.json")
 OUT = os.path.expanduser("~/.config/zed/themes/matugen.json")
 SETTINGS = os.path.expanduser("~/.config/zed/settings.json")
 
@@ -337,6 +335,7 @@ def main():
         ],
     }
 
+    OUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUT, "w") as f:
         json.dump(theme, f, indent=2)
     print(f"Wrote {OUT}")

@@ -1,5 +1,4 @@
 @import "../theme/current/swayosd.css";
-@import "../omarchy/current/theme/swayosd.css"; /* fallback */
 
 window {
   border-radius: 0;

@@ -136,7 +136,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: Quickshell.execDetached(["sh", "-c", "pidof hypridle >/dev/null && pkill hypridle || uwsm-app -- hypridle &"])
+                    onClicked: Quickshell.execDetached(["sh", "-c", "pidof hypridle >/dev/null && pkill hypridle || { setsid hypridle >/dev/null 2>&1 & }"])
                 }
             }
 

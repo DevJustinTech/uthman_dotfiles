@@ -1,12 +1,123 @@
 #!/bin/bash
 # tmux-keys — tmux's keybindings as a searchable rofi list.
 #
-# Same story as herdr-keys: Omarchy's SUPER+ALT+K ran
-# omarchy-menu-tmux-keybindings, whose menu renders through the stock shell
-# this session replaces. --print needs no shell, so pipe it into the rofi
-# dmenu shim. Width and height mirror the stock call: 800 wide, 40% of the
-# focused monitor tall.
+# Loads the local tmux config into a throwaway tmux server, lists the resolved
+# prefix/root/copy-mode bindings, and either prints them or opens them in the
+# rofi dmenu shim (walker-dmenu). Previously this delegated to
+# omarchy-menu-tmux-keybindings, which is not available on a plain Arch install.
+
 set -o pipefail
+
+print_only=false
+config_file="${TMUX_CONF:-$HOME/.config/tmux/tmux.conf}"
+command -v tmux >/dev/null 2>&1 || { echo "tmux not installed" >&2; exit 1; }
+
+while (($#)); do
+  case "$1" in
+    --print|-p) print_only=true ;;
+    --config) shift; config_file="$1" ;;
+    *) config_file="$1" ;;
+  esac
+  shift
+done
+
+if [[ ! -f $config_file ]]; then
+  echo "Tmux config not found: $config_file" >&2
+  exit 1
+fi
+
+output_keybindings() (
+  set -o pipefail
+  socket_dir=$(mktemp -d)
+  socket="$socket_dir/tmux"
+  trap 'tmux -S "$socket" kill-server >/dev/null 2>&1 || true; rm -f "$socket"; rmdir "$socket_dir" 2>/dev/null || true' EXIT
+  tmux -S "$socket" -f /dev/null start-server \; \
+    unbind-key -a -T prefix \; \
+    unbind-key -a -T root \; \
+    unbind-key -a -T copy-mode \; \
+    unbind-key -a -T copy-mode-vi \; \
+    source-file "$config_file" \; \
+    show-options -g prefix \; \
+    show-options -g prefix2 \; \
+    list-keys -aN -T prefix -P "prefix" \; \
+    list-keys -aN -T root -P "root" \; \
+    list-keys -aN -T copy-mode-vi -P "copy-mode-vi" | awk '
+function key_part_text(part, is_modifier, part_count) {
+  gsub(/^\\/, "", part)
+
+  if (is_modifier && part == "C") return "CTRL"
+  if (is_modifier && part == "M") return "ALT"
+  if (is_modifier && part == "S") return "SHIFT"
+  if (part == "Space") return "SPACE"
+  if (part == "BSpace") return "BACKSPACE"
+  if (part == "BTab") return "SHIFT + TAB"
+  if (part == "PPage") return "PAGE UP"
+  if (part == "NPage") return "PAGE DOWN"
+  if (part == "DC") return "DELETE"
+  if (part == "IC") return "INSERT"
+  if (part_count == 1 && part ~ /^[a-z]$/) return part
+
+  return toupper(part)
+}
+
+function key_text(key, parts, count, i, part, text) {
+  gsub(/\\/, "", key)
+  count = split(key, parts, "-")
+  text = ""
+
+  for (i = 1; i <= count; i++) {
+    part = key_part_text(parts[i], i < count, count)
+    text = text (text == "" ? "" : " + ") part
+  }
+
+  return text
+}
+
+function table_text(table) {
+  if (table == "copy-mode-vi") return "COPY MODE"
+  if (table == "copy-mode") return "COPY MODE"
+  if (table == "prefix") return "PREFIX"
+
+  gsub(/-/, " ", table)
+  return toupper(table)
+}
+
+$1 == "prefix" && NF == 2 { prefix = $2; next }
+$1 == "prefix2" && NF == 2 { prefix2 = $2; next }
+
+{
+  if (!header_printed) {
+    prefix_description = key_text(prefix)
+
+    if (prefix2 != "" && prefix2 != "None") {
+      prefix_description = prefix_description " / " key_text(prefix2)
+    }
+
+    printf "%-32s → %s\n", "PREFIX", prefix_description
+    header_printed = 1
+  }
+
+  table = $1
+  key = $2
+  note = $0
+  sub(/^[^ ]+ +[^ ]+ +/, "", note)
+
+  if (table == "root") {
+    combo = key_text(key)
+  } else {
+    combo = table_text(table) " + " key_text(key)
+  }
+
+  printf "%-32s → %s\n", combo, note
+}'
+)
+
+if [[ $print_only == "true" ]]; then
+  output_keybindings
+  exit 0
+fi
+
+records=$(output_keybindings)
 
 monitor_height=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused == true) | .height' 2>/dev/null)
 if [[ ! $monitor_height =~ ^[0-9]+$ ]] || ((monitor_height <= 0)); then
@@ -14,6 +125,4 @@ if [[ ! $monitor_height =~ ^[0-9]+$ ]] || ((monitor_height <= 0)); then
 fi
 menu_height=$((monitor_height * 40 / 100))
 
-omarchy-menu-tmux-keybindings --print \
-  | walker-dmenu --dmenu -p 'Tmux keybindings' --width 800 --height "$menu_height" \
-  >/dev/null
+printf '%s\n' "$records" | walker-dmenu --dmenu -p 'Tmux keybindings' --width 800 --height "$menu_height" >/dev/null || true

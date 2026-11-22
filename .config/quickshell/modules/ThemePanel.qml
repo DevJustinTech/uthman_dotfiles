@@ -97,7 +97,7 @@ PanelWindow {
 
     Process {
         id: currentProc
-        command: ["sh","-c","readlink -f ~/.config/theme/current/background 2>/dev/null || readlink -f ~/.config/omarchy/current/background 2>/dev/null | tr -d '\\n'"]
+        command: ["sh","-c","readlink -f ~/.config/theme/current/background 2>/dev/null | tr -d '\\n'"]
         stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.currentWall = text.trim() }
     }
     Process {
@@ -114,7 +114,7 @@ PanelWindow {
     }
     Process {
         id: listProc
-        command: ["sh","-c","mkdir -p \"$HOME/.cache/quickshell\"; (find ~/dotfiles/wallpapers \\( -type f -o -type l \\) \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' \\) 2>/dev/null; find ~/.config/theme/current -maxdepth 1 -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' \\) 2>/dev/null; find ~/.config/theme/themes/snow_black/backgrounds -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' \\) 2>/dev/null; find ~/.config/omarchy/themes/snow_black/backgrounds -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' \\) 2>/dev/null; find ~/.config/omarchy/backgrounds -maxdepth 1 -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.gif' \\) 2>/dev/null) | head -n 300 | $HOME/.local/bin/mkthumbs | tee \"$HOME/.cache/quickshell/theme-walls.cache\""]
+        command: ["sh","-c","mkdir -p \"$HOME/.cache/quickshell\"; (find ~/dotfiles/wallpapers \\( -type f -o -type l \\) \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' \\) 2>/dev/null; find ~/.config/theme/current -maxdepth 1 -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' \\) 2>/dev/null; find ~/.config/theme/themes/snow_black/backgrounds -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' \\) 2>/dev/null) | head -n 300 | $HOME/.local/bin/mkthumbs | tee \"$HOME/.cache/quickshell/theme-walls.cache\""]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: root.parseList(text)

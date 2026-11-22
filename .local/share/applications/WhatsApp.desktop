@@ -7,5 +7,5 @@ Name=WhatsApp
 Exec=zenapp whatsapp https://web.whatsapp.com/ "WhatsApp"
 Terminal=false
 Type=Application
-Icon=whatsapp
+Icon=applications-internet
 StartupNotify=true

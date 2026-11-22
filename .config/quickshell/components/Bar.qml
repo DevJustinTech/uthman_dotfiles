@@ -85,7 +85,7 @@ PanelWindow {
     // PhoneBridge and WhatsApp were removed at the user's request, along with
     // their binds, float rules, systemd unit, helpers and logo. The phonebridge
     // backend was never installed here, so the module only ever logged
-    // "Process failed to start ... /home/justin/phonebridge/phonebridge" and
+    // "Process failed to start ... ~/phonebridge/phonebridge" and
     // loading it cost ~1200 lines of QML to build on every shell start.
     // Launcher lives here (not shell.qml) so Bar pills/IPC can reach it —
     // and `plugins` (PluginMenu scrapped; the ten plugin apps ride the

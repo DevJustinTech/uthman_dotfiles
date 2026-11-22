@@ -1,25 +1,40 @@
--- Omarchy's bootstrap owns path setup and module reloading. Do not inline it.
-dofile((os.getenv("OMARCHY_PATH") or "/usr/share/omarchy") .. "/default/hypr/bootstrap.lua")
+-- Hyprland configuration — Lua entry point (standalone Arch install).
+--
+-- The presence of this file at startup selects the Lua config; hyprland.conf is
+-- then ignored entirely. It is checked once at startup, so deleting it and
+-- running `hyprctl reload` does NOT fall back to hyprland.conf — a full
+-- Hyprland restart is required.
+--
+-- No Omarchy packages are required. The vendored defaults in vendor/ are
+-- sanitized copies of the old Omarchy defaults, kept here so a fresh Arch
+-- install has the same keymap and window behaviour without /usr/share/omarchy.
 
--- Omarchy defaults stay ENABLED. This config used to vendor frozen copies of
--- them under hypr/vendor/, which drifted from the real defaults and is now
--- dead weight: Omarchy ships them as Lua. bindings.lua unbinds the handful of
--- chords this desktop actually replaces, so we inherit tiling, media, and
--- utility binds for free and pick up upstream improvements on update.
-require("default.hypr.omarchy")
+require("helpers")
 
--- Personal overrides, loaded after the defaults so they win on every key.
--- Order matters where one file narrows another: theme repaints the border
--- colours that looknfeel lays down, and toggles must follow input so it can
--- disable a device this config just configured.
-require("hypr.envs")
-require("hypr.theme")
-require("hypr.monitors")
-require("hypr.input")
-require("hypr.looknfeel")
-require("hypr.windows")
-require("hypr.bindings")
-require("hypr.autostart")
+-- ── Vendored defaults ──────────────────────────────────────────────────────
+require("vendor.envs")
+require("vendor.looknfeel")
+require("vendor.input")
+require("vendor.windows")
+require("vendor.bindings.media")
+require("vendor.bindings.clipboard")
+require("vendor.bindings.tiling")
+require("vendor.bindings.utilities")
 
--- Toggle config flags dynamically (input devices, workspace layout).
-require("default.hypr.toggles")
+-- ── Personal overrides ─────────────────────────────────────────────────────
+-- theme after vendor.looknfeel: the wallpaper palette must win over the
+-- hardcoded border colours in the vendored defaults.
+require("theme")
+require("envs")
+require("monitors")
+require("input")
+require("looknfeel")
+require("windows")
+require("bindings")
+require("autostart")
+
+-- Persisted device toggles. Kept as Lua so `hyprctl reload` re-applies them;
+-- the helper scripts write these files.
+local state = (os.getenv("HOME") or "") .. "/.local/state/hypr/"
+pcall(dofile, state .. "touchpad-disabled.lua")
+pcall(dofile, state .. "internal-monitor-disabled.lua")

@@ -4,6 +4,6 @@ Name=Sushi
 GenericName=Nautilus previewer
 Comment=Quick previewer for Nautilus (space to preview files)
 Exec=sushi
-Icon=eye
+Icon=image-x-generic
 Categories=Utility;FileTools;
 Keywords=preview;nautilus;quicklook;files;

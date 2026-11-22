@@ -49,7 +49,7 @@ alias du='du -sh'
 alias cmt="lgs ~/cmt/commit.lgs"
 alias chg="lgs ~/cmt/changelog.lgs"
 alias getTheme="bash ~/.local/bin/getTheme"
-alias wall="bash ~/.config/myTheme/scripts/wall.sh"
+alias wall="bash ~/.config/rofi/wall.sh"
 # ── Options ───────────────────────────────────────────────────
 # no CORRECT: it prompts on every bare dirname (skills -> kill?) and fights
 # the command_not_found_handler jump below.
@@ -132,4 +132,4 @@ fi
 
 
 # Added by Antigravity CLI installer
-export PATH="/home/justin/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"

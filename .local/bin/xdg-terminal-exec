@@ -16,8 +16,11 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
-if [ $# -eq 0 ]; then
-  exec uwsm-app -- foot --working-directory="$dir"
-else
-  exec uwsm-app -- foot --working-directory="$dir" "$@"
-fi
+run_foot() {
+  if command -v uwsm-app >/dev/null 2>&1; then
+    exec uwsm-app -- foot --working-directory="$dir" "$@"
+  fi
+  exec foot --working-directory="$dir" "$@"
+}
+
+run_foot "$@"

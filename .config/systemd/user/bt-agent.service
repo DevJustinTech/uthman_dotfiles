@@ -1,0 +1,27 @@
+[Unit]
+Description=Bluetooth pairing agent (auto-accept)
+Documentation=man:bt-agent(1)
+# No adapter means nothing to register with; skip cleanly instead of failing.
+ConditionPathIsDirectory=/sys/class/bluetooth
+After=dbus.socket
+Requires=dbus.socket
+
+[Service]
+Type=simple
+# Skip when bluetoothd is not running (VMs, machines without a usable adapter)
+# instead of entering a restart loop.
+ExecCondition=/usr/bin/systemctl is-active --quiet bluetooth.service
+# NoInputNoOutput auto-accepts pair requests. The adapter is only `pairable`
+# while the Bluetooth panel is scanning, so this is not an open door.
+ExecStart=/usr/bin/bt-agent -c NoInputNoOutput
+Restart=on-failure
+RestartSec=2
+# On shutdown bluetoothd disappears before the user manager stops this unit.
+# The unregister call then fails with NoReply and exits 1; that is the expected
+# outcome of the peer going away, so whitelist it. Genuine crashes still show.
+SuccessExitStatus=1
+
+# bt-agent is provided by bluez-tools from the extra repository.
+
+[Install]
+WantedBy=graphical-session.target

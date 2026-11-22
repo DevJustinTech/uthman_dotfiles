@@ -131,7 +131,10 @@ if is_running; then
     # than starting a second process on a profile that is already locked.
     log "windowless; handing the URL over"
     exec 9>&-
-    exec uwsm-app -- zen --profile "$PROFDIR" --new-window "$URL"
+    if command -v uwsm-app >/dev/null 2>&1; then
+      exec uwsm-app -- zen --profile "$PROFDIR" --new-window "$URL"
+    fi
+    exec zen --profile "$PROFDIR" --new-window "$URL"
 fi
 
 log "not running -> launching"
@@ -213,4 +216,7 @@ rm -rf "$PROFDIR/sessionstore-backups" "$PROFDIR/zen-sessions-backup" \
 # The URL is passed bare rather than as --new-window: "open this" is exactly one
 # window, while --new-window adds a window on top of whatever startup opens.
 exec 9>&-
-exec uwsm-app -- zen --no-remote -profile "$PROFDIR" "$URL"
+if command -v uwsm-app >/dev/null 2>&1; then
+  exec uwsm-app -- zen --no-remote -profile "$PROFDIR" "$URL"
+fi
+exec zen --no-remote -profile "$PROFDIR" "$URL"

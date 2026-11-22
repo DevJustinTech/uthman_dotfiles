@@ -1,0 +1,124 @@
+#!/bin/bash
+# battery-watch — desktop notifications when the battery gets low.
+#
+# Runs as a systemd --user service. Omarchy's stock low-battery warning lives
+# in the Omarchy shell, which this desktop replaces, so nothing warned before
+# the machine powered off. While discharging this warns once per band:
+#
+#   20%  plug in soon (notification + warning sound)
+#   10%  plug in now (critical notification + warning sound)
+#    5%  about to shut down (critical notification + warning sound)
+#
+# The last band is kept in ~/.local/state/battery-watch/zone so restarting the
+# service or the shell does not repeat a warning. Plugging in re-arms it.
+# Pass --once to check a single time (handy for testing).
+
+set -u
+
+BATTERY_DIR=${BATTERY_DIR:-}
+if [[ -z $BATTERY_DIR ]]; then
+  for dir in /sys/class/power_supply/BAT*; do
+    [[ -d $dir ]] && BATTERY_DIR=$dir && break
+  done
+fi
+BATTERY_DIR=${BATTERY_DIR:-/sys/class/power_supply/BAT0}
+STATE_DIR=${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/battery-watch}
+INTERVAL=${INTERVAL:-30}
+SOUND_FILE=${SOUND_FILE:-/usr/share/sounds/freedesktop/stereo/dialog-warning.oga}
+STATE_FILE=$STATE_DIR/zone
+
+mkdir -p "$STATE_DIR"
+
+zone_for() {
+  local level=$1
+  if ((level <= 5)); then
+    echo 5
+  elif ((level <= 10)); then
+    echo 10
+  elif ((level <= 20)); then
+    echo 20
+  else
+    echo 0
+  fi
+}
+
+notify() {
+  local urgency=$1 title=$2 body=$3
+  notify-send -a Battery -u "$urgency" -i battery-caution "$title" "$body"
+}
+
+play_warning() {
+  [[ -f $SOUND_FILE ]] || return 0
+  if command -v paplay >/dev/null; then
+    paplay "$SOUND_FILE" >/dev/null 2>&1
+  elif command -v pw-play >/dev/null; then
+    pw-play "$SOUND_FILE" >/dev/null 2>&1
+  fi
+}
+
+warn() {
+  local zone=$1 level=$2
+  case $zone in
+  20)
+    notify normal "Battery at ${level}%" "Plug in soon if you are not near a charger." || return 1
+    play_warning
+    ;;
+  10)
+    notify critical "Battery at ${level}%" "Plug in now and save your work." || return 1
+    play_warning
+    ;;
+  5)
+    notify critical "Battery critically low (${level}%)" "Plug in now — this PC is about to shut down." || return 1
+    play_warning
+    ;;
+  esac
+  return 0
+}
+
+last=$(cat "$STATE_FILE" 2>/dev/null || echo 0)
+[[ $last =~ ^[0-9]+$ ]] || last=0
+
+check() {
+  local level status zone
+
+  read -r level <"$BATTERY_DIR/capacity" 2>/dev/null || return 0
+  read -r status <"$BATTERY_DIR/status" 2>/dev/null || return 0
+  [[ $level =~ ^[0-9]+$ ]] || return 0
+
+  # Not discharging: reset so the next discharge warns again.
+  if [[ $status != Discharging ]]; then
+    if ((last != 0)); then
+      last=0
+      echo 0 >"$STATE_FILE"
+    fi
+    return 0
+  fi
+
+  zone=$(zone_for "$level")
+
+  # Back above 20%: re-arm.
+  if ((zone == 0)); then
+    if ((last != 0)); then
+      last=0
+      echo 0 >"$STATE_FILE"
+    fi
+    return 0
+  fi
+
+  # Only notify when entering a lower band, so a level wobble cannot repeat it.
+  if ((last == 0 || zone < last)); then
+    if warn "$zone" "$level"; then
+      last=$zone
+      echo "$zone" >"$STATE_FILE"
+    fi
+  fi
+}
+
+once=0
+[[ ${1-} == --once ]] && once=1
+
+while :; do
+  check
+  ((once)) && break
+  sleep "$INTERVAL"
+done

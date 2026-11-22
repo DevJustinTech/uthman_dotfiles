@@ -1,0 +1,15 @@
+[Unit]
+Description=Low battery warning notifications
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExistsGlob=/sys/class/power_supply/BAT*
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/battery-watch
+Restart=always
+RestartSec=10
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=graphical-session.target

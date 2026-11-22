@@ -7,5 +7,5 @@ Name=Basecamp
 Exec=zenapp basecamp https://launchpad.37signals.com "Basecamp"
 Terminal=false
 Type=Application
-Icon=basecamp
+Icon=applications-office
 StartupNotify=true

@@ -1,7 +1,75 @@
 #!/bin/bash
 # touchpad [on|off|toggle] — enable/disable the laptop touchpad.
 #
-# Delegates to Omarchy's toggle: it flips the device through the Hyprland Lua
-# device API, shows the OSD, and writes the state file its login-time restore
-# reads. A local version meant the touchpad came back on every login.
-exec omarchy-toggle-touchpad "${1:-toggle}"
+# The change is applied immediately through Hyprland's Lua device API and
+# persisted to ~/.local/state/hypr/touchpad-disabled.lua, which hyprland.lua
+# loads on every startup/reload so the setting survives a login.
+#
+# Device names come from USB descriptors and are never interpolated into shell
+# or Lua unquoted.
+
+set -u
+
+STATE_DIR="$HOME/.local/state/hypr"
+STATE_FILE="$STATE_DIR/touchpad-disabled.lua"
+ACTION="${1:-toggle}"
+
+usage() {
+  echo "Usage: $(basename "$0") [on|off|toggle]" >&2
+  exit 1
+}
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -u low -i input-touchpad-symbolic "Touchpad" "$1" || true
+}
+
+device=$(hyprctl devices -j 2>/dev/null | jq -r '[.mice[] | .name | select(test("touchpad|trackpad"; "i"))] | first // empty' 2>/dev/null)
+
+require_device() {
+  if [[ -z $device ]]; then
+    echo "No touchpad device found" >&2
+    notify "No touchpad device found"
+    exit 1
+  fi
+
+  if [[ $device == *[[:cntrl:]]* ]]; then
+    echo "Invalid touchpad device name" >&2
+    exit 1
+  fi
+}
+
+apply_device() {
+  local enabled=$1
+  local quoted=${device//\\/\\\\}
+  quoted=${quoted//\"/\\\"}
+  hyprctl eval "hl.device({ name = \"$quoted\", enabled = $enabled })" >/dev/null
+}
+
+enable() {
+  # Clear the persisted state before requiring a usable device, so a device
+  # that stops reporting a name can never wedge the disable in place.
+  rm -f "$STATE_FILE"
+  require_device
+  apply_device true
+  notify "enabled"
+}
+
+disable() {
+  require_device
+  apply_device false
+  mkdir -p "$STATE_DIR"
+
+  local quoted=${device//\\/\\\\}
+  quoted=${quoted//\"/\\\"}
+  printf 'hl.device({ name = "%s", enabled = false })\n' "$quoted" >"$STATE_FILE"
+  notify "disabled"
+}
+
+case "$ACTION" in
+  on) enable ;;
+  off) disable ;;
+  toggle)
+    if [[ -f $STATE_FILE ]]; then enable; else disable; fi
+    ;;
+  *) usage ;;
+esac

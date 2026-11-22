@@ -1,8 +1,10 @@
 ^README\.md$
+^TODO\.md$
 ^install\.sh$
 ^\.gitignore$
 ^\.stow-local-ignore$
 ^theme-fallback$
+^etc$
 ^Pictures$
 ^wallpapers$
 ^\.git$

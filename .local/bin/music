@@ -19,7 +19,7 @@ if command -v spotify >/dev/null 2>&1; then
 fi
 
 notify-send -u critical "Spotify not installed" \
-  "Install it with: omarchy install service spotify" 2>/dev/null || true
+  "Install it with: yay -S spotify" 2>/dev/null || true
 
-echo "spotify not found. Install it with: omarchy install service spotify" >&2
+echo "spotify not found. Install it with: yay -S spotify" >&2
 exit 1

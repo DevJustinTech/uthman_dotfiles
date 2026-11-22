@@ -293,7 +293,7 @@ FloatingWindow {
     // open the hit in the GUI editor at the exact line
     function openInZed(r) {
         if (!r) return
-        Quickshell.execDetached(["uwsm-app", "--", "zed", r.file + ":" + r.line])
+        Quickshell.execDetached(["zed", r.file + ":" + r.line])
         root.open = false
     }
 
