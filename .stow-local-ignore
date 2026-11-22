@@ -4,6 +4,9 @@
 ^\.gitignore$
 ^\.stow-local-ignore$
 ^theme-fallback$
+# Reinstall package lists. Stow would map this to ~/arch-packages and collide
+# with the real folder restored from the backup drive.
+^arch-packages$
 ^etc$
 ^Pictures$
 ^wallpapers$

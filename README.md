@@ -9,6 +9,10 @@ cursor. No Omarchy packages are required.
 
 Bar island, Zathura and foot over a wallpaper-pulled palette.
 
+> Reinstalling the whole machine? [ARCH-INSTALL.md](ARCH-INSTALL.md) covers the
+> backup, archinstall, Limine and bootable snapshots, package restore, and
+> first-login sequence. The steps below assume Arch is already installed.
+
 ## What you get
 
 | Piece | What it does |
@@ -46,10 +50,11 @@ Feature highlights:
 * A supported GPU. The shipped blur/gap settings are tuned for an Intel HD 520
   at 1366x768; raise `decoration.blur` values in `looknfeel.lua` on stronger
   hardware.
-* Disk encryption, Secure Boot, and the bootloader are outside this repo. Set
-  them up during the Arch install if you want them.
+* Disk encryption, Secure Boot, and the bootloader are outside this repo. The
+  full reinstall sequence, including LUKS, Limine, and bootable snapshots, is in
+  `ARCH-INSTALL.md`.
 
-## Fresh install
+## Install on Arch
 
 ### 1. Install the base desktop
 
@@ -68,6 +73,9 @@ Optional but recommended:
 ```bash
 sudo pacman -S --needed sof-firmware alsa-ucm-conf linux-firmware
 ```
+
+If you followed `ARCH-INSTALL.md`, the 188-package restore already covers this;
+skip to step 2.
 
 `uwsm` is optional. Every launcher in this repo checks for `uwsm-app` and runs
 the command directly when it is absent.
@@ -571,7 +579,10 @@ What runs the desktop day to day, and where each piece lives:
 │   ├── systemd/user/         # helper services
 ├── .local/bin/             # set-wallpaper, getTheme, record, shot, …
 ├── cursor-theme/           # Bibata base linked into ~/.local/share/icons
-├── etc/udev/rules.d/       # touchpad rule installed by edge-motion-install
+├── etc/
+│   ├── systemd/system/     # drop-ins installed by install.sh (UID remapped)
+│   └── udev/rules.d/       # touchpad rule installed by edge-motion-install
+├── arch-packages/          # reinstall package lists (stow-ignored)
 ├── sddm/elarun-custom/     # login theme; installed when SDDM is present
 ├── zen/app-userChrome.css  # chromeless window CSS for zenapp web apps
 ├── wallpapers/             # local only, git-ignored, never committed
@@ -610,25 +621,45 @@ What runs the desktop day to day, and where each piece lives:
 * Nerd Font codepoints drift between font builds. A glyph that exists can still render as the wrong symbol. Verify by glyph name with fontTools, not by codepoint presence. Same goes for Phosphor icons: this repo's build is ligature-mapped, so codepoints were resolved through its GSUB table.
 * `wallshelf.ini` holds the Wallhaven API key and is gitignored on purpose. `wallshelf.json` is machine-local browse state (absolute paths, last category) and is gitignored too. Never put the key in either file.
 * Generated files are gitignored. Theme outputs regenerate on every wallpaper change, so `git status` should stay clean; if it does not, you edited a generated file instead of its template.
-* No boot-menu snapshot entries. Snapper timelines run hourly, but recovery is manual (see below), not a Limine menu.
+* **Snapshots are bootable from the Limine menu** once `limine-snapper-sync` is
+  wired up (see `ARCH-INSTALL.md`). `snap-pac` creates a pre/post snapshot on
+  every pacman transaction. Snapshots cover `@`, not `@home`, and they do not
+  replace backups.
 
 ## Disaster recovery (snapper)
 
-This machine's recovery layout (inherited from Omarchy), for the record:
+The reinstall in `ARCH-INSTALL.md` produces this layout:
 
 - `nvme0n1p1` → `/boot` (vfat), `nvme0n1p2` → LUKS → btrfs. **Root is encrypted.**
 - Subvolumes: `@` (`/`), `@home`, `@log` (`/var/log`), `@pkg` (`/var/cache/pacman/pkg`).
-- Snapper config `root`: `SUBVOLUME="/"`, **5 snapshots, no timeline** — Omarchy
-  only snapshots for pre-update recovery, it does not run hourly. `snapper list`
-  will usually be nearly empty; that is expected, not a fault.
+- Snapper config `root`: `SUBVOLUME="/"`, no timeline, **5 snapshots**. `snap-pac`
+  creates a pre/post pair on every pacman transaction, so `snapper list` should
+  show the last few updates. Raise `NUMBER_LIMIT` for more history.
 
-Most breakages (bad update, nuked `/etc` file, dead Hypr config) still reach a TTY. Log in as root there and roll back. No USB needed:
+### Boot-menu recovery (first choice)
+
+After a bad update, reboot. At Limine choose **Snapshots**, then the entry from
+before the update. The snapshot boots read-only with a writable overlay; the
+desktop offers **Restore now**, or run:
+
+```bash
+sudo limine-snapper-restore
+```
+
+Reboot into the restored system.
+
+### TTY recovery (fallback)
+
+If the Limine menu is intact but the snapshot entry will not boot, or you would
+rather roll back manually, log in as root on a TTY. No USB needed:
 
 ```bash
 snapper list                          # pick a number from before the breakage
-snapper rollback 80
+snapper rollback <number>
 reboot
 ```
+
+### Rescue USB (last resort)
 
 A USB stick with an Arch ISO is only needed when nothing boots at all: kernel
 panic, no login prompt. On this setup that means a bad kernel + initramfs after
@@ -643,7 +674,7 @@ cryptsetup open /dev/nvme0n1p2 root
 mount -o subvol=@ /dev/mapper/root /mnt
 arch-chroot /mnt
 snapper list
-snapper rollback 80
+snapper rollback <number>
 reboot
 ```
 
@@ -655,8 +686,8 @@ Day-to-day (no reboot involved):
 
 ```bash
 snapper create -d "before i break things"
-snapper undochange 82..0 /etc          # un-break one directory
-snapper status 82..0                  # preview what changed first
+snapper undochange <number>..0 /etc    # un-break one directory
+snapper status <number>..0            # preview what changed first
 ```
 
 ## Locked out (passwords, login, screen lock)
@@ -672,7 +703,7 @@ reach your files.
 ```bash
 passwd justin                  # forgotten user password (as root)
 pkill -x hyprlock              # stuck at the hyprlock screen
-snapper rollback 80            # broke it with an update, see above
+snapper rollback <number>      # broke it with an update, see above
 ```
 
 SDDM login-looping but the TTY works almost always means the Hyprland session dies on start: check `~/.config/hypr/` for the last edit and `journalctl --user -xe` for the crash line before rolling anything back.
@@ -685,7 +716,7 @@ cryptsetup open /dev/nvme0n1p2 root
 mount -o subvol=@  /dev/mapper/root /mnt
 mount -o subvol=@home /dev/mapper/root /mnt/home
 arch-chroot /mnt
-passwd justin                  # or: snapper list + snapper rollback 80
+passwd justin                  # or: snapper list + snapper rollback <number>
 reboot
 ```
 

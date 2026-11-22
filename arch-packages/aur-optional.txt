@@ -1,0 +1,7 @@
+visual-studio-code-bin
+localsend-bin
+ttf-ia-writer
+yaru-icon-theme
+ufw-docker
+hyprland-preview-share-picker-git
+tzupdate

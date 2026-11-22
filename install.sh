@@ -399,6 +399,31 @@ if [[ -d /usr/share/sddm ]]; then
     fi
 fi
 
+# ── systemd drop-ins ──────────────────────────────────────────────────────────
+# etc/ is stow-ignored (stow maps top-level entries onto $HOME one-for-one), so
+# these fixes have to be copied into place explicitly. They are small, but each
+# one prevents a real failure:
+#   keyd.service            clean shutdown exits 15, which systemd records as
+#                           failed unless that code is whitelisted
+#   user@.service           give the user manager room for Hermes to drain
+#   archlinux-keyring-wkd   wait for DNS after resume instead of failing 101
+if [[ -d $DOTFILES_DIR/etc/systemd/system ]]; then
+    info "Installing systemd drop-ins (sudo)..."
+    while IFS= read -r -d '' src; do
+        rel="${src#"$DOTFILES_DIR/etc/systemd/system/"}"
+        # The repo names the user-manager drop-in after UID 1000. Map it to the
+        # actual UID so the fix still applies if the fresh install picks another.
+        rel="${rel/#user@1000.service.d/user@$(id -u).service.d}"
+        if sudo install -Dm644 "$src" "/etc/systemd/system/$rel"; then
+            info "  $rel"
+        else
+            warn "  Could not install $rel"
+        fi
+    done < <(find "$DOTFILES_DIR/etc/systemd/system" -type f -print0)
+    sudo systemctl daemon-reload || warn "systemd daemon-reload failed"
+    success "systemd drop-ins installed"
+fi
+
 # fastfetch art (absolute path referenced by fastfetch config + quickshell)
 mkdir -p "$HOME/fastfetchImages"
 if [[ -f "$HOME/fastfetchImages/The_Knight__Hollow_Knight_-removebg-preview.png" ]]; then
