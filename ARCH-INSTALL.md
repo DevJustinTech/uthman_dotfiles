@@ -20,6 +20,10 @@ The result is:
 Niri is **not** part of this plan. The repo is Hyprland-only; see the last
 section if you still want to try it.
 
+Letting an AI agent run the long middle? [`AGENT-INSTALL.md`](AGENT-INSTALL.md)
+has the scope, guardrails, and a paste-ready prompt. The backup, archinstall,
+`install.sh`, and first login stay human.
+
 ---
 
 ## 0. Before you wipe
