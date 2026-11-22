@@ -485,9 +485,10 @@ sudo pacman -S --needed $(cat official.txt) \
 
 - `official.txt` has 188 explicit packages that exist in `core`/`extra`/
   `multilib`. It contains no Omarchy-repo packages.
-- The extra names were dependencies or handled by archinstall, so they are not
-  in `official.txt`. They are the packages `install.sh` checks for; installing
-  them here means the installer's dependency sweep has nothing to do.
+- The extra names were dependencies or handled by archinstall. Most are not in
+  `official.txt`; `zram-generator` is, and `--needed` makes the overlap
+  harmless. They are the packages `install.sh` checks for, so installing them
+  here means the installer's dependency sweep has nothing to do.
 - Do **not** install `omarchy-only.txt`. It contains the `omarchy` meta package,
   the `linux-omarchy` kernel, and Omarchy-repo builds of `spotify`, `yay`,
   `visual-studio-code-bin`, and others that do not exist on a vanilla Arch
