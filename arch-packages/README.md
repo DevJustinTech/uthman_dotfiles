@@ -2,8 +2,8 @@
 
 Snapshot of the explicit packages on the Omarchy system on 2026-11-21, kept
 here so the reinstall plan survives losing the backup drive. The authoritative
-copy is `~/arch-packages` on the live system, which also holds the prebuilt
-Limine packages and the `/etc` bundle.
+copy is `~/arch-packages` on the live system; the copy on the backup drive also
+holds the prebuilt Limine packages and the `/etc` bundle.
 
 | File | Purpose |
 |------|---------|

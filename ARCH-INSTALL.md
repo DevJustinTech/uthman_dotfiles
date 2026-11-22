@@ -117,8 +117,34 @@ rsync -a --info=progress2 ~/.cache/yay "$BACKUP"/
   browser binary (139 MB). Zen is not a package.
 - `~/.hermes` is 5.5 GB. Keep it if you use Hermes.
 - `~/.cache/yay` (798 MB) lets `yay` reuse AUR builds.
-- `~/.local/share/keyrings` and browser profiles keep saved logins, but they
-  only unlock with the same login password.
+
+Some real files under `~/.config` are not in the dotfiles repo. Copy the small
+ones:
+
+```bash
+mkdir -p "$BACKUP/config-extras"
+rsync -a --ignore-missing-args \
+  ~/.config/git ~/.config/autostart \
+  ~/.local/share/keyrings \
+  "$BACKUP/config-extras/"
+cp -a ~/.config/systemd/user/hermes-gateway.service \
+      ~/.config/systemd/user/screentime.service \
+      "$BACKUP/config-extras/" 2>/dev/null || true
+```
+
+- `~/.config/git/config` — git identity, aliases, signing setup.
+- `~/.config/autostart/` — fcitx5, the print applet, the Limine snapshot
+  notifier.
+- `~/.local/share/keyrings/` — saved logins. They only unlock with the same
+  login password.
+- `hermes-gateway.service` and `screentime.service` — external user units. The
+  repo's own units come back with the clone; do not restore the whole
+  `~/.config/systemd/user` directory, or its symlinks will collide with Stow.
+- Browser profiles keep saved logins. They are large; copy them only if you
+  want the sessions.
+
+Push code, or copy `~/Projects`, `~/projects`, `~/sanctum`, and `~/backups`
+without `node_modules` and build output.
 
 Not worth copying: `node_modules`, toolchain caches, `/var/cache/pacman/pkg`,
 and the old Omarchy packages.
@@ -628,9 +654,30 @@ What the installer does:
 7. Enables `battery-watch`, `failwatch`, `bt-agent`, and whichever of
    `edge-motion` / `watchcat` have their prerequisites.
 
-If you kept local-only files (wallpapers, the Wallhaven API key, Zen web-app
-CSS), restore them now. `~/.config/quickshell/wallshelf.ini` is gitignored on
-purpose and is not in the clone.
+If you kept local-only files, restore them now:
+
+```bash
+cp -a /mnt/backup/config-extras/git ~/.config/
+cp -a /mnt/backup/config-extras/autostart ~/.config/
+cp -a /mnt/backup/config-extras/keyrings ~/.local/share/
+mkdir -p ~/.config/systemd/user
+cp -a /mnt/backup/config-extras/hermes-gateway.service \
+      /mnt/backup/config-extras/screentime.service \
+      ~/.config/systemd/user/ 2>/dev/null || true
+systemctl --user daemon-reload
+```
+
+Also restore wallpapers, the Wallhaven key, Zen web-app CSS, and the browser
+profiles. `~/.config/quickshell/wallshelf.ini` is gitignored on purpose and is
+not in the clone.
+
+After restoring an external service, enable it:
+
+```bash
+systemctl --user enable --now hermes-gateway.service
+# rebuild the screentime binary first, then:
+systemctl --user enable --now screentime.service
+```
 
 ---
 
@@ -837,5 +884,8 @@ from the backup if you use them; the desktop starts without them:
 | `~/.hermes` | Hermes data and gateway |
 | `~/.config/quickshell/wallshelf.ini` | Wallhaven API key (gitignored) |
 | `~/Wallpapers` | Local wallpaper collection (gitignored) |
+
+`~/projects/screentime` has its own `install.sh`; run it to put the binary
+back in `~/.local/bin` before enabling `screentime.service`.
 
 The repo's `README.md` has the per-app details and keybinds.
